@@ -27,7 +27,7 @@
         </div>
         <div class="small">{{ p.seller.nama }} · <span class="badge bg-light border">{{ p.seller.tipe }}</span>
           {% if seller_rating and seller_rating.avg %}
-          <button class="btn btn-sm btn-warning py-0 px-2 rating-badge" data-bs-toggle="modal" data-bs-target="#ulasanModal" title="Lihat ulasan kepuasan">⭐ {{ seller_rating.avg }} ({{ seller_rating.count }})</button>
+          <button class="btn btn-sm btn-secondary py-0 px-2 rating-badge" data-bs-toggle="modal" data-bs-target="#ulasanModal" title="Lihat ulasan kepuasan">⭐ {{ seller_rating.avg }} ({{ seller_rating.count }})</button>
           {% else %}<span class="small text-muted">☆ belum ada penilaian</span>{% endif %}
           {{ '✅ Terverifikasi' if p.seller.verified }}
           {% if fav_count %}<span class="badge bg-danger-subtle text-danger border">❤️ {{ fav_count }} favorit</span>{% endif %}</div>
@@ -98,8 +98,8 @@
 <!-- Modal ulasan kepuasan penjual -->
 <div class="modal fade" id="ulasanModal" tabindex="-1">
   <div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header bg-agrid text-white fw-bold"><span>⭐ Ulasan Kepuasan — {{ p.seller.nama }}</span>
-      <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+    <div class="modal-header justify-content-between"><span class="card-title">⭐ Ulasan Kepuasan — {{ p.seller.nama }}</span>
+      <button class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button></div>
     <div class="modal-body" id="ulasanBody">Memuat ulasan…</div>
   </div></div>
 </div>
