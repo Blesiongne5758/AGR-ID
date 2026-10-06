@@ -13,9 +13,24 @@
         </div>
       </div>
       <div class="card mt-3"><div class="card-body">
-        <h6><i class="bi bi-person-badge text-success"></i> Profil Penjual</h6>
+        <div class="d-flex justify-content-between align-items-start">
+          <h6 class="mb-0"><i class="bi bi-person-badge text-success"></i> Profil Penjual</h6>
+          {% if user and user.role == 'pembeli' %}
+          {# === Tombol simpan penjual favorit === #}
+          <form method="post" action="{{ url_for('toggle_favorit') }}">
+            <input type="hidden" name="seller_id" value="{{ p.seller_id }}">
+            <input type="hidden" name="next" value="{{ request.url }}">
+            <button class="btn btn-sm {{ 'btn-danger text-white' if fav and fav.seller else 'btn-outline-danger' }}">
+              {{ '❤️ Favorit' if fav and fav.seller else '🤍 Simpan Penjual' }}</button>
+          </form>
+          {% endif %}
+        </div>
         <div class="small">{{ p.seller.nama }} · <span class="badge bg-light border">{{ p.seller.tipe }}</span>
-          {{ '✅ Terverifikasi' if p.seller.verified }}</div>
+          {% if seller_rating and seller_rating.avg %}
+          <button class="btn btn-sm btn-warning py-0 px-2 rating-badge" data-bs-toggle="modal" data-bs-target="#ulasanModal" title="Lihat ulasan kepuasan">⭐ {{ seller_rating.avg }} ({{ seller_rating.count }})</button>
+          {% else %}<span class="small text-muted">☆ belum ada penilaian</span>{% endif %}
+          {{ '✅ Terverifikasi' if p.seller.verified }}
+          {% if fav_count %}<span class="badge bg-danger-subtle text-danger border">❤️ {{ fav_count }} favorit</span>{% endif %}</div>
         <div class="small text-muted mt-1"><i class="bi bi-geo-alt"></i> {{ p.seller.alamat or p.seller.kota }}, {{ p.seller.provinsi }}</div>
         <div class="small text-muted"><i class="bi bi-phone"></i> {{ p.seller.phone or '-' }} · <i class="bi bi-envelope"></i> {{ p.seller.email }}</div>
         {% if p.seller.nib %}<div class="small text-muted">NIB: {{ p.seller.nib }}{% if p.seller.npwp %} · NPWP: {{ p.seller.npwp }}{% endif %}</div>{% endif %}
@@ -29,6 +44,15 @@
         <span class="badge bg-secondary"><i class="bi bi-box"></i> Stok: {{ p.stok|rp }} {{ p.satuan }}</span>
         {% if p.sertifikasi %}<span class="badge bg-success"><i class="bi bi-patch-check"></i> {{ p.sertifikasi }}</span>{% endif %}
         <span class="badge bg-warning text-dark"><i class="bi bi-cash-stack"></i> Booking DP mengikat</span>
+        {% if user and user.role == 'pembeli' %}
+        {# === Tombol simpan produk favorit === #}
+        <form method="post" action="{{ url_for('toggle_favorit') }}" class="d-inline">
+          <input type="hidden" name="product_id" value="{{ p.id }}">
+          <input type="hidden" name="next" value="{{ request.url }}">
+          <button class="btn btn-sm {{ 'btn-danger text-white' if fav and fav.product else 'btn-outline-danger' }}">
+            {{ '❤️ Produk Favorit' if fav and fav.product else '🤍 Simpan Produk' }}</button>
+        </form>
+        {% endif %}
       </div>
       <p>{{ p.deskripsi }}</p>
       <div class="card mb-3"><div class="card-body py-2 small">
@@ -70,4 +94,26 @@
     </div>
   </div>
 </div>
+
+<!-- Modal ulasan kepuasan penjual -->
+<div class="modal fade" id="ulasanModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header bg-agrid text-white fw-bold"><span>⭐ Ulasan Kepuasan — {{ p.seller.nama }}</span>
+      <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body" id="ulasanBody">Memuat ulasan…</div>
+  </div></div>
+</div>
+<script>
+document.getElementById('ulasanModal')?.addEventListener('shown.bs.modal', async () => {
+  const r = await fetch('/api/rating/{{ p.seller_id }}'); const d = await r.json();
+  let h = `<div class="mb-3 text-center bg-light rounded py-2"><h3 class="mb-0 text-warning">${d.avg ?? '—'}</h3><div class="stars-inline">${d.star || ''}</div><small class="text-muted">${d.count || 0} penilaian kepuasan dari pembeli</small></div>`;
+  if (!d.ulasan.length) h += '<p class="text-muted mb-0">Belum ada ulasan.</p>';
+  for (const u of d.ulasan) {
+    h += `<div class="border-bottom py-2"><b class="stars-inline">${u.bintang}</b> <small class="text-muted">${u.dari} · ${u.produk} · ${u.tgl}</small><div class="small">${u.komentar || '—'}</div>
+      <div>${Object.entries(u.aspek).map(([k,v])=>`<span class="badge bg-light text-dark border">${k}: ${v}/5</span>`).join(' ')}</div></div>`;
+  }
+  document.getElementById('ulasanBody').innerHTML = h;
+});
+</script>
+
 {% endblock %}

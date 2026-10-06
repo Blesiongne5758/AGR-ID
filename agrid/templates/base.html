@@ -34,6 +34,11 @@
   .req-star{color:#c62828}
   .footer{background:#103317;color:#cfe8cf}
   .table-dashboard thead{background:#e8f2e8}
+  /* Penilaian kepuasan */
+  .btn-star{background:#fff;border:1px solid #ddd;color:#ffc107;font-size:1.4rem;line-height:1;padding:.35rem .6rem;border-radius:10px}
+  .btn-check:checked+.btn-star{background:#fff8e1;border-color:#ffb300;box-shadow:0 0 0 .15rem rgba(255,179,0,.35)}
+  .stars-inline{color:#f9a825;letter-spacing:1px}
+  .rating-badge{cursor:pointer}
 </style>
 </head>
 <body>
@@ -87,30 +92,46 @@
 
 {% block content %}{% endblock %}
 
+{% set f_tentang = footer.get('footer_tentang') or 'Marketplace B2B/B2C pertanian, perkebunan, perikanan & peternakan.' %}
+{% set f_kontak = footer.get('footer_kontak') or 'Hubungi Kami' %}
+{% set f_alamat = footer.get('footer_alamat') or '' %}
+{% set f_email = footer.get('footer_email') or '' %}
+{% set f_telp = footer.get('footer_telepon') or '' %}
+{% set f_jam = footer.get('footer_jam_operasional') or '' %}
+{% set f_sosial = footer.get('footer_sosial') or '' %}
+{% set f_copy = footer.get('footer_copyright') or '&copy; 2026 AGR.ID' %}
+{% set f_tautan = footer.get('footer_tautan') or '' %}
 <footer class="footer mt-5 py-4">
   <div class="container row gx-3">
     <div class="col-md-5">
-      <h5 class="text-white">🌾 AGR<span style="color:#ffca28">.ID</span></h5>
-      <p class="small mb-1">Marketplace B2B/B2C pertanian, perkebunan, perikanan & peternakan.
-      Mempertemukan penjual & pembeli langsung dengan penawaran harga, booking DP, payment gateway, ekspedisi, serta verifikasi & ketelusuran berbasis eviden foto + GPS.</p>
+      <h5 class="text-white">&#127806; AGR<span style="color:#ffca28">.ID</span></h5>
+      <p class="small mb-1">{{ f_tentang }}</p>
     </div>
     <div class="col-md-3 small">
       <b class="text-white">Kategori</b>
       <ul class="list-unstyled mb-0">
-        <li>Pertanian · Sayuran & Buah-buahan</li><li>Perkebunan</li>
-        <li>Perikanan · Air Tawar & Air Laut</li><li>Peternakan <span class="badge badge-nonhalal halal-chip">Babi: Non Halal</span></li>
+        <li>Pertanian &middot; Sayuran &amp; Buah-buahan</li><li>Perkebunan</li>
+        <li>Perikanan &middot; Air Tawar &amp; Air Laut</li><li>Peternakan <span class="badge badge-nonhalal halal-chip">Babi: Non Halal</span></li>
       </ul>
     </div>
     <div class="col-md-4 small">
-      <b class="text-white">Akun Demo</b>
+      <b class="text-white">{{ f_kontak }}</b>
       <ul class="list-unstyled mb-0">
-        <li>Penjual: penjual@agr.id / penjual123</li>
-        <li>Pembeli: pembeli@agr.id / pembeli123 · Corporate: corporate@agr.id / corporate123</li>
-        <li>Admin: admin@agr.id / admin123</li>
+        {% if f_alamat %}<li>&#128205; {{ f_alamat }}</li>{% endif %}
+        {% if f_email %}<li>&#9993;&#65039; <a href="mailto:{{ f_email }}" class="text-white text-decoration-none">{{ f_email }}</a></li>{% endif %}
+        {% if f_telp %}<li>&#128222; {{ f_telp }}</li>{% endif %}
+        {% if f_jam %}<li>&#128330; {{ f_jam }}</li>{% endif %}
+        {% if f_sosial %}<li>&#127760; {{ f_sosial }}</li>{% endif %}
+        {% if f_tautan %}<li class="mt-1">&#128279; Tautan cepat:
+          {% for t in f_tautan.split('·') %}
+            {% set nama, _, urlt = t.partition(':') %}
+            <a href="{{ urlt.strip() if urlt.strip().startswith('/') else ('/' ~ urlt.strip()) }}" class="text-white text-decoration-none">{{ nama.strip() }}</a>{{ '·' if not loop.last }}
+          {% endfor %}
+        </li>{% endif %}
       </ul>
     </div>
   </div>
-  <div class="container mt-3 pt-2 border-top border-secondary small">© 2026 AGR.ID — Dibuat untuk petani, nelayan & peternak Indonesia 🇮🇩</div>
+  <div class="container mt-3 pt-2 border-top border-secondary small">{{ f_copy|safe }}</div>
 </footer>
 
 <!-- ================= FLOATING WINDOW: SYARAT & KETENTUAN ================= -->

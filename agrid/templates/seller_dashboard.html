@@ -23,7 +23,10 @@
   <ul class="nav nav-tabs mb-3" role="tablist">
     <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tProd">📦 Produk Saya ({{ products|length }})</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tOffer">💬 Penawaran Pembeli ({{ offers|length }})</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tPel">💵 Approval Pelunasan {% if pending_pelunasan %}<span class="badge bg-danger">{{ pending_pelunasan|length }}</span>{% endif %}</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tLap">🧾 Laporan Transaksi Penjualan</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tRat">⭐ Penilaian Kepuasan{% if rat_pending %} <span class="badge bg-danger">{{ rat_pending|length }}</span>{% endif %}</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tSet">⚙️ Pengaturan Pembayaran & Biaya</button></li>
   </ul>
   <div class="tab-content">
     <!-- PRODUK -->
@@ -81,11 +84,41 @@
       </table></div>
     </div>
 
+    <!-- APPROVAL PELUNASAN -->
+    <div class="tab-pane fade" id="tPel">
+      {% for pl in pending_pelunasan %}
+      <div class="card shadow-sm mb-3 border-warning">
+        <div class="card-body">
+          <div class="d-flex justify-content-between flex-wrap gap-2">
+            <div>
+              <b>{{ pl.transaksi.product_name }}</b> — pembeli <b>{{ pl.buyer.nama }}</b><br>
+              <small class="text-muted">Diajukan {{ pl.created_at|dt }} · Metode: <span class="badge bg-info text-dark">{{ pl.metode }}</span> · Rekening/tujuan: {{ pl.rekening_tujuan or '-' }}</small>
+            </div>
+            <div class="text-end"><div class="small text-muted">Jumlah Pelunasan</div><h4 class="mb-0 text-success">Rp{{ pl.jumlah|rp }}</h4></div>
+          </div>
+          {% if pl.catatan %}<p class="small mt-2 mb-0">📝 {{ pl.catatan }}</p>{% endif %}
+          {% if pl.bukti %}
+            <div class="mt-2 p-2 bg-light rounded small">📎 Bukti transfer:
+              {% if pl.bukti.startswith('data:image') %}<a href="{{ pl.bukti }}" target="_blank"><img src="{{ pl.bukti }}" style="max-height:140px" class="rounded border"></a>
+              {% else %}<code>{{ pl.bukti[:120] }}</code>{% endif %}</div>
+          {% else %}<div class="small text-danger mt-2">⚠ Tidak ada bukti terlampir.</div>{% endif %}
+          <form method="post" action="{{ url_for('review_pelunasan', pid=pl.id) }}" class="mt-3 d-flex gap-2 flex-wrap">
+            <input name="catatan" class="form-control form-control-sm" style="max-width:320px" placeholder="Catatan approval (opsional)">
+            <button name="aksi" value="setuju" class="btn btn-sm btn-agrid fw-bold">✅ Setujui Pelunasan → Lunas</button>
+            <button name="aksi" value="tolak" class="btn btn-sm btn-outline-danger">✖ Tolak Bukti</button>
+          </form>
+        </div>
+      </div>
+      {% else %}
+      <div class="alert alert-secondary">Tidak ada pengajuan pelunasan yang menunggu approval. Pengajuan dari pembeli akan muncul di sini beserta bukti transfernya.</div>
+      {% endfor %}
+    </div>
+
     <!-- LAPORAN PENJUALAN -->
     <div class="tab-pane fade" id="tLap">
       <div class="table-responsive bg-white rounded shadow-sm">
       <table class="table table-dashboard mb-0">
-        <thead><tr><th>Tgl</th><th>Produk</th><th>Pembeli</th><th>Nilai</th><th>DP Masuk</th><th>Biaya Penanganan</th><th>Metode Bayar / Ref</th><th>Status</th><th>Eviden</th></tr></thead>
+        <thead><tr><th>Tgl</th><th>Produk</th><th>Pembeli</th><th>Nilai</th><th>DP Masuk</th><th>Pelunasan</th><th>Biaya Penanganan</th><th>Metode Bayar / Ref</th><th>Status</th><th>Eviden</th><th>Penilaian ⭐</th></tr></thead>
         <tbody>
         {% for t in penjualan %}
           <tr>
@@ -94,17 +127,105 @@
             <td>{{ t.buyer.nama }} <small class="text-muted">({{ t.buyer.tipe }})</small></td>
             <td class="fw-bold">Rp{{ t.nilai|rp }}</td>
             <td>Rp{{ t.dp_dibayar|rp }}</td>
+            <td>{% if t.pelunasan %}Rp{{ t.pelunasan|rp }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
             <td>Rp{{ t.biaya_penanganan|rp }}</td>
             <td class="small">{{ t.metode_bayar }}<br><code>{{ t.ref_payment }}</code></td>
-            <td><span class="badge {{ 'bg-success' if t.status=='completed' else ('bg-danger' if t.status=='cancelled' else 'bg-info text-dark') }}">{{ t.status }}</span></td>
+            <td><span class="badge {{ 'bg-success' if t.status=='completed' else ('bg-danger' if t.status in ('cancelled','refunded') else ('bg-warning text-dark' if t.status=='menunggu_approval' else 'bg-info text-dark')) }}">{{ t.status }}</span></td>
             <td><a class="btn btn-sm btn-outline-success" href="{{ url_for('add_eviden', tid=t.id) }}">📸 Kelola Eviden</a></td>
+            <td>
+              {% set ns = namespace(myrat=None) %}{% for rr in (rat_out or []) %}{% if rr.transaksi_id==t.id %}{% set ns.myrat = rr %}{% endif %}{% endfor %}
+              {% if t.status=='completed' %}
+                {% if ns.myrat %}<span class="small text-success fw-bold">⭐ {{ ns.myrat.score }}/5 — dinilai oleh Anda</span>
+                {% else %}<a class="btn btn-sm btn-warning fw-bold" href="{{ url_for('rate_transaction', tid=t.id) }}">⭐ Nilai Pembeli</a>
+                {% endif %}
+              {% endif %}
+            </td>
           </tr>
-        {% else %}<tr><td colspan="9" class="text-center text-muted py-4">Belum ada transaksi penjualan.</td></tr>{% endfor %}
+        {% else %}<tr><td colspan="10" class="text-center text-muted py-4">Belum ada transaksi penjualan.</td></tr>{% endfor %}
         </tbody>
       </table></div>
       {% if penjualan %}
-      <div class="alert alert-success mt-2">Total nilai penjualan tercatat: <b>Rp{{ penjualan|sum(attribute='nilai')|rp }}</b> · DP diterima: <b>Rp{{ penjualan|sum(attribute='dp_dibayar')|rp }}</b></div>
+      <div class="alert alert-success mt-2">Total nilai penjualan tercatat: <b>Rp{{ penjualan|sum(attribute='nilai')|rp }}</b> · DP diterima: <b>Rp{{ penjualan|sum(attribute='dp_dibayar')|rp }}</b> · Pelunasan disetujui: <b>Rp{{ penjualan|sum(attribute='pelunasan')|rp }}</b></div>
       {% endif %}
+    </div>
+
+    <!-- PENILAIAN KEPUASAN (DUA ARAH) -->
+    <div class="tab-pane fade" id="tRat">
+      <div class="row g-3 mb-3">
+        <div class="col-md-4"><div class="card stat-card"><div class="card-body py-3 text-center">
+          <div class="small text-muted">Skor Kepuasan dari Pembeli</div>
+          <h3 class="mb-0 text-warning">{% if rstats.avg %}{{ rstats.avg }}{% else %}—{% endif %}</h3>
+          <div class="stars-inline">{{ rstats.star }}</div>
+          <div class="small text-muted">{{ rstats.count }} penilaian diterima</div>
+        </div></div></div>
+        <div class="col-md-8"><div class="card shadow-sm h-100"><div class="card-body">
+          <h6 class="fw-bold">📝 Transaksi Selesai yang Belum Anda Nilai ( utk Pembeli )</h6>
+          {% for t in rat_pending %}
+            <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+              <div><b>{{ t.product_name }}</b> <small class="text-muted">· Rp{{ t.nilai|rp }} · Pembeli: {{ t.buyer.nama }} ({{ t.buyer.tipe }}) · selesai {{ t.completed_at|dt }}</small></div>
+              <a class="btn btn-sm btn-warning fw-bold" href="{{ url_for('rate_transaction', tid=t.id) }}">⭐ Beri Penilaian</a>
+            </div>
+          {% else %}<div class="alert alert-success mb-0 mt-1">Semua transaksi selesai sudah Anda nilai. Terima kasih! 🌾</div>{% endfor %}
+        </div></div></div>
+      </div>
+      <div class="table-responsive bg-white rounded shadow-sm">
+        <table class="table table-dashboard mb-0">
+          <thead><tr><th>Tanggal</th><th>Transaksi / Produk</th><th>Arah</th><th>Skor</th><th>Aspek</th><th>Komentar</th></tr></thead>
+          <tbody>
+          {% for r in rat_in %}
+            <tr><td class="small">{{ r.created_at|dt }}</td>
+              <td>#{{ r.transaksi_id }} · {{ r.transaksi.product_name }} <small class="text-muted">(penilai: {{ r.from_user.nama }})</small></td>
+              <td><span class="badge bg-info text-dark">Pembeli → Anda</span></td>
+              <td class="stars-inline fw-bold">{{ '★'*r.score + '☆'*(5-r.score) }} ({{r.score}}/5)</td>
+              <td class="small">{% for kv in (r.aspek or '').strip('{}').split(',') %}<span class="badge bg-light text-dark border me-1">{{ kv.replace(':',' : ') }}</span>{% endfor %}{% if not r.aspek %}-{% endif %}</td>
+              <td class="small">{{ r.komentar or '—' }}</td></tr>
+          {% else %}<tr><td colspan="6" class="text-center text-muted py-4">Belum ada penilaian yang Anda terima.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PENGATURAN PEMBAYARAN & BIAYA -->
+    <div class="tab-pane fade" id="tSet">
+      <div class="row g-3">
+        <div class="col-lg-6">
+          <div class="card shadow-sm h-100"><div class="card-body">
+            <h6 class="fw-bold"><i class="bi bi-credit-card text-success"></i> Jenis Pembayaran Pelunasan DP</h6>
+            <p class="small text-muted mb-2">Pilih metode yang Anda terima untuk pembayaran DP/pelunasan oleh pembeli. Info rekening & QRIS ditampilkan otomatis saat pembeli booking & mengajukan pelunasan.</p>
+            <form method="post" action="{{ url_for('save_seller_payment') }}">
+              <div class="form-check"><input class="form-check-input" type="checkbox" name="metode_dp" value="Tunai" id="mTunai" {{ 'checked' if 'Tunai' in paycfg.metode_dp }}>
+                <label class="form-check-label" for="mTunai">💵 Tunai (COD / bayar langsung)</label></div>
+              <div class="form-check"><input class="form-check-input" type="checkbox" name="metode_dp" value="Transfer Bank" id="mBank" {{ 'checked' if 'Transfer Bank' in paycfg.metode_dp }}>
+                <label class="form-check-label" for="mBank">🏦 Transfer Bank</label></div>
+              <div class="form-check"><input class="form-check-input" type="checkbox" name="metode_dp" value="QRIS" id="mQris" {{ 'checked' if 'QRIS' in paycfg.metode_dp }}>
+                <label class="form-check-label" for="mQris">📱 Scan QRIS</label></div>
+              <div class="mb-2 mt-3"><label class="form-label small fw-bold">Rekening tujuan (bank, no. rek, a.n. nama)</label>
+                <input name="rekening" class="form-control form-control-sm" value="{{ paycfg.rekening }}" placeholder="BCA 1234567890 a.n. Budi Santoso"></div>
+              <div class="mb-2"><label class="form-label small fw-bold">Link/kode QRIS</label>
+                <input name="qris" class="form-control form-control-sm" value="{{ paycfg.get('qris','') }}" placeholder="https://qris.id/... atau ID merchant"></div>
+              <div class="mb-2"><label class="form-label small fw-bold">Alamat/tempat pembayaran tunai</label>
+                <input name="tujuan_tunai" class="form-control form-control-sm" value="{{ paycfg.tujuan_tunai }}"></div>
+              <button class="btn btn-agrid btn-sm fw-bold mt-2">💾 Simpan Pengaturan Pembayaran</button>
+            </form>
+          </div></div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card shadow-sm h-100"><div class="card-body">
+            <h6 class="fw-bold"><i class="bi bi-sliders text-success"></i> Ringkasan Biaya & DP Platform</h6>
+            <p class="small text-muted">Nilai berikut diatur oleh admin marketplace dan berlaku pada booking Anda:</p>
+            <table class="table table-sm mb-0">
+              <tr><td>Persen DP Booking</td><td class="text-end fw-bold">{{ biaya.dp_persen }}%</td></tr>
+              <tr><td>Biaya Penanganan Platform</td><td class="text-end fw-bold">{{ biaya.biaya_penanganan_persen }}%</td></tr>
+              <tr><td>Biaya Tambahan Flat / Transaksi</td><td class="text-end fw-bold">Rp{{ biaya.biaya_tambahan_flat|float|round(0)|int|rp }}</td></tr>
+              <tr><td>Biaya Verifikasi Eviden</td><td class="text-end fw-bold">Rp{{ biaya.biaya_verifikasi|float|round(0)|int|rp }}</td></tr>
+              <tr><td>Biaya Iklan Produk</td><td class="text-end fw-bold">Rp{{ biaya.biaya_iklan_produk|float|round(0)|int|rp }}</td></tr>
+              <tr><td>Asuransi Pengiriman</td><td class="text-end fw-bold">{{ biaya.ongkir_persen_asuransi }}%</td></tr>
+              <tr><td>Minimum Nilai Transaksi</td><td class="text-end fw-bold">Rp{{ biaya.min_transaksi|float|round(0)|int|rp }}</td></tr>
+            </table>
+            <div class="small text-muted mt-2">Untuk mengubah biaya, hubungi admin / gunakan dashboard admin.</div>
+          </div></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

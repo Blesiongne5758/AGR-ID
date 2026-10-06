@@ -20,41 +20,258 @@
       <h3>Rp{{ stats.revenue|rp }}</h3></div></div></div>
   </div>
 
-  <div class="row g-4">
-    <div class="col-lg-7">
-      <div class="card shadow-sm"><div class="card-header fw-bold bg-white">🧾 Laporan Semua Transaksi (Keuangan)</div>
-        <div class="table-responsive"><table class="table table-dashboard table-sm mb-0">
-          <thead><tr><th>Tgl</th><th>Produk</th><th>Penjual→Pembeli</th><th>Nilai</th><th>DP</th><th>Fee</th><th>Ongkir</th><th>Metode/Ref</th><th>Status</th></tr></thead>
-          <tbody>{% for t in tx %}<tr>
-            <td class="small">{{ t.created_at|dt }}</td><td>{{ t.product_name }}</td>
-            <td class="small">{{ t.seller.nama }} → {{ t.buyer.nama }}</td>
-            <td class="fw-bold">Rp{{ t.nilai|rp }}</td><td>Rp{{ t.dp_dibayar|rp }}</td>
-            <td class="text-success">Rp{{ t.biaya_penanganan|rp }}</td><td>Rp{{ t.ongkir|rp }}</td>
-            <td class="small">{{ t.metode_bayar }}<br><code style="font-size:.65rem">{{ t.ref_payment }}</code></td>
-            <td><span class="badge {{ 'bg-success' if t.status=='completed' else 'bg-info text-dark' }}">{{ t.status }}</span></td>
-          </tr>{% else %}<tr><td colspan="9" class="text-center text-muted py-3">Belum ada transaksi.</td></tr>{% endfor %}</tbody>
+  <!-- ================= TAB: LAPORAN & PENGATURAN TAMPILAN ================= -->
+  <ul class="nav nav-tabs mb-3">
+    {% if settings.get('laporan_tampil_keuangan','1')=='1' %}
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tKeu">💹 Laporan Keuangan</button></li>
+    {% endif %}
+    {% if settings.get('laporan_tampil_penjualan','1')=='1' %}
+    <li class="nav-item"><button class="nav-link {{ 'active' if settings.get('laporan_tampil_keuangan','1')!='1' }}" data-bs-toggle="tab" data-bs-target="#tJual">🛒 Laporan Penjualan</button></li>
+    {% endif %}
+    {% if settings.get('laporan_tampil_pembelian','1')=='1' %}
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tBel">🧺 Laporan Pembelian</button></li>
+    {% endif %}
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tRatAdm">⭐ Rekap Penilaian Kepuasan ({{ rating_rekap.total }})</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tSetLap">⚙️ Pengaturan Tampilan Laporan</button></li>
+  </ul>
+  <div class="tab-content">
+
+  <!-- ===== Tab Laporan Keuangan ===== -->
+  {% if settings.get('laporan_tampil_keuangan','1')=='1' %}
+  <div class="tab-pane fade {{ 'show active' if settings.get('laporan_tampil_keuangan','1')=='1' }}" id="tKeu">
+    <div class="row g-3 mb-3">
+      {% for lbl, val in [('Pendapatan Bruto', keuangan.bruto), ('Transaksi Bersih (paid→completed)', keuangan.bersih),
+                          ('DP Masuk (pengikat)', keuangan.dp_masuk), ('Pelunasan Masuk', keuangan.pelunasan_masuk),
+                          ('Ongkir Beredar', keuangan.ongkir), ('Fee Platform', keuangan.fee)] %}
+      <div class="col-md-2"><div class="card stat-card"><div class="card-body py-2 text-center">
+        <div class="small text-muted">{{ lbl }}</div><h6 class="mb-0">Rp{{ val|rp }}</h6></div></div></div>
+      {% endfor %}
+    </div>
+    <div class="row g-3 mb-3">
+      {% if settings.get('laporan_rekap_metode','1')=='1' %}
+      <div class="col-lg-6"><div class="card shadow-sm"><div class="card-header fw-bold bg-white small">📊 Rekap per Metode Pembayaran</div>
+        <div class="table-responsive"><table class="table table-sm mb-0">
+          <thead><tr><th>Metode</th><th>#</th><th>Nilai</th><th>DP</th><th>Pelunasan</th><th>Fee</th></tr></thead>
+          <tbody>{% for m, d in by_method.items() %}<tr><td>{{ m }}</td><td>{{ d.n }}</td>
+            <td>Rp{{ d.nilai|rp }}</td><td>Rp{{ d.dp|rp }}</td><td>Rp{{ d.pelunasan|rp }}</td>
+            <td class="text-success">Rp{{ d.fee|rp }}</td></tr>
+          {% else %}<tr><td colspan="6" class="text-muted small">Belum ada data.</td></tr>{% endfor %}</tbody>
+        </table></div></div></div>
+      {% endif %}
+      <div class="col-lg-6"><div class="card shadow-sm"><div class="card-header fw-bold bg-white small">🧮 Rekap per Status Transaksi</div>
+        <div class="table-responsive"><table class="table table-sm mb-0">
+          <thead><tr><th>Status</th><th>#</th><th>Nilai</th></tr></thead>
+          <tbody>{% for s, r in by_status.items() %}<tr><td><span class="badge bg-secondary">{{ s }}</span></td>
+            <td>{{ r.n }}</td><td>Rp{{ r.nilai|rp }}</td></tr>
+          {% else %}<tr><td colspan="3" class="text-muted small">Belum ada data.</td></tr>{% endfor %}</tbody>
         </table></div>
+        <div class="card-footer bg-white small">Status berjalan/pending: <b>Rp{{ keuangan.pending|rp }}</b> ·
+          Biaya flat tertagih: <b>Rp{{ keuangan.flat|rp }}</b> ·
+          <a href="{{ url_for('export_laporan', jenis='keuangan') }}">⬇ Export CSV</a></div>
+      </div></div>
+    </div>
+    {% if settings.get('laporan_detail_transaksi','1')=='1' %}
+    <div class="card shadow-sm mb-3"><div class="card-header fw-bold bg-white">🧾 Detail Semua Transaksi (Keuangan)
+        <a class="btn btn-sm btn-outline-success float-end" href="{{ url_for('export_laporan', jenis='keuangan') }}">⬇ CSV</a></div>
+      <div class="table-responsive"><table class="table table-dashboard table-sm mb-0">
+        <thead><tr><th>Tgl</th><th>Produk</th><th>Penjual→Pembeli</th><th>Nilai</th><th>DP</th><th>Fee</th><th>Ongkir</th><th>Metode/Ref</th><th>Status</th></tr></thead>
+        <tbody>{% for t in tx %}<tr>
+          <td class="small">{{ t.created_at|dt }}</td><td>{{ t.product_name }}</td>
+          <td class="small">{{ t.seller.nama }} → {{ t.buyer.nama }}</td>
+          <td class="fw-bold">Rp{{ t.nilai|rp }}</td><td>Rp{{ t.dp_dibayar|rp }}</td>
+          <td class="text-success">Rp{{ t.biaya_penanganan|rp }}</td><td>Rp{{ t.ongkir|rp }}</td>
+          <td class="small">{{ t.metode_bayar }}<br><code style="font-size:.65rem">{{ t.ref_payment }}</code></td>
+          <td><span class="badge {{ 'bg-success' if t.status=='completed' else 'bg-info text-dark' }}">{{ t.status }}</span></td>
+        </tr>{% else %}<tr><td colspan="9" class="text-center text-muted py-3">Belum ada transaksi.</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- ===== Tab Laporan Penjualan (sisi penjual) ===== -->
+  {% if settings.get('laporan_tampil_penjualan','1')=='1' %}
+  <div class="tab-pane fade" id="tJual">
+    <div class="card shadow-sm"><div class="card-header fw-bold bg-white">🛒 Laporan Transaksi Penjualan — Total Rp{{ total_penjualan|rp }}
+        <a class="btn btn-sm btn-outline-success float-end" href="{{ url_for('export_laporan', jenis='penjualan') }}">⬇ CSV</a></div>
+      <div class="table-responsive"><table class="table table-dashboard table-sm mb-0">
+        <thead><tr><th>ID</th><th>Tgl</th><th>Produk</th><th>Qty</th><th>Penjual (Tipe)</th><th>Pembeli (Tipe)</th><th>Nilai</th><th>DP</th><th>Pelunasan</th><th>Fee</th><th>Ongkir</th><th>Status</th></tr></thead>
+        <tbody>{% for t in penjualan_rows %}<tr>
+          <td class="small">#{{ t.id }}</td><td class="small">{{ t.created_at|dt }}</td>
+          <td>{{ t.product_name }}</td><td>{{ t.qty|rp }}</td>
+          <td class="small">{{ t.seller.nama }} <span class="badge bg-light text-dark border">{{ t.seller.tipe }}</span></td>
+          <td class="small">{{ t.buyer.nama }} <span class="badge bg-light text-dark border">{{ t.buyer.tipe }}</span></td>
+          <td class="fw-bold">Rp{{ t.nilai|rp }}</td><td>Rp{{ t.dp_dibayar|rp }}</td>
+          <td>{% if t.pelunasan %}Rp{{ t.pelunasan|rp }}{% else %}—{% endif %}</td>
+          <td class="text-success">Rp{{ t.biaya_penanganan|rp }}</td><td>Rp{{ t.ongkir|rp }}</td>
+          <td><span class="badge {{ 'bg-success' if t.status in ('completed','paid') else 'bg-info text-dark' }}">{{ t.status }}</span></td>
+        </tr>{% else %}<tr><td colspan="12" class="text-center text-muted py-3">Belum ada transaksi penjualan.</td></tr>{% endfor %}</tbody>
+      </table></div></div>
+  </div>
+  {% endif %}
+
+  <!-- ===== Tab Laporan Pembelian (sisi pembeli) ===== -->
+  {% if settings.get('laporan_tampil_pembelian','1')=='1' %}
+  <div class="tab-pane fade" id="tBel">
+    <div class="card shadow-sm"><div class="card-header fw-bold bg-white">🧺 Laporan Transaksi Pembelian — Total Rp{{ total_pembelian|rp }}
+        <a class="btn btn-sm btn-outline-success float-end" href="{{ url_for('export_laporan', jenis='pembelian') }}">⬇ CSV</a></div>
+      <div class="table-responsive"><table class="table table-dashboard table-sm mb-0">
+        <thead><tr><th>ID</th><th>Tgl</th><th>Produk</th><th>Qty</th><th>Pembeli (Tipe)</th><th>Penjual</th><th>Nilai</th><th>DP</th><th>Pelunasan</th><th>Metode/Ref</th><th>Status</th></tr></thead>
+        <tbody>{% for t in pembelian_rows %}<tr>
+          <td class="small">#{{ t.id }}</td><td class="small">{{ t.created_at|dt }}</td>
+          <td>{{ t.product_name }}</td><td>{{ t.qty|rp }}</td>
+          <td class="small">{{ t.buyer.nama }} <span class="badge bg-light text-dark border">{{ t.buyer.tipe }}</span></td>
+          <td class="small">{{ t.seller.nama }}</td>
+          <td class="fw-bold">Rp{{ t.nilai|rp }}</td><td>Rp{{ t.dp_dibayar|rp }}</td>
+          <td>{% if t.pelunasan %}Rp{{ t.pelunasan|rp }}{% else %}—{% endif %}</td>
+          <td class="small">{{ t.metode_bayar }}<br><code style="font-size:.65rem">{{ t.ref_payment }}</code></td>
+          <td><span class="badge {{ 'bg-success' if t.status in ('completed','paid') else 'bg-info text-dark' }}">{{ t.status }}</span></td>
+        </tr>{% else %}<tr><td colspan="11" class="text-center text-muted py-3">Belum ada transaksi pembelian.</td></tr>{% endfor %}</tbody>
+      </table></div></div>
+  </div>
+  {% endif %}
+
+  <!-- ===== Tab Pengaturan Tampilan Laporan ===== -->
+
+  <!-- TAB REKAP PENILAIAN KEPUASAN DUA ARAH -->
+  <div class="tab-pane fade" id="tRatAdm">
+    <div class="row g-3 mb-3">
+      <div class="col-md-4"><div class="card stat-card"><div class="card-body py-3 text-center">
+        <div class="small text-muted">Rata-rata Kepuasan PENJUAL (dinilai pembeli)</div>
+        <h3 class="mb-0 text-warning">{% if rating_rekap.avg_penjual %}{{ rating_rekap.avg_penjual }}{% else %}—{% endif %}</h3>
+        <div class="small text-muted">{{ rating_rekap.n_penjual }} penilaian</div></div></div></div>
+      <div class="col-md-4"><div class="card stat-card"><div class="card-body py-3 text-center">
+        <div class="small text-muted">Rata-rata Kepuasan PEMBELI (dinilai penjual)</div>
+        <h3 class="mb-0 text-primary">{% if rating_rekap.avg_pembeli %}{{ rating_rekap.avg_pembeli }}{% else %}—{% endif %}</h3>
+        <div class="small text-muted">{{ rating_rekap.n_pembeli }} penilaian</div></div></div></div>
+      <div class="col-md-4"><div class="card stat-card border-danger"><div class="card-body py-3 text-center">
+        <div class="small text-muted">Perlu Perhatian (skor ≤ 2)</div>
+        <h3 class="mb-0 text-danger">{{ rating_rekap.rendah|length }}</h3>
+        <div class="small text-muted">indikasi masalah layanan</div></div></div></div>
+    </div>
+    <div class="table-responsive bg-white rounded shadow-sm">
+      <table class="table table-dashboard mb-0">
+        <thead><tr><th>Tanggal</th><th>Transaksi</th><th>Dari → Untuk</th><th>Arah</th><th>Skor</th><th>Komentar</th></tr></thead>
+        <tbody>
+        {% for r in rat_rows %}
+          <tr class="{{ 'table-danger' if r.score <= 2 }}">
+            <td class="small">{{ r.created_at|dt }}</td>
+            <td>#{{ r.transaksi_id }} · {{ r.transaksi.product_name }}</td>
+            <td class="small">{{ r.from_user.nama }} → {{ r.to_user.nama }}</td>
+            <td><span class="badge {{ 'bg-info text-dark' if r.arah=='ke_penjual' else 'bg-secondary' }}">{{ r.arah }}</span></td>
+            <td class="stars-inline fw-bold">{{ '★'*r.score + '☆'*(5-r.score) }} ({{r.score}}/5)</td>
+            <td class="small">{{ r.komentar or '—' }}</td>
+          </tr>
+        {% else %}<tr><td colspan="6" class="text-center text-muted py-4">Belum ada penilaian transaksi.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-light border mt-2 small">💡 Score kepuasan dua arah dihitung otomatis dari penilaian penjual & pembeli pada transaksi selesai, dan ditampilkan sebagai badge ⭐ pada profil penjual di marketplace serta kartu produk.</div>
+  </div>
+  <div class="tab-pane fade" id="tSetLap">
+    <div class="card shadow-sm" style="max-width:720px"><div class="card-header fw-bold bg-white">⚙️ Pengaturan Menampilkan Laporan Penjualan & Pembelian</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('save_pengaturan_laporan') }}">
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" name="laporan_tampil_penjualan" id="lpJ" {{ 'checked' if settings.get('laporan_tampil_penjualan','1')=='1' }}>
+            <label class="form-check-label" for="lpJ">Tampilkan <b>Laporan Penjualan</b> di dashboard admin</label></div>
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" name="laporan_tampil_pembelian" id="lpB" {{ 'checked' if settings.get('laporan_tampil_pembelian','1')=='1' }}>
+            <label class="form-check-label" for="lpB">Tampilkan <b>Laporan Pembelian</b> di dashboard admin</label></div>
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" name="laporan_tampil_keuangan" id="lpK" {{ 'checked' if settings.get('laporan_tampil_keuangan','1')=='1' }}>
+            <label class="form-check-label" for="lpK">Tampilkan <b>Rekap Laporan Keuangan</b></label></div>
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" name="laporan_detail_transaksi" id="lpD" {{ 'checked' if settings.get('laporan_detail_transaksi','1')=='1' }}>
+            <label class="form-check-label" for="lpD">Tampilkan <b>tabel detail transaksi</b> (per baris)</label></div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" name="laporan_rekap_metode" id="lpM" {{ 'checked' if settings.get('laporan_rekap_metode','1')=='1' }}>
+            <label class="form-check-label" for="lpM">Tampilkan <b>rekap per metode pembayaran</b></label></div>
+          <div class="row g-2 align-items-end">
+            <div class="col-6"><label class="small fw-bold">Jumlah baris laporan per tabel</label>
+              <input class="form-control" type="number" min="5" max="500" step="5" name="laporan_limit" value="{{ settings.get('laporan_limit','50') }}"></div>
+            <div class="col-6"><button class="btn btn-agrid w-100 fw-bold">💾 Simpan Pengaturan Laporan</button></div>
+          </div>
+        </form>
+        <hr class="my-3">
+        <div class="small text-muted">Catatan: export CSV mengikuti pengaturan ini — laporan yang dinonaktifkan tidak dapat diunduh (<code>/admin/laporan/export?jenis=penjualan|pembelian|keuangan</code>). Total favorit tersimpan pembeli: <b>{{ stats.favorites }}</b>.</div>
       </div>
     </div>
+  </div>
+  </div><!-- /tab-content -->
 
-    <div class="col-lg-5">
-      <!-- Pengaturan biaya tambahan & DP -->
-      <div class="card shadow-sm mb-3"><div class="card-header fw-bold bg-white">⚙️ Pengaturan Biaya Tambahan</div>
+  <div class="row g-4 mt-1">
+    <div class="col-lg-6">
+      <!-- Pengaturan ubah DP, penambahan & pengaturan biaya-biaya -->
+      <div class="card shadow-sm mb-3"><div class="card-header fw-bold bg-white">⚙️ Ubah DP, Penambahan & Pengaturan Biaya-Biaya</div>
         <div class="card-body">
-          <form method="post" action="{{ url_for('save_pengaturan') }}" class="row g-2">
+          <form method="post" action="{{ url_for('save_pengaturan') }}" class="row g-2" id="formBiaya">
             <div class="col-6"><label class="small fw-bold">Persen DP Booking (%)</label>
               <input class="form-control" type="number" step="1" min="0" max="100" name="dp_persen" value="{{ settings.get('dp_persen','20') }}"></div>
-            <div class="col-6"><label class="small fw-bold">Biaya Penanganan (%)</label>
+            <div class="col-6"><label class="small fw-bold">Biaya Penanganan Platform (%)</label>
               <input class="form-control" type="number" step="0.5" min="0" name="biaya_penanganan_persen" value="{{ settings.get('biaya_penanganan_persen','2') }}"></div>
-            <div class="col-6"><label class="small fw-bold">Biaya Tambahan Flat (Rp)</label>
+            <div class="col-6"><label class="small fw-bold">Biaya Tambahan Flat / Transaksi (Rp)</label>
               <input class="form-control" type="number" name="biaya_tambahan_flat" value="{{ settings.get('biaya_tambahan_flat','0') }}"></div>
             <div class="col-6"><label class="small fw-bold">Biaya Verifikasi Eviden (Rp)</label>
               <input class="form-control" type="number" name="biaya_verifikasi" value="{{ settings.get('biaya_verifikasi','5000') }}"></div>
-            <div class="col-12"><button class="btn btn-agrid w-100 fw-bold">Simpan Pengaturan</button></div>
+            <div class="col-6"><label class="small fw-bold">Biaya Iklan/Promosi Produk (Rp)</label>
+              <input class="form-control" type="number" name="biaya_iklan_produk" value="{{ settings.get('biaya_iklan_produk','0') }}"></div>
+            <div class="col-6"><label class="small fw-bold">Asuransi Pengiriman (%)</label>
+              <input class="form-control" type="number" step="0.1" name="ongkir_persen_asuransi" value="{{ settings.get('ongkir_persen_asuransi','1') }}"></div>
+            <div class="col-6"><label class="small fw-bold">Minimum Nilai Transaksi (Rp)</label>
+              <input class="form-control" type="number" name="min_transaksi" value="{{ settings.get('min_transaksi','50000') }}"></div>
+
+            <div class="col-12 mt-3"><hr class="my-1"><b class="small">➕ Penambahan Biaya Custom</b></div>
+            {% set customs = [] %}
+            {% for k, v in settings.items() if k.startswith('biaya_custom_') %}{% if customs.append((k, v)) %}{% endif %}{% endfor %}
+            <input type="hidden" name="custom_count" id="customCount" value="{{ customs|length }}">
+            <div id="customWrap">
+            {% for k, v in customs %}
+            {% set i = k.split('_')[-1] %}
+            <div class="row g-2 align-items-end mb-1 customRow">
+              <input type="hidden" name="key_hapus_{{ i }}" value="{{ k }}">
+              <div class="col-5"><label class="small text-muted">Nama Biaya</label>
+                <input class="form-control form-control-sm" name="label_baru_{{ i }}" value="{{ labels.get(k, 'Biaya Custom ' + i) }}"></div>
+              <div class="col-4"><label class="small text-muted">Nilai (Rp/%)</label>
+                <input class="form-control form-control-sm" name="value_baru_{{ i }}" value="{{ v }}"></div>
+              <div class="col-3"><div class="form-check"><input class="form-check-input" type="checkbox" name="hapus_{{ i }}" id="h{{ i }}"><label class="form-check-label small text-danger" for="h{{ i }}">Hapus</label></div></div>
+            </div>
+            {% endfor %}
+            </div>
+            <div class="col-12"><button type="button" class="btn btn-sm btn-outline-success" onclick="tambahBiaya()">➕ Tambah Biaya Baru</button></div>
+            <div class="col-12"><button class="btn btn-agrid w-100 fw-bold mt-2">💾 Simpan Semua Pengaturan DP & Biaya</button></div>
           </form>
         </div>
       </div>
 
+      <!-- Pengaturan informasi footer landing page -->
+      <div class="card shadow-sm mb-3"><div class="card-header fw-bold bg-white">🦶 Pengaturan Informasi Footer Landing Page</div>
+        <div class="card-body">
+          <form method="post" action="{{ url_for('save_footer') }}" class="row g-2">
+            <div class="col-12"><label class="small fw-bold">Tentang AGR.ID</label>
+              <textarea class="form-control" name="footer_tentang" rows="2">{{ settings.get('footer_tentang','') }}</textarea></div>
+            <div class="col-6"><label class="small fw-bold">Judul Kolom Kontak</label>
+              <input class="form-control" name="footer_kontak" value="{{ settings.get('footer_kontak','Hubungi Kami') }}"></div>
+            <div class="col-6"><label class="small fw-bold">Email</label>
+              <input class="form-control" type="email" name="footer_email" value="{{ settings.get('footer_email','') }}"></div>
+            <div class="col-12"><label class="small fw-bold">Alamat Kantor</label>
+              <input class="form-control" name="footer_alamat" value="{{ settings.get('footer_alamat','') }}"></div>
+            <div class="col-6"><label class="small fw-bold">Telepon / WhatsApp</label>
+              <input class="form-control" name="footer_telepon" value="{{ settings.get('footer_telepon','') }}"></div>
+            <div class="col-6"><label class="small fw-bold">Jam Operasional</label>
+              <input class="form-control" name="footer_jam_operasional" value="{{ settings.get('footer_jam_operasional','') }}"></div>
+            <div class="col-12"><label class="small fw-bold">Sosial Media</label>
+              <input class="form-control" name="footer_sosial" value="{{ settings.get('footer_sosial','') }}"></div>
+            <div class="col-12"><label class="small fw-bold">Tautan Cepat <span class="text-muted">(format: Nama: /url dipisah ·)</span></label>
+              <input class="form-control" name="footer_tautan" value="{{ settings.get('footer_tautan','') }}"></div>
+            <div class="col-12"><label class="small fw-bold">Teks Copyright</label>
+              <input class="form-control" name="footer_copyright" value="{{ settings.get('footer_copyright','') }}"></div>
+            <div class="col-12"><button class="btn btn-agrid w-100 fw-bold">💾 Simpan Informasi Footer</button></div>
+          </form>
+        </div>
+      </div>
+
+    <div class="col-lg-6">
       <!-- API Payment Gateway -->
       <div class="card shadow-sm mb-3"><div class="card-header fw-bold bg-white">🔌 Input API Payment Gateway</div>
         <div class="card-body">
@@ -83,7 +300,9 @@
           {% else %}<p class="small text-muted">Belum ada provider.</p>{% endfor %}
         </div>
       </div>
+    </div>
 
+    <div class="col-lg-6">
       <!-- API Ekspedisi -->
       <div class="card shadow-sm"><div class="card-header fw-bold bg-white">🚚 Input API Jasa Ekspedisi</div>
         <div class="card-body">

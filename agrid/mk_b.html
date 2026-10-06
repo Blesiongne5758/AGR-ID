@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marketplace — AGR.ID</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+  :root{--agrid:#2e7d32;--agrid-d:#1b5e20;--agracc:#ffca28;}
+  body{background:#f4f6f2;font-family:'Segoe UI',system-ui,sans-serif;}
+  .navbar-agrid{background:linear-gradient(90deg,var(--agrid-d),var(--agrid));}
+  .brand-badge{background:var(--agracc);color:#333;font-weight:800;border-radius:8px;padding:2px 8px;}
+  /* Ticker */
+  .ticker-wrap{overflow:hidden;background:#103317;color:#fff;position:relative;}
+  .ticker{display:flex;gap:2rem;white-space:nowrap;padding:.45rem 0;width:max-content;animation:ticker 60s linear infinite;}
+  .ticker:hover{animation-play-state:paused;}
+  @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  .tk-up{color:#69f0ae}.tk-down{color:#ff8a80}
+  .btn-agrid{background:var(--agrid);color:#fff}.btn-agrid:hover{background:var(--agrid-d);color:#fff}
+  .card-prod{transition:.2s;border:0;box-shadow:0 2px 10px rgba(0,0,0,.07)}
+  .card-prod:hover{transform:translateY(-4px);box-shadow:0 8px 22px rgba(0,0,0,.13)}
+  .halal-chip{font-size:.72rem}.badge-nonhalal{background:#c62828}
+  .hero{background:linear-gradient(rgba(16,51,23,.82),rgba(16,51,23,.82)),url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1600&q=60') center/cover;color:#fff}
+  .stat-card{border-left:4px solid var(--agrid);}
+  .chat-fab{position:fixed;bottom:22px;right:22px;z-index:1040;width:58px;height:58px;border-radius:50%;background:var(--agrid);color:#fff;font-size:1.5rem;border:0;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+  .chat-box{position:fixed;bottom:92px;right:22px;width:min(380px,92vw);height:460px;z-index:1040;display:none;flex-direction:column;border-radius:16px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.3);background:#fff}
+  .chat-head{background:var(--agrid);color:#fff;padding:.7rem 1rem}
+  .chat-body{flex:1;overflow-y:auto;padding:1rem;background:#eef3ec}
+  .msg{max-width:85%;padding:.55rem .8rem;border-radius:12px;margin-bottom:.5rem;white-space:pre-wrap;font-size:.9rem}
+  .msg.ai{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .msg.user{background:var(--agrid);color:#fff;margin-left:auto}
+  .req-star{color:#c62828}
+  .footer{background:#103317;color:#cfe8cf}
+  .table-dashboard thead{background:#e8f2e8}
+</style>
+</head>
+<body>
+
+<!-- ================= NAVBAR ================= -->
+<nav class="navbar navbar-expand-lg navbar-dark navbar-agrid sticky-top">
+  <div class="container">
+    <a class="navbar-brand fw-bold" href="/">🌾 AGR<span class="brand-badge">.ID</span></a>
+    <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="/marketplace"><i class="bi bi-shop"></i> Marketplace</a></li>
+        
+        <li class="nav-item"><a class="nav-link" href="/dashboard/pembeli"><i class="bi bi-speedometer2"></i> Dashboard Pembeli</a></li>
+        
+      </ul>
+      
+      <span class="navbar-text text-white-50 me-3 small"><i class="bi bi-person-circle"></i> Siti Pembeli <span class="badge bg-warning text-dark">pembeli</span></span>
+      <a class="btn btn-outline-light btn-sm" href="/logout"><i class="bi bi-box-arrow-right"></i> Keluar</a>
+      
+    </div>
+  </div>
+</nav>
+
+<!-- ================= TICKER HARGA MARKET ================= -->
+
+<div class="ticker-wrap border-bottom border-success">
+  <div class="ticker">
+    
+    <span><b>Cabai Merah</b> Rp40.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.03%</span></span>
+    
+    <span><b>Bawang Merah</b> Rp35.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 5.69%</span></span>
+    
+    <span><b>Bawang Putih</b> Rp39.500 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.62%</span></span>
+    
+    <span><b>Kentang</b> Rp14.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -5.13%</span></span>
+    
+    <span><b>Wortel</b> Rp17.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.88%</span></span>
+    
+    <span><b>Tomat</b> Rp13.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.68%</span></span>
+    
+    <span><b>Kangkung</b> Rp4.800 <small class="text-white-50">Rp/ikat</small>
+      <span class="tk-down">▼ -3.09%</span></span>
+    
+    <span><b>Bayam</b> Rp5.200 <small class="text-white-50">Rp/ikat</small>
+      <span class="tk-up">▲ 4.07%</span></span>
+    
+    <span><b>Kol</b> Rp12.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 2.94%</span></span>
+    
+    <span><b>Brokoli</b> Rp27.500 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.65%</span></span>
+    
+    <span><b>Terong</b> Rp11.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 2.51%</span></span>
+    
+    <span><b>Timun</b> Rp9.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -2.12%</span></span>
+    
+    <span><b>Jagung Manis</b> Rp7.100 <small class="text-white-50">Rp/tongkol</small>
+      <span class="tk-down">▼ -4.92%</span></span>
+    
+    <span><b>Pisang Ambon</b> Rp16.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 1.98%</span></span>
+    
+    <span><b>Mangga Arummanis</b> Rp23.800 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.83%</span></span>
+    
+    <span><b>Jeruk Medan</b> Rp21.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 1.78%</span></span>
+    
+    <span><b>Semangka</b> Rp8.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 4.91%</span></span>
+    
+    <span><b>Nanas Madu</b> Rp14.900 <small class="text-white-50">Rp/butir</small>
+      <span class="tk-down">▼ -0.34%</span></span>
+    
+    <span><b>Pepaya California</b> Rp12.000 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.89%</span></span>
+    
+    <span><b>Buah Naga</b> Rp18.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.65%</span></span>
+    
+    <span><b>Alpukat Mentega</b> Rp32.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 1.34%</span></span>
+    
+    <span><b>Durian Musang King</b> Rp90.200 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -5.03%</span></span>
+    
+    <span><b>Manggis</b> Rp37.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.9%</span></span>
+    
+    <span><b>Lengkeng</b> Rp44.100 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -2.08%</span></span>
+    
+    <span><b>Kopi Arabika Gayo</b> Rp98.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 3.44%</span></span>
+    
+    <span><b>Kopi Robusta</b> Rp54.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 4.54%</span></span>
+    
+    <span><b>Kakao Biji Kering</b> Rp47.800 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.33%</span></span>
+    
+    <span><b>Karet RSS2</b> Rp18.100 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.94%</span></span>
+    
+    <span><b>Sawit TBS</b> Rp2.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -4.88%</span></span>
+    
+    <span><b>Kelapa Butiran</b> Rp8.200 <small class="text-white-50">Rp/butir</small>
+      <span class="tk-up">▲ 2.69%</span></span>
+    
+    <span><b>Gula Kristal</b> Rp18.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 4.64%</span></span>
+    
+    <span><b>Vanili Kering</b> Rp4.741.600 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 5.37%</span></span>
+    
+    <span><b>Lada Putih</b> Rp123.100 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 2.57%</span></span>
+    
+    <span><b>Cengkeh Kering</b> Rp110.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.74%</span></span>
+    
+    <span><b>Pala Biji</b> Rp91.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 1.94%</span></span>
+    
+    <span><b>Kayu Manis</b> Rp54.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.5%</span></span>
+    
+    <span><b>Lele</b> Rp18.800 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.72%</span></span>
+    
+    <span><b>Nila</b> Rp28.000 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 0.07%</span></span>
+    
+    <span><b>Mas</b> Rp23.800 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.88%</span></span>
+    
+    <span><b>Patin</b> Rp22.000 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 0.02%</span></span>
+    
+    <span><b>Gurame</b> Rp47.200 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.64%</span></span>
+    
+    <span><b>Bandeng</b> Rp33.500 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 4.78%</span></span>
+    
+    <span><b>Udang Vaname</b> Rp77.200 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.06%</span></span>
+    
+    <span><b>Udang Windu</b> Rp113.900 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -5.08%</span></span>
+    
+    <span><b>Cumi-cumi</b> Rp61.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -5.01%</span></span>
+    
+    <span><b>Kepiting Bakau</b> Rp83.200 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -2.12%</span></span>
+    
+    <span><b>Lobster</b> Rp228.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -4.87%</span></span>
+    
+    <span><b>Kerapu Macan</b> Rp90.500 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.59%</span></span>
+    
+    <span><b>Tuna Sirip Kuning</b> Rp74.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.41%</span></span>
+    
+    <span><b>Kakap Merah</b> Rp68.600 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 0.81%</span></span>
+    
+    <span><b>Tenggiri</b> Rp56.900 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.89%</span></span>
+    
+    <span><b>Teri Medan</b> Rp44.600 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.81%</span></span>
+    
+    <span><b>Kembung</b> Rp27.200 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -2.91%</span></span>
+    
+    <span><b>Rumput Laut Cottonii</b> Rp20.800 <small class="text-white-50">Rp/kg kering</small>
+      <span class="tk-down">▼ -5.65%</span></span>
+    
+    <span><b>Sapi Hidup</b> Rp55.100 <small class="text-white-50">Rp/kg HID</small>
+      <span class="tk-up">▲ 0.26%</span></span>
+    
+    <span><b>Sapi Potong Karkas</b> Rp114.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -4.65%</span></span>
+    
+    <span><b>Kerbau Hidup</b> Rp40.900 <small class="text-white-50">Rp/kg HID</small>
+      <span class="tk-down">▼ -2.61%</span></span>
+    
+    <span><b>Kambing PE</b> Rp3.176.100 <small class="text-white-50">Rp/ekor</small>
+      <span class="tk-down">▼ -0.75%</span></span>
+    
+    <span><b>Kambing Etawa</b> Rp4.416.500 <small class="text-white-50">Rp/ekor</small>
+      <span class="tk-down">▼ -1.86%</span></span>
+    
+    <span><b>Domba Garut</b> Rp2.870.400 <small class="text-white-50">Rp/ekor</small>
+      <span class="tk-up">▲ 2.52%</span></span>
+    
+    <span><b>Ayam Broiler Hidup</b> Rp21.900 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.67%</span></span>
+    
+    <span><b>Ayam Kampung</b> Rp64.900 <small class="text-white-50">Rp/ekor</small>
+      <span class="tk-down">▼ -0.23%</span></span>
+    
+    <span><b>Ayam Karkas</b> Rp37.600 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.08%</span></span>
+    
+    <span><b>Telur Ayam Negeri</b> Rp30.200 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 4.19%</span></span>
+    
+    <span><b>Telur Ayam Kampung</b> Rp3.200 <small class="text-white-50">Rp/butir</small>
+      <span class="tk-up">▲ 0.69%</span></span>
+    
+    <span><b>Telur Bebek</b> Rp2.900 <small class="text-white-50">Rp/butir</small>
+      <span class="tk-up">▲ 3.31%</span></span>
+    
+    <span><b>Bebek Hidup</b> Rp53.600 <small class="text-white-50">Rp/ekor</small>
+      <span class="tk-down">▼ -2.54%</span></span>
+    
+    <span><b>Puyuh Pedaging</b> Rp12.300 <small class="text-white-50">Rp/ekor</small>
+      <span class="tk-up">▲ 2.44%</span></span>
+    
+    <span><b>Madu Hutan</b> Rp300 <small class="text-white-50">Rp/ml</small>
+      <span class="tk-down">▼ -1.09%</span></span>
+    
+    <span><b>Kelinci Pedaging</b> Rp43.600 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.21%</span></span>
+    
+    <span><b>Susu Sapi Segar</b> Rp18.800 <small class="text-white-50">Rp/liter</small>
+      <span class="tk-up">▲ 1.88%</span></span>
+    
+    <span><b>Susu Etawa</b> Rp63.100 <small class="text-white-50">Rp/liter</small>
+      <span class="tk-down">▼ -2.91%</span></span>
+    
+    <span><b>Cabai Merah</b> Rp40.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.03%</span></span>
+    
+    <span><b>Bawang Merah</b> Rp35.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 5.69%</span></span>
+    
+    <span><b>Bawang Putih</b> Rp39.500 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.62%</span></span>
+    
+    <span><b>Kentang</b> Rp14.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -5.13%</span></span>
+    
+    <span><b>Wortel</b> Rp17.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.88%</span></span>
+    
+    <span><b>Tomat</b> Rp13.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.68%</span></span>
+    
+    <span><b>Kangkung</b> Rp4.800 <small class="text-white-50">Rp/ikat</small>
+      <span class="tk-down">▼ -3.09%</span></span>
+    
+    <span><b>Bayam</b> Rp5.200 <small class="text-white-50">Rp/ikat</small>
+      <span class="tk-up">▲ 4.07%</span></span>
+    
+    <span><b>Kol</b> Rp12.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 2.94%</span></span>
+    
+    <span><b>Brokoli</b> Rp27.500 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.65%</span></span>
+    
+    <span><b>Terong</b> Rp11.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 2.51%</span></span>
+    
+    <span><b>Timun</b> Rp9.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -2.12%</span></span>
+    
+    <span><b>Jagung Manis</b> Rp7.100 <small class="text-white-50">Rp/tongkol</small>
+      <span class="tk-down">▼ -4.92%</span></span>
+    
+    <span><b>Pisang Ambon</b> Rp16.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 1.98%</span></span>
+    
+    <span><b>Mangga Arummanis</b> Rp23.800 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.83%</span></span>
+    
+    <span><b>Jeruk Medan</b> Rp21.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 1.78%</span></span>
+    
+    <span><b>Semangka</b> Rp8.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 4.91%</span></span>
+    
+    <span><b>Nanas Madu</b> Rp14.900 <small class="text-white-50">Rp/butir</small>
+      <span class="tk-down">▼ -0.34%</span></span>
+    
+    <span><b>Pepaya California</b> Rp12.000 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.89%</span></span>
+    
+    <span><b>Buah Naga</b> Rp18.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.65%</span></span>
+    
+    <span><b>Alpukat Mentega</b> Rp32.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 1.34%</span></span>
+    
+    <span><b>Durian Musang King</b> Rp90.200 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -5.03%</span></span>
+    
+    <span><b>Manggis</b> Rp37.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.9%</span></span>
+    
+    <span><b>Lengkeng</b> Rp44.100 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -2.08%</span></span>
+    
+    <span><b>Kopi Arabika Gayo</b> Rp98.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 3.44%</span></span>
+    
+    <span><b>Kopi Robusta</b> Rp54.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 4.54%</span></span>
+    
+    <span><b>Kakao Biji Kering</b> Rp47.800 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.33%</span></span>
+    
+    <span><b>Karet RSS2</b> Rp18.100 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.94%</span></span>
+    
+    <span><b>Sawit TBS</b> Rp2.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -4.88%</span></span>
+    
+    <span><b>Kelapa Butiran</b> Rp8.200 <small class="text-white-50">Rp/butir</small>
+      <span class="tk-up">▲ 2.69%</span></span>
+    
+    <span><b>Gula Kristal</b> Rp18.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 4.64%</span></span>
+    
+    <span><b>Vanili Kering</b> Rp4.741.600 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 5.37%</span></span>
+    
+    <span><b>Lada Putih</b> Rp123.100 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 2.57%</span></span>
+    
+    <span><b>Cengkeh Kering</b> Rp110.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.74%</span></span>
+    
+    <span><b>Pala Biji</b> Rp91.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 1.94%</span></span>
+    
+    <span><b>Kayu Manis</b> Rp54.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.5%</span></span>
+    
+    <span><b>Lele</b> Rp18.800 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.72%</span></span>
+    
+    <span><b>Nila</b> Rp28.000 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 0.07%</span></span>
+    
+    <span><b>Mas</b> Rp23.800 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.88%</span></span>
+    
+    <span><b>Patin</b> Rp22.000 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 0.02%</span></span>
+    
+    <span><b>Gurame</b> Rp47.200 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.64%</span></span>
+    
+    <span><b>Bandeng</b> Rp33.500 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 4.78%</span></span>
+    
+    <span><b>Udang Vaname</b> Rp77.200 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.06%</span></span>
+    
+    <span><b>Udang Windu</b> Rp113.900 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -5.08%</span></span>
+    
+    <span><b>Cumi-cumi</b> Rp61.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -5.01%</span></span>
+    
+    <span><b>Kepiting Bakau</b> Rp83.200 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -2.12%</span></span>
+    
+    <span><b>Lobster</b> Rp228.300 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -4.87%</span></span>
+    
+    <span><b>Kerapu Macan</b> Rp90.500 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.59%</span></span>
+    
+    <span><b>Tuna Sirip Kuning</b> Rp74.700 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.41%</span></span>
+    
+    <span><b>Kakap Merah</b> Rp68.600 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 0.81%</span></span>
+    
+    <span><b>Tenggiri</b> Rp56.900 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.89%</span></span>
+    
+    <span><b>Teri Medan</b> Rp44.600 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.81%</span></span>
+    
+    <span><b>Kembung</b> Rp27.200 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -2.91%</span></span>
+    
+    <span><b>Rumput Laut Cottonii</b> Rp20.800 <small class="text-white-50">Rp/kg kering</small>
+      <span class="tk-down">▼ -5.65%</span></span>
+    
+    <span><b>Sapi Hidup</b> Rp55.100 <small class="text-white-50">Rp/kg HID</small>
+      <span class="tk-up">▲ 0.26%</span></span>
+    
+    <span><b>Sapi Potong Karkas</b> Rp114.400 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -4.65%</span></span>
+    
+    <span><b>Kerbau Hidup</b> Rp40.900 <small class="text-white-50">Rp/kg HID</small>
+      <span class="tk-down">▼ -2.61%</span></span>
+    
+    <span><b>Kambing PE</b> Rp3.176.100 <small class="text-white-50">Rp/ekor</small>
+      <span class="tk-down">▼ -0.75%</span></span>
+    
+    <span><b>Kambing Etawa</b> Rp4.416.500 <small class="text-white-50">Rp/ekor</small>
+      <span class="tk-down">▼ -1.86%</span></span>
+    
+    <span><b>Domba Garut</b> Rp2.870.400 <small class="text-white-50">Rp/ekor</small>
+      <span class="tk-up">▲ 2.52%</span></span>
+    
+    <span><b>Ayam Broiler Hidup</b> Rp21.900 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -0.67%</span></span>
+    
+    <span><b>Ayam Kampung</b> Rp64.900 <small class="text-white-50">Rp/ekor</small>
+      <span class="tk-down">▼ -0.23%</span></span>
+    
+    <span><b>Ayam Karkas</b> Rp37.600 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -1.08%</span></span>
+    
+    <span><b>Telur Ayam Negeri</b> Rp30.200 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-up">▲ 4.19%</span></span>
+    
+    <span><b>Telur Ayam Kampung</b> Rp3.200 <small class="text-white-50">Rp/butir</small>
+      <span class="tk-up">▲ 0.69%</span></span>
+    
+    <span><b>Telur Bebek</b> Rp2.900 <small class="text-white-50">Rp/butir</small>
+      <span class="tk-up">▲ 3.31%</span></span>
+    
+    <span><b>Bebek Hidup</b> Rp53.600 <small class="text-white-50">Rp/ekor</small>
+      <span class="tk-down">▼ -2.54%</span></span>
+    
+    <span><b>Puyuh Pedaging</b> Rp12.300 <small class="text-white-50">Rp/ekor</small>
+      <span class="tk-up">▲ 2.44%</span></span>
+    
+    <span><b>Madu Hutan</b> Rp300 <small class="text-white-50">Rp/ml</small>
+      <span class="tk-down">▼ -1.09%</span></span>
+    
+    <span><b>Kelinci Pedaging</b> Rp43.600 <small class="text-white-50">Rp/kg</small>
+      <span class="tk-down">▼ -3.21%</span></span>
+    
+    <span><b>Susu Sapi Segar</b> Rp18.800 <small class="text-white-50">Rp/liter</small>
+      <span class="tk-up">▲ 1.88%</span></span>
+    
+    <span><b>Susu Etawa</b> Rp63.100 <small class="text-white-50">Rp/liter</small>
+      <span class="tk-down">▼ -2.91%</span></span>
+    
+  </div>
+</div>
+
+
+<!-- Flash messages -->
+<div class="container mt-3">
+  
+    
+  
+</div>
+
+
+<div class="container my-4">
+  <h3 class="fw-bold mb-3"><i class="bi bi-shop-window text-success"></i> Marketplace AGR.ID</h3>
+  <form class="row g-2 mb-4" method="get">
+    <div class="col-md-4"><input class="form-control" name="q" value="" placeholder="🔍 Cari produk / jenis…"></div>
+    <div class="col-md-3">
+      <select name="kategori" class="form-select" onchange="this.form.submit()">
+        <option value="">— Semua Kategori —</option>
+        <option >Pertanian</option><option >Perkebunan</option><option >Perikanan</option><option >Peternakan</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select name="subkategori" class="form-select">
+        <option value="">— Semua Sub Kategori —</option>
+        
+      </select>
+    </div>
+    <div class="col-md-2 d-flex gap-2 align-items-center">
+      <button class="btn btn-agrid flex-fill">Filter</button>
+    </div>
+    <div class="col-12">
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="hide_nonhalal" value="1"  onchange="this.form.submit()" id="hn">
+        <label class="form-check-label small" for="hn">Sembunyikan produk ⚠️ Non Halal (Peternakan → Babi)</label>
+      </div>
+    </div>
+  </form>
+
+  <div class="row g-3">
+    <div class="col-6 col-md-4 col-lg-3">
+  <div class="card card-prod h-100 position-relative">
+    
+    
+    <form method="post" action="/favorit/toggle" class="position-absolute top-0 end-0 m-1" style="z-index:5">
+      <input type="hidden" name="product_id" value="9">
+      <input type="hidden" name="next" value="http://127.0.0.1:5000/marketplace">
+      <button class="btn btn-sm btn-light"
+              title="Simpan produk favorit">🤍</button>
+    </form>
+    
+    <div style="height:130px;background:#e8f2e8;display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative">
+      
+        🥬
+      
+      
+    </div>
+    <div class="card-body pb-2">
+      <div class="small text-muted">Pertanian › Buah-buahan</div>
+      <h6 class="mb-1 pe-3"><a class="text-decoration-none text-dark" href="/produk/9">Mangga Gedong Pucung</a></h6>
+      <div class="fw-bold text-success">Rp25.000<small class="text-muted fw-normal">/kg</small></div>
+      <div class="small text-muted mt-1"><i class="bi bi-box"></i> Stok 100 kg · <i class="bi bi-geo-alt"></i> GPS -6.700,108.500</div>
+      <div class="small mt-1"><i class="bi bi-person-badge"></i> Uji Tani <span class="badge bg-light text-dark border">Koperasi</span></div>
+    </div>
+    <div class="card-footer bg-white border-0 pb-2">
+      <a href="/produk/9" class="btn btn-sm btn-agrid w-100"><i class="bi bi-cash-coin"></i> Ajukan Penawaran</a>
+    </div>
+  </div>
+</div><div class="col-6 col-md-4 col-lg-3">
+  <div class="card card-prod h-100 position-relative">
+    
+    
+    <form method="post" action="/favorit/toggle" class="position-absolute top-0 end-0 m-1" style="z-index:5">
+      <input type="hidden" name="product_id" value="8">
+      <input type="hidden" name="next" value="http://127.0.0.1:5000/marketplace">
+      <button class="btn btn-sm btn-light"
+              title="Simpan produk favorit">🤍</button>
+    </form>
+    
+    <div style="height:130px;background:#e8f2e8;display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative">
+      
+        ☕
+      
+      <span class="badge bg-success position-absolute bottom-0 end-0 halal-chip">✅ Indikasi Geografis</span>
+    </div>
+    <div class="card-body pb-2">
+      <div class="small text-muted">Perkebunan › Tanaman Tahunan</div>
+      <h6 class="mb-1 pe-3"><a class="text-decoration-none text-dark" href="/produk/8">Kopi Arabika Gayo</a></h6>
+      <div class="fw-bold text-success">Rp94.000<small class="text-muted fw-normal">/kg</small></div>
+      <div class="small text-muted mt-1"><i class="bi bi-box"></i> Stok 5.200 kg · <i class="bi bi-geo-alt"></i> GPS 4.600,96.850</div>
+      <div class="small mt-1"><i class="bi bi-person-badge"></i> Pak Budi Tani <span class="badge bg-light text-dark border">Kelompok Tani (Paguyuban)</span></div>
+    </div>
+    <div class="card-footer bg-white border-0 pb-2">
+      <a href="/produk/8" class="btn btn-sm btn-agrid w-100"><i class="bi bi-cash-coin"></i> Ajukan Penawaran</a>
+    </div>
+  </div>
+</div><div class="col-6 col-md-4 col-lg-3">
+  <div class="card card-prod h-100 position-relative">
+    
+    
+    <form method="post" action="/favorit/toggle" class="position-absolute top-0 end-0 m-1" style="z-index:5">
+      <input type="hidden" name="product_id" value="7">
+      <input type="hidden" name="next" value="http://127.0.0.1:5000/marketplace">
+      <button class="btn btn-sm btn-light"
+              title="Simpan produk favorit">🤍</button>
+    </form>
+    
+    <div style="height:130px;background:#e8f2e8;display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative">
+      
+        🐄
+      <span class="badge badge-nonhalal position-absolute top-0 start-0">⚠️ NON HALAL</span>
+      
+    </div>
+    <div class="card-body pb-2">
+      <div class="small text-muted">Peternakan › Babi</div>
+      <h6 class="mb-1 pe-3"><a class="text-decoration-none text-dark" href="/produk/7">Babi Landrace</a></h6>
+      <div class="fw-bold text-success">Rp2.800.000<small class="text-muted fw-normal">/ekor</small></div>
+      <div class="small text-muted mt-1"><i class="bi bi-box"></i> Stok 18 ekor · <i class="bi bi-geo-alt"></i> GPS -10.170,123.600</div>
+      <div class="small mt-1"><i class="bi bi-person-badge"></i> Koperasi Mina Laut <span class="badge bg-light text-dark border">Koperasi</span></div>
+    </div>
+    <div class="card-footer bg-white border-0 pb-2">
+      <a href="/produk/7" class="btn btn-sm btn-agrid w-100"><i class="bi bi-cash-coin"></i> Ajukan Penawaran</a>
+    </div>
+  </div>
+</div><div class="col-6 col-md-4 col-lg-3">
+  <div class="card card-prod h-100 position-relative">
+    
+    
+    <form method="post" action="/favorit/toggle" class="position-absolute top-0 end-0 m-1" style="z-index:5">
+      <input type="hidden" name="product_id" value="6">
+      <input type="hidden" name="next" value="http://127.0.0.1:5000/marketplace">
+      <button class="btn btn-sm btn-light"
+              title="Simpan produk favorit">🤍</button>
+    </form>
+    
+    <div style="height:130px;background:#e8f2e8;display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative">
+      
+        🐄
+      
+      <span class="badge bg-success position-absolute bottom-0 end-0 halal-chip">✅ SKKH &amp; Vaksin PMK</span>
+    </div>
+    <div class="card-body pb-2">
+      <div class="small text-muted">Peternakan › Kambing &amp; Domba</div>
+      <h6 class="mb-1 pe-3"><a class="text-decoration-none text-dark" href="/produk/6">Kambing PE 76</a></h6>
+      <div class="fw-bold text-success">Rp3.100.000<small class="text-muted fw-normal">/ekor</small></div>
+      <div class="small text-muted mt-1"><i class="bi bi-box"></i> Stok 45 ekor · <i class="bi bi-geo-alt"></i> GPS -6.950,109.100</div>
+      <div class="small mt-1"><i class="bi bi-person-badge"></i> Pak Budi Tani <span class="badge bg-light text-dark border">Kelompok Tani (Paguyuban)</span></div>
+    </div>
+    <div class="card-footer bg-white border-0 pb-2">
+      <a href="/produk/6" class="btn btn-sm btn-agrid w-100"><i class="bi bi-cash-coin"></i> Ajukan Penawaran</a>
+    </div>
+  </div>
+</div><div class="col-6 col-md-4 col-lg-3">
+  <div class="card card-prod h-100 position-relative">
+    
+    
+    <form method="post" action="/favorit/toggle" class="position-absolute top-0 end-0 m-1" style="z-index:5">
+      <input type="hidden" name="product_id" value="5">
+      <input type="hidden" name="next" value="http://127.0.0.1:5000/marketplace">
+      <button class="btn btn-sm btn-light"
+              title="Simpan produk favorit">🤍</button>
+    </form>
+    
+    <div style="height:130px;background:#e8f2e8;display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative">
+      
+        🐟
+      
+      
+    </div>
+    <div class="card-body pb-2">
+      <div class="small text-muted">Perikanan › Air Laut</div>
+      <h6 class="mb-1 pe-3"><a class="text-decoration-none text-dark" href="/produk/5">Udang Vaname</a></h6>
+      <div class="fw-bold text-success">Rp76.000<small class="text-muted fw-normal">/kg</small></div>
+      <div class="small text-muted mt-1"><i class="bi bi-box"></i> Stok 1.800 kg · <i class="bi bi-geo-alt"></i> GPS -6.890,109.680</div>
+      <div class="small mt-1"><i class="bi bi-person-badge"></i> Koperasi Mina Laut <span class="badge bg-light text-dark border">Koperasi</span></div>
+    </div>
+    <div class="card-footer bg-white border-0 pb-2">
+      <a href="/produk/5" class="btn btn-sm btn-agrid w-100"><i class="bi bi-cash-coin"></i> Ajukan Penawaran</a>
+    </div>
+  </div>
+</div><div class="col-6 col-md-4 col-lg-3">
+  <div class="card card-prod h-100 position-relative">
+    
+    
+    <form method="post" action="/favorit/toggle" class="position-absolute top-0 end-0 m-1" style="z-index:5">
+      <input type="hidden" name="product_id" value="4">
+      <input type="hidden" name="next" value="http://127.0.0.1:5000/marketplace">
+      <button class="btn btn-sm btn-light"
+              title="Simpan produk favorit">🤍</button>
+    </form>
+    
+    <div style="height:130px;background:#e8f2e8;display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative">
+      
+        🐟
+      
+      
+    </div>
+    <div class="card-body pb-2">
+      <div class="small text-muted">Perikanan › Air Tawar</div>
+      <h6 class="mb-1 pe-3"><a class="text-decoration-none text-dark" href="/produk/4">Lele Sangkuriang</a></h6>
+      <div class="fw-bold text-success">Rp19.000<small class="text-muted fw-normal">/kg</small></div>
+      <div class="small text-muted mt-1"><i class="bi bi-box"></i> Stok 2.500 kg · <i class="bi bi-geo-alt"></i> GPS -6.889,109.675</div>
+      <div class="small mt-1"><i class="bi bi-person-badge"></i> Koperasi Mina Laut <span class="badge bg-light text-dark border">Koperasi</span></div>
+    </div>
+    <div class="card-footer bg-white border-0 pb-2">
+      <a href="/produk/4" class="btn btn-sm btn-agrid w-100"><i class="bi bi-cash-coin"></i> Ajukan Penawaran</a>
+    </div>
+  </div>
+</div><div class="col-6 col-md-4 col-lg-3">
+  <div class="card card-prod h-100 position-relative">
+    
+    
+    <form method="post" action="/favorit/toggle" class="position-absolute top-0 end-0 m-1" style="z-index:5">
+      <input type="hidden" name="product_id" value="3">
+      <input type="hidden" name="next" value="http://127.0.0.1:5000/marketplace">
+      <button class="btn btn-sm btn-light"
+              title="Simpan produk favorit">🤍</button>
+    </form>
+    
+    <div style="height:130px;background:#e8f2e8;display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative">
+      
+        🥬
+      
+      <span class="badge bg-success position-absolute bottom-0 end-0 halal-chip">✅ Organik Nusantara</span>
+    </div>
+    <div class="card-body pb-2">
+      <div class="small text-muted">Pertanian › Buah-buahan</div>
+      <h6 class="mb-1 pe-3"><a class="text-decoration-none text-dark" href="/produk/3">Durian Musang King</a></h6>
+      <div class="fw-bold text-success">Rp92.000<small class="text-muted fw-normal">/kg</small></div>
+      <div class="small text-muted mt-1"><i class="bi bi-box"></i> Stok 320 kg · <i class="bi bi-geo-alt"></i> GPS -7.000,110.400</div>
+      <div class="small mt-1"><i class="bi bi-person-badge"></i> Pak Budi Tani <span class="badge bg-light text-dark border">Kelompok Tani (Paguyuban)</span></div>
+    </div>
+    <div class="card-footer bg-white border-0 pb-2">
+      <a href="/produk/3" class="btn btn-sm btn-agrid w-100"><i class="bi bi-cash-coin"></i> Ajukan Penawaran</a>
+    </div>
+  </div>
+</div><div class="col-6 col-md-4 col-lg-3">
+  <div class="card card-prod h-100 position-relative">
+    
+    
+    <form method="post" action="/favorit/toggle" class="position-absolute top-0 end-0 m-1" style="z-index:5">
+      <input type="hidden" name="product_id" value="2">
+      <input type="hidden" name="next" value="http://127.0.0.1:5000/marketplace">
+      <button class="btn btn-sm btn-light"
+              title="Simpan produk favorit">🤍</button>
+    </form>
+    
+    <div style="height:130px;background:#e8f2e8;display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative">
+      
+        🥬
+      
+      
+    </div>
+    <div class="card-body pb-2">
+      <div class="small text-muted">Pertanian › Sayuran</div>
+      <h6 class="mb-1 pe-3"><a class="text-decoration-none text-dark" href="/produk/2">Bawang Merah</a></h6>
+      <div class="fw-bold text-success">Rp32.500<small class="text-muted fw-normal">/kg</small></div>
+      <div class="small text-muted mt-1"><i class="bi bi-box"></i> Stok 1.200 kg · <i class="bi bi-geo-alt"></i> GPS -6.870,109.060</div>
+      <div class="small mt-1"><i class="bi bi-person-badge"></i> Pak Budi Tani <span class="badge bg-light text-dark border">Kelompok Tani (Paguyuban)</span></div>
+    </div>
+    <div class="card-footer bg-white border-0 pb-2">
+      <a href="/produk/2" class="btn btn-sm btn-agrid w-100"><i class="bi bi-cash-coin"></i> Ajukan Penawaran</a>
+    </div>
+  </div>
+</div><div class="col-6 col-md-4 col-lg-3">
+  <div class="card card-prod h-100 position-relative">
+    
+    
+    <form method="post" action="/favorit/toggle" class="position-absolute top-0 end-0 m-1" style="z-index:5">
+      <input type="hidden" name="product_id" value="1">
+      <input type="hidden" name="next" value="http://127.0.0.1:5000/marketplace">
+      <button class="btn btn-sm btn-light"
+              title="Simpan produk favorit">🤍</button>
+    </form>
+    
+    <div style="height:130px;background:#e8f2e8;display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative">
+      
+        🥬
+      
+      <span class="badge bg-success position-absolute bottom-0 end-0 halal-chip">✅ Prima 3 - Pestisid</span>
+    </div>
+    <div class="card-body pb-2">
+      <div class="small text-muted">Pertanian › Sayuran</div>
+      <h6 class="mb-1 pe-3"><a class="text-decoration-none text-dark" href="/produk/1">Cabai Merah Keriting</a></h6>
+      <div class="fw-bold text-success">Rp41.000<small class="text-muted fw-normal">/kg</small></div>
+      <div class="small text-muted mt-1"><i class="bi bi-box"></i> Stok 850 kg · <i class="bi bi-geo-alt"></i> GPS -6.866,109.055</div>
+      <div class="small mt-1"><i class="bi bi-person-badge"></i> Pak Budi Tani <span class="badge bg-light text-dark border">Kelompok Tani (Paguyuban)</span></div>
+    </div>
+    <div class="card-footer bg-white border-0 pb-2">
+      <a href="/produk/1" class="btn btn-sm btn-agrid w-100"><i class="bi bi-cash-coin"></i> Ajukan Penawaran</a>
+    </div>
+  </div>
+</div>
+    
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<footer class="footer mt-5 py-4">
+  <div class="container row gx-3">
+    <div class="col-md-5">
+      <h5 class="text-white">&#127806; AGR<span style="color:#ffca28">.ID</span></h5>
+      <p class="small mb-1">Marketplace B2B/B2C pertanian, perkebunan, perikanan &amp; peternakan. Mempertemukan penjual &amp; pembeli langsung dengan penawaran harga, booking DP, payment gateway, ekspedisi, serta verifikasi &amp; ketelusuran berbasis eviden foto + GPS.</p>
+    </div>
+    <div class="col-md-3 small">
+      <b class="text-white">Kategori</b>
+      <ul class="list-unstyled mb-0">
+        <li>Pertanian &middot; Sayuran &amp; Buah-buahan</li><li>Perkebunan</li>
+        <li>Perikanan &middot; Air Tawar &amp; Air Laut</li><li>Peternakan <span class="badge badge-nonhalal halal-chip">Babi: Non Halal</span></li>
+      </ul>
+    </div>
+    <div class="col-md-4 small">
+      <b class="text-white">Hubungi Kami</b>
+      <ul class="list-unstyled mb-0">
+        <li>&#128205; Jl. Pertanian Nusantara No. 1, Jakarta Selatan, DKI Jakarta 12345</li>
+        <li>&#9993;&#65039; <a href="mailto:halo@agr.id" class="text-white text-decoration-none">halo@agr.id</a></li>
+        <li>&#128222; +62 812-3456-7890 (WhatsApp)</li>
+        <li>&#128330; Senin–Jumat 08.00–17.00 WIB · CS Toko 24/7</li>
+        <li>&#127760; Instagram: @agr.idofficial · Facebook: AGR.ID Marketplace · TikTok: @agr.id</li>
+        <li class="mt-1">&#128279; Tautan cepat:
+          
+            
+            <a href="/marketplace" class="text-white text-decoration-none">Marketplace</a>·
+          
+            
+            <a href="/marketplace" class="text-white text-decoration-none">Cara Kerja Booking DP</a>·
+          
+            
+            <a href="/chat" class="text-white text-decoration-none">AI Chat Agent</a>
+          
+        </li>
+      </ul>
+    </div>
+  </div>
+  <div class="container mt-3 pt-2 border-top border-secondary small">© 2026 AGR.ID — Dibuat untuk petani, nelayan & peternak Indonesia 🇮🇩</div>
+</footer>
+
+<!-- ================= FLOATING WINDOW: SYARAT & KETENTUAN ================= -->
+<div class="modal fade" id="skkjModal" data-bs-backdrop="static" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-text"></i> Syarat & Ketentuan AGR.ID</h5>
+      </div>
+      <div class="modal-body" style="font-size:.92rem">
+        <ol class="ps-3">
+          <li><b>Layanan.</b> AGR.ID adalah marketplace yang mempertemukan Penjual (Perorangan/Koperasi/Kelompok Tani-Paguyuban) dengan Pembeli (Perorangan/Corporate) pada kategori Pertanian, Perkebunan, Perikanan, dan Peternakan.</li>
+          <li><b>Akun & Data.</b> Pengguna wajib memberikan informasi yang benar (nama, alamat, koordinat GPS, NPWP/NIB untuk Corporate/Koperasi). Data digunakan untuk verifikasi dan ketelusuran (traceability).</li>
+          <li><b>Penawaran Harga.</b> Pembeli dapat mengajukan penawaran harga (bidding) terhadap produk yang diposting. Penawaran mengikat setelah diterima Penjual.</li>
+          <li><b>Booking & DP.</b> Penawaran yang diterima wajib di-booking dengan membayar Uang Muka (DP) sebesar persentase yang berlaku sebagai pengikat kesepakatan melalui payment gateway resmi. Sisa pembayaran dilunasi sesuai jadwal pengiriman. DP hangus bila pembatalan dilakukan sepihak tanpa alasan yang disepakati.</li>
+          <li><b>Jadwal Pengiriman & Ekspedisi.</b> Pengiriman menggunakan mitra ekspedisi terpilih dengan tracking code. Risiko selama pengiriman ditanggung sesuai kesepakatan Incoterms sederhana di halaman booking.</li>
+          <li><b>Verifikasi & Ketelusuran.</b> Setiap tahap (panen/produksi, pengemasan, pengiriman, penerimaan) wajib diunggah sebagai bukti eviden berupa foto dan titik koordinat GPS. Produk Peternakan sub-kategori <b>Babi ditandai NON HALAL</b>; pembeli menyetujui label ini sebelum memesan.</li>
+          <li><b>Biaya.</b> Platform mengenakan biaya penanganan (handling fee) dan biaya tambahan lain sebagaimana diatur admin dan ditampilkan transparan saat checkout.</li>
+          <li><b>Larangan.</b> Dilarang memposting produk ilegal, berbahaya, atau menyesatkan. Pelanggaran berakibat penonaktifan akun dan hak atas dana mengikuti ketentuan refund platform.</li>
+          <li><b>AI Assistant.</b> Chat AI bersifat membantu; konfirmasi akhir seluruh data produk & transaksi tetap tanggung jawab pengguna.</li>
+          <li><b>Data Pribadi.</b> Dengan mendaftar, pengguna menyetujui pemrosesan data untuk keperluan transaksi, verifikasi, dan penyelesaian sengketa sesuai UU PDP No. 27/2022.</li>
+        </ol>
+      </div>
+      <div class="modal-footer flex-column align-items-stretch">
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="skkjAccept">
+          <label class="form-check-label small" for="skkjAccept">Saya telah membaca dan <b>menyetujui Syarat & Ketentuan</b> serta Kebijakan Privasi AGR.ID.</label>
+        </div>
+        <div class="d-flex gap-2 justify-content-end">
+          <button class="btn btn-outline-secondary btn-sm" onclick="closeSknj()">Nanti saja</button>
+          <button class="btn btn-agrid" id="skkjOk" disabled onclick="acceptSknj()">Setuju & Lanjut →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const skkjModal = new bootstrap.Modal(document.getElementById('skkjModal'));
+let pendingAction = null;
+// Buka S&K otomatis sebelum masuk halaman pendaftaran/login
+document.addEventListener('DOMContentLoaded', () => {
+  const path = location.pathname;
+  const agreed = sessionStorage.getItem('skkj_agreed');
+  if ((path.startsWith('/register') || path.startsWith('/login')) && !agreed) {
+    skkjModal.show();
+  }
+});
+function openSknj(action){
+  if(sessionStorage.getItem('skkj_agreed')){ location.href = '/'+action; return; }
+  pendingAction = action; skkjModal.show();
+}
+document.getElementById('skkjAccept').addEventListener('change', e=>{
+  document.getElementById('skkjOk').disabled = !e.target.checked;
+});
+function acceptSknj(){
+  sessionStorage.setItem('skkj_agreed','1');
+  skkjModal.hide();
+  if(pendingAction) location.href='/'+pendingAction;
+}
+function closeSknj(){ skkjModal.hide(); }
+</script>
+
+
+<!-- ================= AI CHAT AGENT FLOATING ================= -->
+<button class="chat-fab" onclick="toggleChat()" title="Tanya AGR Assistant 🤖">🤖</button>
+<div class="chat-box shadow-lg" id="chatBox">
+  <div class="chat-head d-flex justify-content-between align-items-center">
+    <span><b>🌾 AGR Assistant</b> <small>· AI Agent</small></span>
+    <button class="btn-close btn-close-white" onclick="toggleChat()"></button>
+  </div>
+  <div class="chat-body" id="chatBody">
+    <div class="msg ai">Halo Siti! 👋 Saya asisten AI AGR.ID.
+Saya bisa membantu <b>mengisi informasi produk</b> yang Anda jual atau <b>mencari produk</b> yang Anda butuhkan. Coba ketik: "cara jual produk" atau "cari lele".</div>
+  </div>
+  <div class="d-flex p-2 gap-2 border-top">
+    <input id="chatInput" class="form-control form-control-sm" placeholder="Ketik pesan… (mis: cari kopi gayo)" onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="btn btn-agrid btn-sm px-3" onclick="sendChat()"><i class="bi bi-send"></i></button>
+  </div>
+</div>
+<script>
+function toggleChat(){ const b=document.getElementById('chatBox'); b.style.display = (b.style.display==='flex')?'none':'flex'; }
+async function sendChat(){
+  const inp=document.getElementById('chatInput'), body=document.getElementById('chatBody');
+  const txt=inp.value.trim(); if(!txt) return;
+  body.insertAdjacentHTML('beforeend', `<div class="msg user">${txt.replace(/</g,'&lt;')}</div>`);
+  inp.value=''; body.scrollTop=body.scrollHeight;
+  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:txt})});
+  const d=await r.json();
+  body.insertAdjacentHTML('beforeend', `<div class="msg ai">${d.reply.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/</g,(m)=>m)}</div>`);
+  body.innerHTML = body.innerHTML.replace(/<(?!\/?(b|i|small)\b)[^>]*$/,'');
+  body.scrollTop=body.scrollHeight;
+}
+</script>
+
+
+</body>
+</html>
