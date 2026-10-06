@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Penilaian Kepuasan — AGR.ID{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:760px">
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-agrid text-white fw-bold">
+      ⭐ Penilaian Tingkat Kepuasan Transaksi #{{ t.id }}
+      <span class="badge bg-light text-dark ms-2">{{ '🧑‍🌾 Menilai Penjual' if user.role=='pembeli' else '🛒 Menilai Pembeli' }}</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-2 mb-3 small">
+        <div class="col-md-6"><b>Produk:</b> {{ t.product_name }} ({{ t.qty|rp }})</div>
+        <div class="col-md-6"><b>Nilai transaksi:</b> Rp{{ t.nilai|rp }}</div>
+        <div class="col-md-6"><b>{{ 'Penjual' if user.role=='pembeli' else 'Pembeli' }}:</b>
+          {{ t.seller.nama if user.role=='pembeli' else t.buyer.nama }} · {{ t.seller.tipe if user.role=='pembeli' else t.buyer.tipe }}</div>
+        <div class="col-md-6"><b>Status:</b> <span class="badge bg-success">{{ t.status }}</span> · Selesai {{ t.completed_at|dt }}</div>
+      </div>
+
+      <form method="post" class="needs-validation">
+        <div class="mb-4 text-center bg-light rounded py-3">
+          <label class="form-label fw-bold d-block mb-2">Skor Kepuasan Keseluruhan</label>
+          {% for i in [5,4,3,2,1] %}
+          <input type="radio" class="btn-check" name="score" id="sc{{i}}" value="{{i}}" autocomplete="off" {{'checked' if i==5}}>
+          <label class="btn btn-star me-1" for="sc{{i}}">{% for s in range(i) %}★{% endfor %}<span class="d-block small">{{ ['Sangat Buruk','Buruk','Cukup','Baik','Sangat Puas'][i-1] }}</span></label>
+          {% endfor %}
+        </div>
+
+        <h6 class="fw-bold">Penilaian per Aspek</h6>
+        <div class="row g-3 mb-3">
+          {% for key, lab in aspek_list %}
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">{{ lab }}</label>
+            <select name="aspek_{{key}}" class="form-select form-select-sm">
+              {% for s in [5,4,3,2,1] %}
+              <option value="{{s}}" {{'selected' if s==5}}>{{ '★'*s + '☆'*(5-s) }} — {{s}}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Komentar / Catatan Pengalaman Transaksi</label>
+          <textarea name="komentar" class="form-control" rows="3"
+            placeholder="Contoh: kualitas barang sesuai eviden foto & GPS, pengemasan aman, komunikasi responsif…"></textarea>
+          <div class="form-text">Penilaian bersifat dua arah dan tercatat permanen pada profil pihak yang dinilai untuk membangun kepercayaan marketplace.</div>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-agrid fw-bold">💾 Kirim Penilaian</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('dashboard') }}">Kembali</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

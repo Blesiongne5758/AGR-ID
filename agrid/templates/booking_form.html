@@ -19,6 +19,27 @@
           <select class="form-select" name="ekspedisi_id">
             {% for e in eks_list %}<option value="{{ e.id }}">{{ e.nama }} — {{ e.service_types }} (± Rp{{ e.tarif_per_kg|rp }}/kg)</option>{% endfor %}
           </select></div>
+        <div class="col-12">
+          <label class="form-label fw-bold">Metode Pembayaran DP/Pelunasan ke Penjual</label>
+          <div class="row g-2">
+            {% for m in metode_dp %}
+            <div class="col-auto">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="metode_dp" value="{{ m }}" id="md{{ loop.index }}" {{ 'checked' if loop.first }}>
+                <label class="form-check-label fw-bold small" for="md{{ loop.index }}">
+                  {{ '💵 Tunai' if m=='Tunai' else ('🏦 Transfer Bank' if m=='Transfer Bank' else ('📱 Scan QRIS' if m=='QRIS' else m)) }}</label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="small text-muted mt-1 bg-light rounded p-2 border">
+            Tujuan pembayaran penjual:
+            {% if 'Transfer Bank' in metode_dp and rekening %} 🏦 <b>{{ rekening }}</b>{% endif %}
+            {% if 'QRIS' in metode_dp %} 📱 QRIS: {{ qris if qris else '(scan di kasir/app penjual)' }}{% endif %}
+            {% if 'Tunai' in metode_dp %} 💵 Bayar langsung di: <b>{{ tujuan_tunai }}</b>{% endif %}
+            <br>Pelunasan (sisa bayar) dilakukan dengan upload bukti transfer & menunggu approval penjual.
+          </div>
+        </div>
         <div class="col-12 small text-muted">📍 Kirim dari: <b>{{ o.product.alamat_lahan or o.product.seller.alamat }}</b> (GPS {{ '%.5f'|format(o.product.lat or 0) }},{{ '%.5f'|format(o.product.lng or 0) }}) → ke alamat Anda: {{ user.alamat }}</div>
         <div class="col-12 d-grid"><button class="btn btn-agrid btn-lg fw-bold">🔒 Buat Booking & Bayar DP via Payment Gateway</button></div>
       </form>

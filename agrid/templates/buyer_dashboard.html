@@ -23,6 +23,8 @@
   <ul class="nav nav-tabs mb-3">
     <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tOff">💬 Penawaran Saya ({{ offers|length }})</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tLap">🧾 Laporan Transaksi Pembelian</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tFav">❤️ Favorit Saya ({{ favs|length }})</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tRat">⭐ Penilaian Kepuasan{% if rat_pending %} <span class="badge bg-danger">{{ rat_pending|length }}</span>{% endif %}</button></li>
   </ul>
   <div class="tab-content">
     <div class="tab-pane fade show active" id="tOff">
@@ -44,7 +46,7 @@
                 {% set bk = o.bookings|sort(attribute='id')|last %}
                 {% if bk and bk.status=='dp_pending' %}
                   <a class="btn btn-sm btn-warning" href="{{ url_for('pay_booking', bid=bk.id) }}">💳 Bayar DP Sekarang</a>
-                {% else %}<span class="small text-success">DP lunas ✔</span>{% endif %}
+                {% else %}<span class="small text-success">DP lunas ✔ ({{ bk.metode_dp if bk else '' }})</span>{% endif %}
               {% endif %}
             </td>
           </tr>
@@ -56,26 +58,136 @@
     <div class="tab-pane fade" id="tLap">
       <div class="table-responsive bg-white rounded shadow-sm">
       <table class="table table-dashboard mb-0">
-        <thead><tr><th>Tgl</th><th>Produk</th><th>Penjual</th><th>Nilai</th><th>DP</th><th>Pelunasan</th><th>Ongkir</th><th>Biaya Penanganan</th><th>Metode/Ref</th><th>Jadwal Kirim</th><th>Status</th><th>Eviden</th></tr></thead>
+        <thead><tr><th>Tgl</th><th>Produk</th><th>Penjual</th><th>Nilai</th><th>DP</th><th>Pelunasan</th><th>Ongkir</th><th>Biaya Penanganan</th><th>Metode/Ref</th><th>Jadwal Kirim</th><th>Status</th><th>Aksi</th><th>Eviden</th><th>Penilaian ⭐</th></tr></thead>
         <tbody>
         {% for t in pembelian %}
+          {% set bk = bookings.get(t.booking_id) if t.booking_id else None %}
+          {% set pl = pelunasans.get(t.id) %}
           <tr>
             <td class="small">{{ t.created_at|dt }}</td>
             <td>{{ t.product_name }} <small class="text-muted">({{ t.qty|rp }})</small></td>
-            <td class="small">{{ t.seller.nama }}</td>
+            <td class="small">{{ t.seller.nama }}<br><span class="badge bg-light text-dark border">{{ bk.metode_dp if bk and bk.metode_dp else 'Transfer Bank' }}</span></td>
             <td class="fw-bold">Rp{{ t.nilai|rp }}</td>
             <td>Rp{{ t.dp_dibayar|rp }}</td>
-            <td>Rp{{ t.pelunasan|rp }}</td>
+            <td>{% if t.pelunasan %}Rp{{ t.pelunasan|rp }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
             <td>Rp{{ t.ongkir|rp }}</td>
             <td>Rp{{ t.biaya_penanganan|rp }}</td>
             <td class="small">{{ t.metode_bayar }}<br><code>{{ t.ref_payment }}</code></td>
-            <td class="small">{% if t.booking_id %}{{ t.offer.bookings[-1].jadwal_kirim or '-' }}{% else %}-{% endif %}</td>
-            <td><span class="badge {{ 'bg-success' if t.status=='completed' else ('bg-danger' if t.status=='cancelled' else 'bg-info text-dark') }}">{{ t.status }}</span></td>
+            <td class="small">{{ bk.jadwal_kirim or '-' if bk else '-' }}</td>
+            <td><span class="badge {{ 'bg-success' if t.status in ('completed','paid') else ('bg-danger' if t.status in ('cancelled','refunded') else ('bg-warning text-dark' if t.status=='menunggu_approval' else 'bg-info text-dark')) }}">{{ t.status }}</span></td>
+            <td>
+              {# === Tombol penyelesaian pembayaran untuk pembelian sistem DP === #}
+              {% if bk and bk.status in ('dp_lunas','menunggu_pelunasan','pelunasan_ditolak') and not t.pelunasan %}
+                {% if pl and pl.status=='menunggu' %}
+                  <span class="small text-warning fw-bold d-block">⏳ Menunggu approval penjual…</span>
+                  {% if pl.bukti %}<a class="small" href="{{ pl.bukti }}" target="_blank">📎 lihat bukti</a>{% endif %}
+                {% elif pl and pl.status=='ditolak' %}
+                  <span class="small text-danger d-block">✖ Bukti ditolak: {{ pl.review_catatan or 'periksa kembali' }}</span>
+                  <a class="btn btn-sm btn-warning fw-bold" href="{{ url_for('submit_pelunasan', tid=t.id) }}">🔁 Ajukan Ulang Pelunasan + Upload Bukti</a>
+                {% else %}
+                  <a class="btn btn-sm btn-agrid fw-bold" href="{{ url_for('submit_pelunasan', tid=t.id) }}">💰 Selesaikan Pembayaran (Upload Bukti Transfer)</a>
+                {% endif %}
+              {% elif pl and pl.status=='disetujui' %}
+                <span class="small text-success">✅ Pelunasan disetujui penjual</span>
+              {% elif bk and bk.status=='dp_pending' %}
+                <a class="btn btn-sm btn-warning" href="{{ url_for('pay_booking', bid=bk.id) }}">💳 Bayar DP</a>
+              {% endif %}
+            </td>
             <td><a class="btn btn-sm btn-outline-success" href="{{ url_for('add_eviden', tid=t.id) }}">📸 Ketelusuran</a></td>
+            <td>
+              {# === Score penilaian kepuasan dua arah === #}
+              {% set ns = namespace(myrat=None) %}{% for rr in (rat_out or []) %}{% if rr.transaksi_id==t.id %}{% set ns.myrat = rr %}{% endif %}{% endfor %}
+              {% if t.status=='completed' %}
+                {% if ns.myrat %}<span class="small text-success fw-bold">⭐ {{ ns.myrat.score }}/5 — dinilai oleh Anda</span>
+                {% elif user.role=='pembeli' %}<a class="btn btn-sm btn-warning fw-bold" href="{{ url_for('rate_transaction', tid=t.id) }}">⭐ Nilai Penjual</a>
+                {% endif %}
+              {% endif %}
+            </td>
           </tr>
-        {% else %}<tr><td colspan="12" class="text-center text-muted py-4">Belum ada transaksi pembelian.</td></tr>{% endfor %}
+        {% else %}<tr><td colspan="14" class="text-center text-muted py-4">Belum ada transaksi pembelian.</td></tr>{% endfor %}
         </tbody>
       </table></div>
+    </div>
+
+    {# ============ TAB FAVORIT: PENJUAL & PRODUK DISIMPAN PEMBELI ============ #}
+    <div class="tab-pane fade" id="tFav">
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <div class="card shadow-sm"><div class="card-header fw-bold bg-white">🧑‍🌾 Penjual Favorit</div>
+            <div class="list-group list-group-flush">
+            {% set seller_favs = favs|selectattr('product_id','equalto',None)|list %}
+            {% for f in seller_favs %}
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <b>{{ f.seller.nama }}</b> <span class="badge bg-light text-dark border">{{ f.seller.tipe }}</span>
+                  {{ '✅' if f.seller.verified }}
+                  <div class="small text-muted"><i class="bi bi-geo-alt"></i> {{ f.seller.kota }}, {{ f.seller.provinsi }} · {{ f.created_at|dt }}</div>
+                </div>
+                <div class="d-flex gap-2">
+                  <a class="btn btn-sm btn-outline-success" href="{{ url_for('marketplace', q='') }}?seller={{ f.seller_id }}">Lihat Produk</a>
+                  <a class="btn btn-sm btn-outline-danger" href="{{ url_for('hapus_favorit', fqid=f.id) }}" title="Hapus favorit">✕</a>
+                </div>
+              </div>
+            {% else %}<div class="list-group-item small text-muted py-4 text-center">Belum ada penjual favorit. Klik 🤍 <b>Simpan Penjual</b> di halaman produk.</div>{% endfor %}
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card shadow-sm"><div class="card-header fw-bold bg-white">📦 Produk Favorit</div>
+            <div class="list-group list-group-flush">
+            {% for f in favs if f.product_id %}
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <a class="text-decoration-none fw-bold text-dark" href="{{ url_for('product_detail', pid=f.product_id) }}">{{ f.product.nama_produk if f.product else '(produk dihapus)' }}</a>
+                  {% if f.product %}
+                  <div class="small text-muted">{{ f.product.kategori }} › {{ f.product.subkategori }} · Rp{{ f.product.harga|rp }}/{{ f.product.satuan }} · Penjual: {{ f.seller.nama }} · {{ f.created_at|dt }}</div>
+                  {% endif %}
+                </div>
+                <div class="d-flex gap-2">
+                  {% if f.product %}<a class="btn btn-sm btn-agrid" href="{{ url_for('product_detail', pid=f.product_id) }}">Beli / Tawar</a>{% endif %}
+                  <a class="btn btn-sm btn-outline-danger" href="{{ url_for('hapus_favorit', fqid=f.id) }}" title="Hapus favorit">✕</a>
+                </div>
+              </div>
+            {% else %}<div class="list-group-item small text-muted py-4 text-center">Belum ada produk favorit. Klik 🤍 pada kartu produk di marketplace.</div>{% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ============ TAB PENILAIAN KEPUASAN (DUA ARAH) ============ #}
+    <div class="tab-pane fade" id="tRat">
+      <div class="row g-3 mb-3">
+        <div class="col-md-4"><div class="card stat-card"><div class="card-body py-3 text-center">
+          <div class="small text-muted">Skor Kepuasan Anda Diterima</div>
+          <h3 class="mb-0 text-warning">{% if rstats.avg %}{{ rstats.avg }}{% else %}—{% endif %}</h3>
+          <div class="stars-inline">{{ rstats.star }}</div>
+          <div class="small text-muted">{{ rstats.count }} penilaian dari penjual</div>
+        </div></div></div>
+        <div class="col-md-8"><div class="card shadow-sm h-100"><div class="card-body">
+          <h6 class="fw-bold">📝 Transaksi Selesai yang Belum Anda Nilai</h6>
+          {% for t in rat_pending %}
+            <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+              <div><b>{{ t.product_name }}</b> <small class="text-muted">· Rp{{ t.nilai|rp }} · Penjual: {{ t.seller.nama }} · selesai {{ t.completed_at|dt }}</small></div>
+              <a class="btn btn-sm btn-warning fw-bold" href="{{ url_for('rate_transaction', tid=t.id) }}">⭐ Beri Penilaian</a>
+            </div>
+          {% else %}<div class="alert alert-success mb-0 mt-1">Semua transaksi selesai sudah Anda nilai. Terima kasih telah membantu membangun kepercayaan AGR.ID! 🌾</div>{% endfor %}
+        </div></div></div>
+      </div>
+      <div class="table-responsive bg-white rounded shadow-sm">
+        <table class="table table-dashboard mb-0">
+          <thead><tr><th>Tanggal</th><th>Transaksi / Produk</th><th>Arah</th><th>Skor</th><th>Aspek</th><th>Komentar</th></tr></thead>
+          <tbody>
+          {% for r in rat_in %}
+            <tr><td class="small">{{ r.created_at|dt }}</td><td>#{{ r.transaksi_id }} · {{ r.transaksi.product_name }} <small class="text-muted">(dari {{ r.from_user.nama }})</small></td>
+              <td><span class="badge bg-info text-dark">Penilai: Pembeli → Anda</span></td>
+              <td class="stars-inline fw-bold">{{ '★'*r.score + '☆'*(5-r.score) }} ({{r.score}}/5)</td>
+              <td class="small">{% set asp = None %}{% for kv in (r.aspek or '').strip('{}').split(',') %}<span class="badge bg-light text-dark border me-1">{{ kv.replace(':',' : ') }}</span>{% endfor %}{% if not r.aspek %}-{% endif %}</td>
+              <td class="small">{{ r.komentar or '—' }}</td></tr>
+          {% else %}<tr><td colspan="6" class="text-center text-muted py-4">Belum ada penilaian yang Anda terima.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>

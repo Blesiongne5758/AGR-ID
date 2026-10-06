@@ -114,14 +114,35 @@ class Booking(db.Model):
     dp_amount = db.Column(db.Float, nullable=False)
     sisa_bayar = db.Column(db.Float, nullable=False)
     biaya_penanganan = db.Column(db.Float, default=0)
+    metode_dp = db.Column(db.String(30))                     # Tunai / Transfer Bank / QRIS (metode penjual)
     jadwal_kirim = db.Column(db.Date)
     ekspedisi_id = db.Column(db.Integer, db.ForeignKey("ekspedisi.id"))
     tracking_code = db.Column(db.String(60))
-    status = db.Column(db.String(20), default="dp_pending")  # dp_pending/dp_lunas/dikirim/diterima/selesai/batal
+    status = db.Column(db.String(25), default="dp_pending")  # dp_pending/dp_lunas/menunggu_pelunasan/pelunasan_ditolak/dikirim/diterima/selesai/batal
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     offer = db.relationship("Offer", backref="bookings")
     ekspedisi = db.relationship("Ekspedisi")
+
+
+class Pelunasan(db.Model):
+    """Pengajuan pelunasan oleh pembeli (upload bukti transfer) -> approval penjual."""
+    __tablename__ = "pelunasan"
+    id = db.Column(db.Integer, primary_key=True)
+    transaksi_id = db.Column(db.Integer, db.ForeignKey("transaksi.id"), nullable=False)
+    buyer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    jumlah = db.Column(db.Float, nullable=False)             # nominal pelunasan (sisa + ongkir)
+    metode = db.Column(db.String(40))                        # Transfer Bank / Tunai / QRIS
+    rekening_tujuan = db.Column(db.String(120))              # info rekening/tujuan dari penjual
+    bukti = db.Column(db.Text)                               # data URI foto bukti transfer
+    catatan = db.Column(db.Text)
+    status = db.Column(db.String(20), default="menunggu")    # menunggu/disetujui/ditolak
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    reviewed_at = db.Column(db.DateTime)
+    review_catatan = db.Column(db.String(255))
+
+    transaksi = db.relationship("Transaksi", backref="pelunasans")
+    buyer = db.relationship("User", foreign_keys=[buyer_id])
 
 
 class Transaksi(db.Model):
@@ -195,12 +216,82 @@ class Ekspedisi(db.Model):
 
 
 class Pengaturan(db.Model):
-    """Pengaturan biaya tambahan platform (dashboard admin)."""
+    """Pengaturan biaya tambahan platform (dashboard admin & penjual)."""
     __tablename__ = "pengaturan"
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(60), unique=True)
-    value = db.Column(db.String(120))
-    label = db.Column(db.String(120))
+    value = db.Column(db.Text)
+    label = db.Column(db.String(255))
+
+
+class Favorite(db.Model):
+    """Penyimpanan penjual / produk favorit oleh pembeli."""
+    __tablename__ = "favorites"
+    id = db.Column(db.Integer, primary_key=True)
+    buyer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    seller_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)   # penjual favorit
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id"))               # produk favorit (opsional)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    buyer = db.relationship("User", foreign_keys=[buyer_id])
+    seller = db.relationship("User", foreign_keys=[seller_id])
+    product = db.relationship("Product")
+
+
+class Rating(db.Model):
+    """Score penilaian tingkat kepuasan dua arah antara penjual & pembeli.
+
+    Arah 'ke_penjual' : diberikan pembeli kepada penjual atas suatu transaksi selesai.
+    Arah 'ke_pembeli' : diberikan penjual kepada pembeli atas transaksi selesai.
+    """
+    __tablename__ = "ratings"
+    id = db.Column(db.Integer, primary_key=True)
+    transaksi_id = db.Column(db.Integer, db.ForeignKey("transaksi.id"), nullable=False)
+    from_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    to_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    arah = db.Column(db.String(20), default="ke_penjual")   # ke_penjual / ke_pembeli
+    score = db.Column(db.Integer, nullable=False)           # 1..5 bintang
+    aspek = db.Column(db.Text)                              # JSON: {"kualitas":4,"ketepatan_jadwal":5,...}
+    komentar = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    transaksi = db.relationship("Transaksi", backref="ratings")
+    from_user = db.relationship("User", foreign_keys=[from_user_id])
+    to_user = db.relationship("User", foreign_keys=[to_user_id])
+
+
+ASPEK_KEPUASAN = {
+    "ke_penjual": [("kualitas", "Kualitas Produk"), ("pengemasan", "Pengemasan & Eviden"),
+                   ("komunikasi", "Komunikasi & Respons"), ("jadwal", "Ketepatan Jadwal Kirim")],
+    "ke_pembeli": [("ketepatan_bayar", "Ketepatan Pembayaran"), ("komunikasi", "Komunikasi & Kerjasama"),
+                   ("kejelasan", "Kejelasan Pesanan & Spesifikasi")],
+}
+
+
+def rating_stats(user_id):
+    """Rekap rata-rata skor & jumlah penilaian yang diterima seorang user."""
+    rows = Rating.query.filter_by(to_user_id=user_id).all()
+    if not rows:
+        return {"avg": None, "count": 0, "star": "☆"}
+    avg = sum(r.score for r in rows) / len(rows)
+    full = int(round(avg))
+    return {"avg": round(avg, 2), "count": len(rows),
+            "star": "★" * full + "☆" * (5 - full)}
+
+
+def my_rating_for(tx_id, uid):
+    return Rating.query.filter_by(transaksi_id=tx_id, from_user_id=uid).first()
+
+
+def pending_ratings(uid):
+    """Transaksi completed yang belum dinilai oleh user tsb (untuk prompt di dashboard)."""
+    done = Transaksi.query.filter(Transaksi.status == "completed").all()
+    out = []
+    for t in done:
+        if t.seller_id == uid or t.buyer_id == uid:
+            if not my_rating_for(t.id, uid):
+                out.append(t)
+    return out
 
 
 class ChatMessage(db.Model):
@@ -214,9 +305,33 @@ class ChatMessage(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+def seller_rating_cache(products):
+    """Rekap rating penjual utk sekumpulan produk (dipakai kartu produk)."""
+    cache = {}
+    for pr in products:
+        sid = pr.seller_id
+        if sid not in cache:
+            cache[sid] = rating_stats(sid)
+    return cache
+
+
 def get_setting(key, default=None):
     p = Pengaturan.query.filter_by(key=key).first()
     return p.value if p else default
+
+
+@app.context_processor
+def inject_footer_info():
+    """Info footer landing page (pengaturan dashboard admin) tersedia di semua template."""
+    try:
+        keys = ("footer_tentang", "footer_kontak", "footer_alamat", "footer_email",
+                "footer_telepon", "footer_jam_operasional", "footer_sosial",
+                "footer_copyright", "footer_tautan")
+        vals = {p.key: p.value for p in Pengaturan.query.filter(Pengaturan.key.in_(keys)).all()}
+        footer = {k: vals.get(k, "") for k in keys}
+    except Exception:
+        footer = {}
+    return {"footer": footer}
 
 
 def set_setting(key, value, label=None):
@@ -228,6 +343,56 @@ def set_setting(key, value, label=None):
         p.value = str(value)
     db.session.commit()
     return p
+
+
+BIAYA_LABEL = {
+    "dp_persen": "Persen DP Booking (%)",
+    "biaya_penanganan_persen": "Biaya Penanganan Platform (%)",
+    "biaya_tambahan_flat": "Biaya Tambahan Flat per Transaksi (Rp)",
+    "biaya_verifikasi": "Biaya Verifikasi Eviden (Rp)",
+    "biaya_iklan_produk": "Biaya Iklan/Promosi Produk (Rp/produk)",
+    "ongkir_persen_asuransi": "Asuransi Pengiriman (% dari nilai barang)",
+    "min_transaksi": "Minimum Nilai Transaksi (Rp)",
+}
+
+
+def get_biaya_settings():
+    """Kumpulan pengaturan biaya/DP untuk dashboard admin & penjual."""
+    return {k: get_setting(k, d) for k, d in {
+        "dp_persen": "20", "biaya_penanganan_persen": "2", "biaya_tambahan_flat": "0",
+        "biaya_verifikasi": "5000", "biaya_iklan_produk": "0",
+        "ongkir_persen_asuransi": "1", "min_transaksi": "50000"}.items()}
+
+
+def fav_state(buyer, seller_id=None, product_id=None):
+    """Status favorit pembeli utk penjual/produk tertentu (untuk tombol ♥)."""
+    if not buyer or buyer.role != "pembeli":
+        return {"seller": False, "product": False}
+    q = Favorite.query.filter_by(buyer_id=buyer.id)
+    s = q.filter(Favorite.product_id.is_(None), Favorite.seller_id == seller_id).first() if seller_id else None
+    p = q.filter(Favorite.product_id == product_id).first() if product_id else None
+    return {"seller": bool(s), "product": bool(p)}
+
+
+def is_fav_seller(buyer, seller_id):
+    return fav_state(buyer, seller_id=seller_id)["seller"]
+
+
+def is_fav_product(buyer, product_id):
+    return fav_state(buyer, product_id=product_id)["product"]
+
+
+def seller_payment_cfg(u):
+    """Konfigurasi metode pembayaran pelunasan DP milik penjual (per-akun)."""
+    import json
+    raw = get_setting(f"pembayaran_penjual_{u.id}")
+    cfg = {"metode_dp": ["Transfer Bank", "QRIS"], "rekening": "", "tujuan_tunai": u.alamat or ""}
+    if raw:
+        try:
+            cfg.update(json.loads(raw))
+        except Exception:
+            pass
+    return cfg
 
 # ----------------------------------------------------------------------------
 # HARGA PASAR (TICKER)
@@ -388,7 +553,8 @@ def login_required(*roles):
 def home():
     prods = Product.query.filter_by(status="aktif").order_by(Product.created_at.desc()).limit(8).all()
     return render_template("home.html", categories=KATEGORI, products=prods,
-                           ticker=ticker_data(), user=current_user())
+                           ticker=ticker_data(), user=current_user(),
+                           seller_rating_cache=seller_rating_cache(prods))
 
 
 @app.route("/marketplace")
@@ -410,9 +576,20 @@ def marketplace():
         query = query.filter(Product.non_halal.is_(False))
     prods = query.order_by(Product.created_at.desc()).all()
     subs = MASTER_PRODUK.get(kat, {}).get("subkategori", []) if kat else []
+    cu = current_user()
+    fav_seller_ids = set()
+    fav_prod_ids = set()
+    if cu and cu.role == "pembeli":
+        for f in Favorite.query.filter_by(buyer_id=cu.id).all():
+            if f.product_id is None:
+                fav_seller_ids.add(f.seller_id)
+            else:
+                fav_prod_ids.add(f.product_id)
     return render_template("marketplace.html", products=prods, categories=KATEGORI,
                            subs=subs, q=q, kat=kat, sub=sub, hide_nonhalal=hide_nonhalal,
-                           ticker=ticker_data(), user=current_user())
+                           ticker=ticker_data(), user=cu,
+                           fav_sellers=fav_seller_ids, fav_products=fav_prod_ids,
+                           seller_rating_cache=seller_rating_cache(prods))
 
 
 @app.route("/produk/<int:pid>")
@@ -420,8 +597,11 @@ def product_detail(pid):
     p = Product.query.get_or_404(pid)
     evidences = Eviden.query.join(Transaksi).filter(Transaksi.offer_id.in_(
         [o.id for o in p.offers])).limit(6).all()
-    return render_template("product.html", p=p, evidences=evidences, user=current_user(),
-                           ticker=ticker_data())
+    cu = current_user()
+    fav_count = Favorite.query.filter_by(seller_id=p.seller_id).count()
+    return render_template("product.html", p=p, evidences=evidences, user=cu,
+                           ticker=ticker_data(), fav=fav_state(cu, p.seller_id, p.id),
+                           fav_count=fav_count, seller_rating=rating_stats(p.seller_id))
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -497,9 +677,17 @@ def dashboard_seller():
     my_offers = Offer.query.filter(Offer.product_id.in_([p.id for p in my_prods] or [-1])).order_by(Offer.created_at.desc()).all()
     jualan = Transaksi.query.filter_by(seller_id=u.id).order_by(Transaksi.created_at.desc()).all()
     omzet = sum(t.nilai for t in jualan if t.status in ("paid", "shipped", "delivered", "completed"))
+    pid = [t.id for t in jualan] or [-1]
+    pending_pelunasan = Pelunasan.query.filter(Pelunasan.transaksi_id.in_(pid),
+                                               Pelunasan.status == "menunggu").order_by(Pelunasan.created_at.desc()).all()
+    ratings_received = Rating.query.filter_by(to_user_id=u.id).order_by(Rating.created_at.desc()).all()
     return render_template("seller_dashboard.html", u=u, products=my_prods, offers=my_offers,
            penjualan=jualan, omzet=omzet, user=u, ticker=ticker_data(),
-           categories=MASTER_PRODUK)
+           categories=MASTER_PRODUK, biaya=get_biaya_settings(),
+           paycfg=seller_payment_cfg(u), pending_pelunasan=pending_pelunasan,
+           rstats=rating_stats(u.id), rat_in=ratings_received,
+           rat_out=[my_rating_for(t.id, u.id) for t in jualan if my_rating_for(t.id, u.id)],
+           rat_pending=pending_ratings(u.id))
 
 
 @app.route("/dashboard/pembeli")
@@ -509,8 +697,20 @@ def dashboard_buyer():
     my_offers = Offer.query.filter_by(buyer_id=u.id).order_by(Offer.created_at.desc()).all()
     pembelian = Transaksi.query.filter_by(buyer_id=u.id).order_by(Transaksi.created_at.desc()).all()
     total_belanja = sum(t.nilai for t in pembelian if t.status in ("paid", "shipped", "delivered", "completed"))
+    bookings = {b.id: b for b in Booking.query.filter(Booking.id.in_([t.booking_id for t in pembelian if t.booking_id] or [-1])).all()}
+    pelunasans = {}
+    for t in pembelian:
+        pl = Pelunasan.query.filter_by(transaksi_id=t.id).order_by(Pelunasan.created_at.desc()).first()
+        if pl:
+            pelunasans[t.id] = pl
+    favs = Favorite.query.filter_by(buyer_id=u.id).order_by(Favorite.created_at.desc()).all()
+    ratings_received = Rating.query.filter_by(to_user_id=u.id).order_by(Rating.created_at.desc()).all()
     return render_template("buyer_dashboard.html", u=u, offers=my_offers, pembelian=pembelian,
-                           total=total_belanja, user=u, ticker=ticker_data())
+                           total=total_belanja, user=u, ticker=ticker_data(),
+                           bookings=bookings, pelunasans=pelunasans, favs=favs,
+                           rstats=rating_stats(u.id), rat_in=ratings_received,
+                           rat_out=[my_rating_for(t.id, u.id) for t in pembelian if my_rating_for(t.id, u.id)],
+                           rat_pending=pending_ratings(u.id))
 
 
 @app.route("/dashboard/admin")
@@ -522,6 +722,36 @@ def dashboard_admin():
     pg = PaymentGatewayAPI.query.all()
     eks = Ekspedisi.query.all()
     settings = {p.key: p.value for p in Pengaturan.query.all()}
+
+    # ---- Laporan keuangan (rekap per metode pembayaran & status) ----
+    by_method, by_status = {}, {}
+    for t in tx:
+        m = (t.metode_bayar or "-").lower()
+        d = by_method.setdefault(m, {"n": 0, "nilai": 0.0, "dp": 0.0, "pelunasan": 0.0,
+                                     "fee": 0.0, "ongkir": 0.0})
+        d["n"] += 1; d["nilai"] += t.nilai or 0; d["dp"] += t.dp_dibayar or 0
+        d["pelunasan"] += t.pelunasan or 0; d["fee"] += t.biaya_penanganan or 0; d["ongkir"] += t.ongkir or 0
+        s = t.status or "-"
+        r = by_status.setdefault(s, {"n": 0, "nilai": 0.0})
+        r["n"] += 1; r["nilai"] += t.nilai or 0
+    paid_tx = [t for t in tx if t.status in ("paid", "shipped", "delivered", "completed")]
+    keuangan = {
+        "bruto": sum(t.nilai for t in tx),
+        "bersih": sum(t.nilai for t in paid_tx),
+        "dp_masuk": sum(t.dp_dibayar or 0 for t in tx),
+        "pelunasan_masuk": sum(t.pelunasan or 0 for t in tx),
+        "ongkir": sum(t.ongkir or 0 for t in tx),
+        "fee": revenue,
+        "flat": sum(float(get_setting("biaya_tambahan_flat", "0") or 0) for t in tx),
+        "pending": sum(t.nilai for t in tx if t.status not in ("paid", "shipped", "delivered", "completed", "cancelled", "refunded")),
+    }
+
+    # ---- Pembagian laporan penjualan vs pembelian ----
+    penjualan_rows = sorted(tx, key=lambda t: t.created_at, reverse=True)
+    pembelian_rows = penjualan_rows
+    total_nilai_penjualan = sum(t.nilai for t in tx)
+    total_nilai_pembelian = total_nilai_penjualan
+
     stats = {
         "users": User.query.count(),
         "penjual": User.query.filter_by(role="penjual").count(),
@@ -531,9 +761,27 @@ def dashboard_admin():
         "transaksi": len(tx),
         "gmv": sum(t.nilai for t in tx),
         "revenue": revenue,
+        "favorites": Favorite.query.count(),
+        "ratings": Rating.query.count(),
+    }
+    # ---- Rekap kepuasan dua arah utk monitoring admin ----
+    rat_rows = Rating.query.order_by(Rating.created_at.desc()).all()
+    ke_penjual = [r for r in rat_rows if r.arah == "ke_penjual"]
+    ke_pembeli = [r for r in rat_rows if r.arah == "ke_pembeli"]
+    rating_rekap = {
+        "total": len(rat_rows),
+        "avg_penjual": round(sum(r.score for r in ke_penjual) / len(ke_penjual), 2) if ke_penjual else None,
+        "avg_pembeli": round(sum(r.score for r in ke_pembeli) / len(ke_pembeli), 2) if ke_pembeli else None,
+        "n_penjual": len(ke_penjual), "n_pembeli": len(ke_pembeli),
+        "rendah": [r for r in rat_rows if r.score <= 2],
     }
     return render_template("admin_dashboard.html", u=u, stats=stats, tx=tx, pg=pg, eks=eks,
-                           settings=settings, user=u, ticker=ticker_data())
+                           settings=settings, user=u, ticker=ticker_data(),
+                           biaya=get_biaya_settings(), labels=BIAYA_LABEL,
+                           keuangan=keuangan, by_method=by_method, by_status=by_status,
+                           penjualan_rows=penjualan_rows, pembelian_rows=pembelian_rows,
+                           total_penjualan=total_nilai_penjualan, total_pembelian=total_nilai_pembelian,
+                           rating_rekap=rating_rekap, rat_rows=rat_rows[:30])
 
 # ----------------------------------------------------------------------------
 # ROUTES: PRODUK (CRUD + auto-add master)
@@ -692,11 +940,13 @@ def show_booking_form(oid):
     fee = round(o.total * fee_persen / 100, 0)
     sisa = round(o.total - dp_amount, 0)
     eks_list = Ekspedisi.query.filter_by(enabled=True).all()
+    seller_cfg = seller_payment_cfg(o.product.seller)
     if request.method == "POST":
         jadwal = request.form.get("jadwal_kirim")
         eks_id = request.form.get("ekspedisi_id") or None
+        metode_dp = request.form.get("metode_dp") or (seller_cfg["metode_dp"][0] if seller_cfg["metode_dp"] else "Transfer Bank")
         b = Booking(offer_id=o.id, dp_persen=dp_persen, dp_amount=dp_amount,
-                    sisa_bayar=sisa, biaya_penanganan=fee,
+                    sisa_bayar=sisa, biaya_penanganan=fee, metode_dp=metode_dp,
                     jadwal_kirim=datetime.strptime(jadwal, "%Y-%m-%d").date() if jadwal else None,
                     ekspedisi_id=eks_id, status="dp_pending")
         db.session.add(b)
@@ -705,6 +955,8 @@ def show_booking_form(oid):
         return redirect(url_for("pay_booking", bid=b.id))
     return render_template("booking_form.html", o=o, dp_persen=dp_persen, fee_persen=fee_persen,
                            dp_amount=dp_amount, fee=fee, sisa=sisa, eks_list=eks_list,
+                           metode_dp=seller_cfg["metode_dp"], rekening=seller_cfg["rekening"],
+                           tujuan_tunai=seller_cfg["tujuan_tunai"],
                            user=current_user(), ticker=ticker_data())
 
 
@@ -723,16 +975,83 @@ def pay_booking(bid):
         method = request.form.get("metode")
         b.status = "dp_lunas"
         o.status = "booking"
+        eks = Ekspedisi.query.get(b.ekspedisi_id) if b.ekspedisi_id else None
+        ongkir = round((eks.tarif_per_kg or 0) * (o.qty if o.qty <= 500 else o.qty), 0) if eks else 0
         t = Transaksi(offer_id=o.id, booking_id=b.id, seller_id=Product.query.get(o.product_id).seller_id,
                       buyer_id=o.buyer_id, product_name=o.product.nama_produk, qty=o.qty,
                       nilai=o.total, dp_dibayar=b.dp_amount, biaya_penanganan=b.biaya_penanganan,
-                      metode_bayar=method, ref_payment=ref, status="processing")
+                      ongkir=ongkir, metode_bayar=f"{b.metode_dp} via {method}" if b.metode_dp else method,
+                      ref_payment=ref, status="processing")
         db.session.add(t)
         db.session.commit()
-        flash(f"DP {int(b.dp_amount):,} berhasil dibayar via {method.upper()} 🎉 Ref: {ref}", "success")
+        flash(f"DP {int(b.dp_amount):,} ({b.metode_dp}) berhasil dibayar via payment gateway {method.upper()} 🎉 Ref: {ref}", "success")
         return redirect(url_for("dashboard_buyer"))
     return render_template("payment.html", b=b, o=o, channels=channels, ref=ref,
                            pg=pg_active, user=current_user(), ticker=ticker_data())
+
+
+@app.route("/transaksi/<int:tid>/pelunasan", methods=["GET", "POST"])
+@login_required("pembeli")
+def submit_pelunasan(tid):
+    """Pembeli menyelesaikan pembayaran pelunasan DP: upload bukti transfer -> approval penjual."""
+    t = Transaksi.query.get_or_404(tid)
+    u = current_user()
+    if t.buyer_id != u.id:
+        flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard_buyer"))
+    b = Booking.query.get(t.booking_id) if t.booking_id else None
+    seller_cfg = seller_payment_cfg(t.seller)
+    sisa = round((t.nilai - t.dp_dibayar) + (t.ongkir or 0), 0)
+    pl_terbaru = Pelunasan.query.filter_by(transaksi_id=t.id).order_by(Pelunasan.created_at.desc()).first()
+    if request.method == "POST":
+        metode = request.form.get("metode") or "Transfer Bank"
+        bukti = request.form.get("bukti", "")          # data URI hasil pembacaan file di browser
+        jumlah = float(request.form.get("jumlah") or sisa)
+        pl = Pelunasan(transaksi_id=t.id, buyer_id=u.id, jumlah=jumlah, metode=metode,
+                       rekening_tujuan=seller_cfg["rekening"] or seller_cfg["tujuan_tunai"],
+                       bukti=bukti, catatan=request.form.get("catatan", ""), status="menunggu")
+        db.session.add(pl)
+        if b:
+            b.status = "menunggu_pelunasan"
+        t.status = "menunggu_approval"
+        db.session.commit()
+        flash("Pengajuan pelunasan dikirim — menunggu approval dari penjual ⏳", "success")
+        return redirect(url_for("dashboard_buyer"))
+    return render_template("pelunasan_form.html", t=t, b=b, sisa=sisa, pl=pl_terbaru,
+                           cfg=seller_cfg, user=u, ticker=ticker_data())
+
+
+@app.route("/pelunasan/<int:pid>/review", methods=["POST"])
+@login_required("penjual")
+def review_pelunasan(pid):
+    """Penjual menyetujui/menolak bukti transfer pelunasan pembeli."""
+    pl = Pelunasan.query.get_or_404(pid)
+    t = pl.transaksi
+    u = current_user()
+    if t.seller_id != u.id:
+        flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard_seller"))
+    aksi = request.form.get("aksi")
+    catatan = request.form.get("catatan", "")
+    b = Booking.query.get(t.booking_id) if t.booking_id else None
+    if aksi == "setuju":
+        pl.status = "disetujui"
+        t.pelunasan = pl.jumlah
+        t.status = "paid"
+        if b:
+            b.status = "dp_lunas"
+        pl.reviewed_at = datetime.utcnow()
+        pl.review_catatan = catatan
+        db.session.commit()
+        flash("Pelunasan disetujui ✔ transaksi dinyatakan lunas.", "success")
+    elif aksi == "tolak":
+        pl.status = "ditolak"
+        t.status = "processing"
+        if b:
+            b.status = "pelunasan_ditolak"
+        pl.reviewed_at = datetime.utcnow()
+        pl.review_catatan = catatan
+        db.session.commit()
+        flash("Pelunasan ditolak. Pembeli dapat mengajukan ulang dengan bukti yang benar.", "warning")
+    return redirect(url_for("dashboard_seller"))
 
 
 @app.route("/transaksi/<int:tid>/eviden", methods=["GET", "POST"])
@@ -779,6 +1098,75 @@ def update_status(tid):
         db.session.commit()
         flash("Status transaksi diperbarui → " + new.upper(), "success")
     return redirect(request.referrer or url_for("dashboard"))
+
+# ----------------------------------------------------------------------------
+# ROUTES: PENILAIAN TINGKAT KEPUASAN (rating dua arah penjual <-> pembeli)
+# ----------------------------------------------------------------------------
+
+@app.route("/transaksi/<int:tid>/nilai", methods=["GET", "POST"])
+@login_required("penjual", "pembeli")
+def rate_transaction(tid):
+    """Pemberian score kepuasan oleh salah satu pihak atas transaksi selesai."""
+    t = Transaksi.query.get_or_404(tid)
+    u = current_user()
+    if t.status != "completed":
+        flash("Penilaian hanya dapat diberikan setelah transaksi berstatus selesai.", "warning")
+        return redirect(url_for("dashboard"))
+    if u.role == "pembeli" and t.buyer_id != u.id:
+        flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard"))
+    if u.role == "penjual" and t.seller_id != u.id:
+        flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard"))
+    if my_rating_for(t.id, u.id):
+        flash("Anda sudah menilai transaksi ini. Terima kasih! ⭐", "info")
+        return redirect(url_for("dashboard"))
+    to_id = t.seller_id if u.role == "pembeli" else t.buyer_id
+    arah = "ke_penjual" if u.role == "pembeli" else "ke_pembeli"
+    aspek_list = ASPEK_KEPUASAN[arah]
+    if request.method == "POST":
+        try:
+            overall = int(request.form.get("score") or 0)
+        except Exception:
+            overall = 0
+        if not 1 <= overall <= 5:
+            flash("Skor utama harus 1–5 bintang.", "danger")
+            return redirect(url_for("rate_transaction", tid=tid))
+        aspek = {}
+        for key, _lab in aspek_list:
+            try:
+                v = int(request.form.get(f"aspek_{key}") or overall)
+            except Exception:
+                v = overall
+            aspek[key] = max(1, min(5, v))
+        r = Rating(transaksi_id=t.id, from_user_id=u.id, to_user_id=to_id, arah=arah,
+                   score=overall, aspek=json.dumps(aspek),
+                   komentar=request.form.get("komentar", "").strip())
+        db.session.add(r)
+        db.session.commit()
+        lawang = "penjual" if u.role == "pembeli" else "pembeli"
+        flash(f"Penilaian {overall}⭐ untuk {lawang} tersimpan — terima kasih atas feedback Anda! 🌾", "success")
+        return redirect(url_for("dashboard"))
+    return render_template("rate_form.html", t=t, arah=arah, aspek_list=aspek_list,
+                           user=u, ticker=ticker_data())
+
+
+@app.route("/api/rating/<int:uid>")
+def api_user_rating(uid):
+    """Rekap rating publik seorang user + daftar ulasan terbaru ( utk badge & modal )."""
+    stats = rating_stats(uid)
+    rows = Rating.query.filter_by(to_user_id=uid).order_by(Rating.created_at.desc()).limit(10).all()
+    ulas = []
+    for r in rows:
+        aspek = {}
+        try:
+            aspek = json.loads(r.aspek or "{}")
+        except Exception:
+            pass
+        ulas.append({"skor": r.score, "bintang": "★" * r.score + "☆" * (5 - r.score),
+                    "arah": r.arah, "dari": r.from_user.nama, "produk": r.transaksi.product_name,
+                    "komentar": r.komentar, "tgl": r.created_at.strftime("%d %b %Y"), "aspek": aspek})
+    usr = User.query.get(uid)
+    return jsonify(ok=True, nama=usr.nama if usr else "-", role=usr.role if usr else "-",
+                   **stats, ulasan=ulas)
 
 # ----------------------------------------------------------------------------
 # ROUTES: ADMIN CONFIG (API keys, biaya tambahan, persen DP)
@@ -831,12 +1219,189 @@ def delete_ekspedisi(eid):
 @app.route("/admin/pengaturan", methods=["POST"])
 @login_required("admin")
 def save_pengaturan():
-    set_setting("dp_persen", request.form.get("dp_persen", "20"), "Persen DP Booking (%)")
-    set_setting("biaya_penanganan_persen", request.form.get("biaya_penanganan_persen", "2"), "Biaya Penanganan (%)")
-    set_setting("biaya_tambahan_flat", request.form.get("biaya_tambahan_flat", "0"), "Biaya Tambahan Flat (Rp)")
-    set_setting("biaya_verifikasi", request.form.get("biaya_verifikasi", "5000"), "Biaya Verifikasi Eviden (Rp)")
-    flash("Pengaturan biaya & DP diperbarui ✔", "success")
+    """Ubah DP, penambahan & pengaturan biaya-biaya (dashboard admin)."""
+    set_setting("dp_persen", request.form.get("dp_persen", "20"), BIAYA_LABEL["dp_persen"])
+    set_setting("biaya_penanganan_persen", request.form.get("biaya_penanganan_persen", "2"),
+                BIAYA_LABEL["biaya_penanganan_persen"])
+    set_setting("biaya_tambahan_flat", request.form.get("biaya_tambahan_flat", "0"),
+                BIAYA_LABEL["biaya_tambahan_flat"])
+    set_setting("biaya_verifikasi", request.form.get("biaya_verifikasi", "5000"),
+                BIAYA_LABEL["biaya_verifikasi"])
+    set_setting("biaya_iklan_produk", request.form.get("biaya_iklan_produk", "0"),
+                BIAYA_LABEL["biaya_iklan_produk"])
+    set_setting("ongkir_persen_asuransi", request.form.get("ongkir_persen_asuransi", "1"),
+                BIAYA_LABEL["ongkir_persen_asuransi"])
+    set_setting("min_transaksi", request.form.get("min_transaksi", "50000"),
+                BIAYA_LABEL["min_transaksi"])
+    # custom biaya tambahan dinamis: biaya_baru_<n> / label_baru_<n>
+    n = int(request.form.get("custom_count", "0"))
+    for i in range(1, n + 1):
+        key = request.form.get(f"key_hapus_{i}")
+        if key and request.form.get(f"hapus_{i}"):
+            p = Pengaturan.query.filter_by(key=key).first()
+            if p:
+                db.session.delete(p)
+            continue
+        lab = request.form.get(f"label_baru_{i}", "").strip()
+        val = request.form.get(f"value_baru_{i}", "").strip()
+        if lab and val:
+            skey = f"biaya_custom_{i}"
+            set_setting(skey, val, lab)
+    db.session.commit()
+    flash("Pengaturan ubah DP & biaya-biaya diperbarui ✔", "success")
     return redirect(url_for("dashboard_admin"))
+
+
+@app.route("/penjual/pengaturan-pembayaran", methods=["POST"])
+@login_required("penjual")
+def save_seller_payment():
+    """Penjual mengatur jenis pembayaran pelunasan DP: Tunai / Transfer Bank / Scan QRIS."""
+    import json
+    u = current_user()
+    metode = request.form.getlist("metode_dp") or ["Transfer Bank"]
+    cfg = {
+        "metode_dp": metode,
+        "rekening": request.form.get("rekening", "").strip(),
+        "qris": request.form.get("qris", "").strip(),
+        "tujuan_tunai": request.form.get("tujuan_tunai", u.alamat or "").strip(),
+    }
+    set_setting(f"pembayaran_penjual_{u.id}", json.dumps(cfg), f"Pengaturan pembayaran penjual #{u.id}")
+    flash("Jenis pembayaran pelunasan DP disimpan ✔ (" + ", ".join(metode) + ")", "success")
+    return redirect(url_for("dashboard_seller") + "#tSet")
+
+
+@app.route("/admin/footer", methods=["POST"])
+@login_required("admin")
+def save_footer():
+    """Pengaturan informasi footer landing page dari dashboard admin."""
+    labels = {
+        "footer_tentang": "Footer: Tentang AGR.ID",
+        "footer_kontak": "Footer: Judul Kontak",
+        "footer_alamat": "Footer: Alamat Kantor",
+        "footer_email": "Footer: Email",
+        "footer_telepon": "Footer: Telepon/WA",
+        "footer_jam_operasional": "Footer: Jam Operasional",
+        "footer_sosial": "Footer: Sosial Media",
+        "footer_copyright": "Footer: Copyright",
+        "footer_tautan": "Footer: Tautan Cepat",
+    }
+    for k, lab in labels.items():
+        v = request.form.get(k)
+        if v is not None:
+            set_setting(k, v.strip(), lab)
+    flash("Informasi footer landing page diperbarui ✔", "success")
+    return redirect(url_for("dashboard_admin"))
+
+
+# ----------------------------------------------------------------------------
+# ROUTES: LAPORAN & PENGATURAN TAMPILAN LAPORAN (ADMIN) + FAVORIT (PEMBELI)
+# ----------------------------------------------------------------------------
+
+@app.route("/admin/pengaturan-laporan", methods=["POST"])
+@login_required("admin")
+def save_pengaturan_laporan():
+    """Pengaturan untuk menampilkan laporan penjualan & pembelian di dashboard admin."""
+    flags = {
+        "laporan_tampil_penjualan": "Tampilkan Laporan Penjualan (sisi penjual)",
+        "laporan_tampil_pembelian": "Tampilkan Laporan Pembelian (sisi pembeli)",
+        "laporan_tampil_keuangan": "Tampilkan Rekap Laporan Keuangan",
+        "laporan_detail_transaksi": "Tampilkan Tabel Detail Transaksi",
+        "laporan_rekap_metode": "Tampilkan Rekap per Metode Pembayaran",
+        "laporan_limit": "Jumlah baris laporan per tabel",
+    }
+    bool_keys = list(flags.keys())[:-1]
+    for k in bool_keys:
+        set_setting(k, "1" if request.form.get(k) else "0", flags[k])
+    limit = request.form.get("laporan_limit", "50")
+    try:
+        limit = str(max(5, min(500, int(float(limit)))))
+    except Exception:
+        limit = "50"
+    set_setting("laporan_limit", limit, flags["laporan_limit"])
+    flash("Pengaturan tampilan laporan diperbarui ✔", "success")
+    return redirect(url_for("dashboard_admin"))
+
+
+@app.route("/admin/laporan/export")
+@login_required("admin")
+def export_laporan():
+    """Export CSV laporan keuangan / penjualan / pembelian sesuai pengaturan."""
+    import csv, io
+    settings = {p.key: p.value for p in Pengaturan.query.all()}
+    jenis = request.args.get("jenis", "keuangan")
+    try:
+        limit = int(settings.get("laporan_limit", "50"))
+    except Exception:
+        limit = 50
+    tx = Transaksi.query.order_by(Transaksi.created_at.desc()).limit(limit).all()
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    if jenis == "penjualan":
+        if settings.get("laporan_tampil_penjualan", "1") != "1":
+            return "Laporan penjualan dinonaktifkan admin.", 403
+        w.writerow(["ID", "Tanggal", "Produk", "Qty", "Penjual", "Pembeli", "Nilai", "DP", "Pelunasan", "Fee", "Ongkir", "Status"])
+        for t in tx:
+            w.writerow([t.id, t.created_at, t.product_name, t.qty, t.seller.nama, t.buyer.nama,
+                        int(t.nilai or 0), int(t.dp_dibayar or 0), int(t.pelunasan or 0),
+                        int(t.biaya_penanganan or 0), int(t.ongkir or 0), t.status])
+    elif jenis == "pembelian":
+        if settings.get("laporan_tampil_pembelian", "1") != "1":
+            return "Laporan pembelian dinonaktifkan admin.", 403
+        w.writerow(["ID", "Tanggal", "Produk", "Qty", "Pembeli", "Penjual", "Nilai", "DP", "Pelunasan", "Metode", "Ref", "Status"])
+        for t in tx:
+            w.writerow([t.id, t.created_at, t.product_name, t.qty, t.buyer.nama, t.seller.nama,
+                        int(t.nilai or 0), int(t.dp_dibayar or 0), int(t.pelunasan or 0),
+                        t.metode_bayar, t.ref_payment, t.status])
+    else:
+        w.writerow(["ID", "Tanggal", "Produk", "Nilai", "DP Masuk", "Pelunasan", "Biaya Penanganan", "Ongkir", "Metode", "Ref Payment", "Status"])
+        for t in tx:
+            w.writerow([t.id, t.created_at, t.product_name, int(t.nilai or 0), int(t.dp_dibayar or 0),
+                        int(t.pelunasan or 0), int(t.biaya_penanganan or 0), int(t.ongkir or 0),
+                        t.metode_bayar, t.ref_payment, t.status])
+    resp = app.response_class(buf.getvalue(), mimetype="text/csv")
+    resp.headers["Content-Disposition"] = f"attachment; filename=laporan_{jenis}_agr_id.csv"
+    return resp
+
+
+@app.route("/favorit/toggle", methods=["POST"])
+@login_required("pembeli")
+def toggle_favorit():
+    """Simpan / hapus penjual atau produk favorit pembeli."""
+    u = current_user()
+    pid = request.form.get("product_id", type=int)
+    sid = request.form.get("seller_id", type=int)
+    prod = Product.query.get(pid) if pid else None
+    if prod:
+        sid = prod.seller_id
+    if not sid:
+        return jsonify(ok=False, error="seller tidak ditemukan"), 400
+    fav = Favorite.query.filter_by(buyer_id=u.id, seller_id=sid,
+                                   product_id=(pid if prod else None)).first()
+    if fav:
+        db.session.delete(fav)
+        db.session.commit()
+        state = False
+    else:
+        db.session.add(Favorite(buyer_id=u.id, seller_id=sid, product_id=(prod.id if prod else None)))
+        db.session.commit()
+        state = True
+    if request.headers.get("X-Requested-With") == "fetch" or request.is_json:
+        return jsonify(ok=True, favorited=state,
+                       target="produk" if prod else "penjual")
+    flash(("❤ Ditambahkan ke favorit" if state else "Dihapus dari favorit") +
+          (f": {prod.nama_produk}" if prod else f": {User.query.get(sid).nama}"), "info")
+    referer = request.form.get("next") or request.referrer
+    return redirect(referer or url_for("marketplace"))
+
+
+@app.route("/favorit/hapus/<int:fqid>")
+@login_required("pembeli")
+def hapus_favorit(fqid):
+    f = Favorite.query.filter_by(id=fqid, buyer_id=current_user().id).first_or_404()
+    db.session.delete(f)
+    db.session.commit()
+    flash("Favorit dihapus", "info")
+    return redirect(request.referrer or url_for("dashboard_buyer"))
 
 # ----------------------------------------------------------------------------
 # ROUTES: AI CHAT
@@ -889,11 +1454,56 @@ def seed():
         fresh = User.query.first() is None if False else False
     with app.app_context():
         db.create_all()
+        # --- migrasi ringan untuk DB lama: tambah kolom/tabel yang hilang ---
+        try:
+            from sqlalchemy import text
+            insp_cols = {c[1] for c in db.session.execute(text("PRAGMA table_info(bookings)"))}
+            if "metode_dp" not in insp_cols:
+                db.session.execute(text("ALTER TABLE bookings ADD COLUMN metode_dp VARCHAR(30)"))
+            insp_cols_t = {c[1] for c in db.session.execute(text("PRAGMA table_info(pengaturan)"))}
+            if insp_cols_t:
+                pass  # value/label sudah text di model baru; SQLite longgar utk tipe
+            db.session.commit()
+        except Exception as e:
+            print("migrasi:", e)
         if Pengaturan.query.count() == 0:
             set_setting("dp_persen", "20", "Persen DP Booking (%)")
             set_setting("biaya_penanganan_persen", "2", "Biaya Penanganan (%)")
             set_setting("biaya_tambahan_flat", "0", "Biaya Tambahan Flat (Rp)")
             set_setting("biaya_verifikasi", "5000", "Biaya Verifikasi Eviden (Rp)")
+        # pastikan key biaya baru tersedia (untuk DB lama)
+        for k, d in get_biaya_settings().items():
+            if not Pengaturan.query.filter_by(key=k).first():
+                set_setting(k, d, BIAYA_LABEL.get(k, k))
+        # Default informasi footer landing page (dapat diubah di dashboard admin)
+        FOOTER_DEFAULTS = {
+            "footer_tentang": "Marketplace B2B/B2C pertanian, perkebunan, perikanan & peternakan. "
+                              "Mempertemukan penjual & pembeli langsung dengan penawaran harga, booking DP, "
+                              "payment gateway, ekspedisi, serta verifikasi & ketelusuran berbasis eviden foto + GPS.",
+            "footer_kontak": "Hubungi Kami",
+            "footer_alamat": "Jl. Pertanian Nusantara No. 1, Jakarta Selatan, DKI Jakarta 12345",
+            "footer_email": "halo@agr.id",
+            "footer_telepon": "+62 812-3456-7890 (WhatsApp)",
+            "footer_jam_operasional": "Senin–Jumat 08.00–17.00 WIB · CS Toko 24/7",
+            "footer_sosial": "Instagram: @agr.idofficial · Facebook: AGR.ID Marketplace · TikTok: @agr.id",
+            "footer_copyright": "© 2026 AGR.ID — Dibuat untuk petani, nelayan & peternak Indonesia 🇮🇩",
+            "footer_tautan": "Marketplace: /marketplace · Cara Kerja Booking DP: /marketplace · AI Chat Agent: /chat",
+        }
+        for k, v in FOOTER_DEFAULTS.items():
+            if not Pengaturan.query.filter_by(key=k).first():
+                set_setting(k, v, "Footer: " + k.replace("footer_", "").replace("_", " ").title())
+        # Default pengaturan tampilan laporan (dashboard admin)
+        LAPORAN_DEFAULTS = {
+            "laporan_tampil_penjualan": ("1", "Tampilkan Laporan Penjualan (sisi penjual)"),
+            "laporan_tampil_pembelian": ("1", "Tampilkan Laporan Pembelian (sisi pembeli)"),
+            "laporan_tampil_keuangan": ("1", "Tampilkan Rekap Laporan Keuangan"),
+            "laporan_detail_transaksi": ("1", "Tampilkan Tabel Detail Transaksi"),
+            "laporan_rekap_metode": ("1", "Tampilkan Rekap per Metode Pembayaran"),
+            "laporan_limit": ("50", "Jumlah baris laporan per tabel"),
+        }
+        for k, (v, lab) in LAPORAN_DEFAULTS.items():
+            if not Pengaturan.query.filter_by(key=k).first():
+                set_setting(k, v, lab)
         if Ekspedisi.query.count() == 0:
             db.session.add_all([
                 Ekspedisi(nama="JNE Trucking", base_url="https://jne.co.id/api/v1", api_key="", account_id="", service_types="reguler,kargo", tarif_per_kg=8500),
@@ -1005,6 +1615,18 @@ def seed():
                        lat=-6.866, lng=109.055, uploaded_by=seller.id),
                 Eviden(transaksi_id=t.id, tahap="penerimaan", keterangan="Diterima gudang Bandung, quality OK",
                        lat=-6.914, lng=107.609, uploaded_by=buyer.id),
+            ])
+            db.session.commit()
+            # Demo penilaian kepuasan dua arah (pembeli->penjual & penjual->pembeli)
+            db.session.add_all([
+                Rating(transaksi_id=t.id, from_user_id=buyer.id, to_user_id=seller.id,
+                       arah="ke_penjual", score=5,
+                       aspek=json.dumps({"kualitas": 5, "pengemasan": 4, "komunikasi": 5, "jadwal": 5}),
+                       komentar="Cabai segar sesuai grade A, eviden panen & GPS lengkap, kirim tepat jadwal."),
+                Rating(transaksi_id=t.id, from_user_id=seller.id, to_user_id=buyer.id,
+                       arah="ke_pembeli", score=4,
+                       aspek=json.dumps({"ketepatan_bayar": 5, "komunikasi": 4, "kejelasan": 4}),
+                       komentar="Pembayaran DP & pelunasan lancar, spesifikasi pesanan jelas."),
             ])
             db.session.commit()
 

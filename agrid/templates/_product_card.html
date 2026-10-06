@@ -1,5 +1,14 @@
 <div class="col-6 col-md-4 col-lg-3">
-  <div class="card card-prod h-100">
+  <div class="card card-prod h-100 position-relative">
+    {# === Tombol simpan favorit (produk) — khusus pembeli === #}
+    {% if user and user.role == 'pembeli' %}
+    <form method="post" action="{{ url_for('toggle_favorit') }}" class="position-absolute top-0 end-0 m-1" style="z-index:5">
+      <input type="hidden" name="product_id" value="{{ p.id }}">
+      <input type="hidden" name="next" value="{{ request.url }}">
+      <button class="btn btn-sm {{ 'btn-danger text-white' if (fav_products is defined and p.id in fav_products) or (fav is defined and fav.product) else 'btn-light' }}"
+              title="Simpan produk favorit">{{ '❤️' if (fav_products is defined and p.id in fav_products) or (fav is defined and fav.product) else '🤍' }}</button>
+    </form>
+    {% endif %}
     <div style="height:130px;background:#e8f2e8;display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative">
       {% if p.foto %}<img src="{{ p.foto }}" class="w-100 h-100 object-fit-cover">{% else %}
         {{ {'Pertanian':'🥬','Perkebunan':'☕','Perikanan':'🐟','Peternakan':'🐄'}[p.kategori] }}{% endif %}
@@ -8,10 +17,12 @@
     </div>
     <div class="card-body pb-2">
       <div class="small text-muted">{{ p.kategori }} › {{ p.subkategori }}</div>
-      <h6 class="mb-1"><a class="text-decoration-none text-dark" href="{{ url_for('product_detail', pid=p.id) }}">{{ p.nama_produk }}</a></h6>
+      <h6 class="mb-1 pe-3"><a class="text-decoration-none text-dark" href="{{ url_for('product_detail', pid=p.id) }}">{{ p.nama_produk }}</a></h6>
       <div class="fw-bold text-success">Rp{{ p.harga|rp }}<small class="text-muted fw-normal">/{{ p.satuan }}</small></div>
       <div class="small text-muted mt-1"><i class="bi bi-box"></i> Stok {{ p.stok|rp }} {{ p.satuan }} · <i class="bi bi-geo-alt"></i> GPS {{ '%.3f'|format(p.lat or 0) }},{{ '%.3f'|format(p.lng or 0) }}</div>
       <div class="small mt-1"><i class="bi bi-person-badge"></i> {{ p.seller.nama }} <span class="badge bg-light text-dark border">{{ p.seller.tipe }}</span></div>
+      {% set sr = seller_rating_cache.get(p.seller_id) if seller_rating_cache is defined else None %}
+      <div class="small stars-inline">{% if seller_rating and seller_rating.avg %}{{ seller_rating.star }} <b>{{ seller_rating.avg }}</b>{% elif sr and sr.avg %}{{ sr.star }} <b>{{ sr.avg }}</b> <span class="text-muted">(penjual)</span>{% else %}<span class="text-muted">★☆ belum ada penilaian</span>{% endif %}</div>
     </div>
     <div class="card-footer bg-white border-0 pb-2">
       <a href="{{ url_for('product_detail', pid=p.id) }}" class="btn btn-sm btn-agrid w-100"><i class="bi bi-cash-coin"></i> Ajukan Penawaran</a>
