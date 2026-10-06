@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Marketplace — AGR.ID{% endblock %}
+{% block content %}
+<div class="container my-4">
+  <h3 class="fw-bold mb-3"><i class="bi bi-shop-window text-success"></i> Marketplace AGR.ID</h3>
+  <form class="row g-2 mb-4" method="get">
+    <div class="col-md-4"><input class="form-control" name="q" value="{{ q }}" placeholder="🔍 Cari produk / jenis…"></div>
+    <div class="col-md-3">
+      <select name="kategori" class="form-select" onchange="this.form.submit()">
+        <option value="">— Semua Kategori —</option>
+        {% for c in categories %}<option {{ 'selected' if kat==c }}>{{ c }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select name="subkategori" class="form-select">
+        <option value="">— Semua Sub Kategori —</option>
+        {% for s in subs %}<option {{ 'selected' if sub==s }}>{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 d-flex gap-2 align-items-center">
+      <button class="btn btn-agrid flex-fill">Filter</button>
+    </div>
+    <div class="col-12">
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="hide_nonhalal" value="1" {{ 'checked' if hide_nonhalal }} onchange="this.form.submit()" id="hn">
+        <label class="form-check-label small" for="hn">Sembunyikan produk ⚠️ Non Halal (Peternakan → Babi)</label>
+      </div>
+    </div>
+  </form>
+
+  <div class="row g-3">
+    {% for p in products %}{% include "_product_card.html" %}{% endfor %}
+    {% if not products %}<div class="text-center py-5 text-muted"><div style="font-size:3rem">🌱</div>Tidak ada produk pada filter ini.</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

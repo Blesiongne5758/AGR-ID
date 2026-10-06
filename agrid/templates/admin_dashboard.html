@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Admin — AGR.ID{% endblock %}
+{% block content %}
+<div class="container-fluid my-4 px-4">
+  <h4 class="fw-bold mb-3"><i class="bi bi-gear text-success"></i> Dashboard Admin AGR.ID</h4>
+
+  <!-- Statistik & Laporan Transaksi Keuangan -->
+  <div class="row g-3 mb-4">
+    {% for label, val in [('Total User', stats.users),('Penjual', stats.penjual),('Pembeli', stats.pembeli),
+       ('Produk Listing', stats.produk),('DB Produk Master', stats.master),('Transaksi', stats.transaksi)] %}
+    <div class="col-md-2"><div class="card stat-card"><div class="card-body py-2 text-center">
+      <div class="small text-muted">{{ label }}</div><h4 class="mb-0">{{ val }}</h4></div></div></div>
+    {% endfor %}
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-6"><div class="card bg-dark text-white"><div class="card-body">
+      <div class="small">GMV (Nilai Transaksi Kotor)</div><h3>Rp{{ stats.gmv|rp }}</h3></div></div></div>
+    <div class="col-md-6"><div class="card bg-success text-white"><div class="card-body">
+      <div class="small">💰 Pendapatan Platform (Biaya Penanganan) — Laporan Transaksi Keuangan</div>
+      <h3>Rp{{ stats.revenue|rp }}</h3></div></div></div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="card shadow-sm"><div class="card-header fw-bold bg-white">🧾 Laporan Semua Transaksi (Keuangan)</div>
+        <div class="table-responsive"><table class="table table-dashboard table-sm mb-0">
+          <thead><tr><th>Tgl</th><th>Produk</th><th>Penjual→Pembeli</th><th>Nilai</th><th>DP</th><th>Fee</th><th>Ongkir</th><th>Metode/Ref</th><th>Status</th></tr></thead>
+          <tbody>{% for t in tx %}<tr>
+            <td class="small">{{ t.created_at|dt }}</td><td>{{ t.product_name }}</td>
+            <td class="small">{{ t.seller.nama }} → {{ t.buyer.nama }}</td>
+            <td class="fw-bold">Rp{{ t.nilai|rp }}</td><td>Rp{{ t.dp_dibayar|rp }}</td>
+            <td class="text-success">Rp{{ t.biaya_penanganan|rp }}</td><td>Rp{{ t.ongkir|rp }}</td>
+            <td class="small">{{ t.metode_bayar }}<br><code style="font-size:.65rem">{{ t.ref_payment }}</code></td>
+            <td><span class="badge {{ 'bg-success' if t.status=='completed' else 'bg-info text-dark' }}">{{ t.status }}</span></td>
+          </tr>{% else %}<tr><td colspan="9" class="text-center text-muted py-3">Belum ada transaksi.</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <!-- Pengaturan biaya tambahan & DP -->
+      <div class="card shadow-sm mb-3"><div class="card-header fw-bold bg-white">⚙️ Pengaturan Biaya Tambahan</div>
+        <div class="card-body">
+          <form method="post" action="{{ url_for('save_pengaturan') }}" class="row g-2">
+            <div class="col-6"><label class="small fw-bold">Persen DP Booking (%)</label>
+              <input class="form-control" type="number" step="1" min="0" max="100" name="dp_persen" value="{{ settings.get('dp_persen','20') }}"></div>
+            <div class="col-6"><label class="small fw-bold">Biaya Penanganan (%)</label>
+              <input class="form-control" type="number" step="0.5" min="0" name="biaya_penanganan_persen" value="{{ settings.get('biaya_penanganan_persen','2') }}"></div>
+            <div class="col-6"><label class="small fw-bold">Biaya Tambahan Flat (Rp)</label>
+              <input class="form-control" type="number" name="biaya_tambahan_flat" value="{{ settings.get('biaya_tambahan_flat','0') }}"></div>
+            <div class="col-6"><label class="small fw-bold">Biaya Verifikasi Eviden (Rp)</label>
+              <input class="form-control" type="number" name="biaya_verifikasi" value="{{ settings.get('biaya_verifikasi','5000') }}"></div>
+            <div class="col-12"><button class="btn btn-agrid w-100 fw-bold">Simpan Pengaturan</button></div>
+          </form>
+        </div>
+      </div>
+
+      <!-- API Payment Gateway -->
+      <div class="card shadow-sm mb-3"><div class="card-header fw-bold bg-white">🔌 Input API Payment Gateway</div>
+        <div class="card-body">
+          {% for pg in pg %}
+          <form method="post" action="{{ url_for('save_pg_api') }}" class="row g-2">
+            <input type="hidden" name="id" value="{{ pg.id }}">
+            <div class="col-6"><label class="small fw-bold">Provider</label>
+              <select class="form-select form-select-sm" name="provider">
+                {% for pr in ['Midtrans Core API','Xendit','Duitku','iPaymu','Tripay','Manual'] %}
+                <option {{ 'selected' if pg.provider==pr }}>{{ pr }}</option>{% endfor %}</select></div>
+            <div class="col-6"><label class="small fw-bold">Base URL</label>
+              <input class="form-control form-control-sm" name="base_url" value="{{ pg.base_url }}"></div>
+            <div class="col-6"><label class="small fw-bold">Server Key</label>
+              <input class="form-control form-control-sm" name="server_key" value="{{ pg.server_key }}" placeholder="SB-Mid-server-…"></div>
+            <div class="col-6"><label class="small fw-bold">Client Key</label>
+              <input class="form-control form-control-sm" name="client_key" value="{{ pg.client_key }}"></div>
+            <div class="col-6"><label class="small fw-bold">API Key</label>
+              <input class="form-control form-control-sm" name="api_key" value="{{ pg.api_key }}"></div>
+            <div class="col-6"><label class="small fw-bold">Webhook Secret</label>
+              <input class="form-control form-control-sm" name="webhook_secret" value="{{ pg.webhook_secret }}"></div>
+            <div class="col-12"><label class="small fw-bold">Channel Aktif (csv)</label>
+              <input class="form-control form-control-sm" name="channels" value="{{ pg.channels }}"></div>
+            <div class="col-6 form-check ms-2 mt-2"><input class="form-check-input" type="checkbox" name="enabled" {{ 'checked' if pg.enabled }} id="pgEn"><label class="form-check-label small" for="pgEn">Aktifkan</label></div>
+            <div class="col-12"><button class="btn btn-primary btn-sm w-100">Simpan API Payment</button></div>
+          </form>
+          {% else %}<p class="small text-muted">Belum ada provider.</p>{% endfor %}
+        </div>
+      </div>
+
+      <!-- API Ekspedisi -->
+      <div class="card shadow-sm"><div class="card-header fw-bold bg-white">🚚 Input API Jasa Ekspedisi</div>
+        <div class="card-body">
+          {% for e in eks %}
+          <form method="post" action="{{ url_for('save_ekspedisi') }}" class="row g-2 border-bottom pb-2 mb-2">
+            <input type="hidden" name="id" value="{{ e.id }}">
+            <div class="col-6"><b class="small">{{ e.nama }}</b></div>
+            <div class="col-3 text-end"><a class="btn btn-sm btn-outline-danger py-0" href="{{ url_for('delete_ekspedisi', eid=e.id) }}">✕</a></div>
+            <div class="col-12"><input class="form-control form-control-sm" name="base_url" value="{{ e.base_url }}" placeholder="https://api.ekspedisi…"></div>
+            <div class="col-6"><input class="form-control form-control-sm" name="api_key" value="{{ e.api_key }}" placeholder="API key"></div>
+            <div class="col-6"><input class="form-control form-control-sm" name="account_id" value="{{ e.account_id }}" placeholder="Account ID"></div>
+            <div class="col-6"><input class="form-control form-control-sm" name="service_types" value="{{ e.service_types }}" placeholder="reguler,kargo"></div>
+            <div class="col-3"><input class="form-control form-control-sm" type="number" name="tarif_per_kg" value="{{ e.tarif_per_kg }}" placeholder="Tarif/kg"></div>
+            <div class="col-3 d-flex align-items-center justify-content-end">
+              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="enabled" {{ 'checked' if e.enabled }}></div></div>
+            <div class="col-12"><button class="btn btn-sm btn-outline-primary w-100">Simpan</button></div>
+          </form>
+          {% endfor %}
+          <form method="post" action="{{ url_for('save_ekspedisi') }}" class="row g-2">
+            <div class="col-12"><input class="form-control form-control-sm" name="nama" placeholder="+ Nama ekspedisi baru" required></div>
+            <div class="col-8"><input class="form-control form-control-sm" name="base_url" placeholder="Base URL API"></div>
+            <div class="col-4"><input class="form-control form-control-sm" type="number" name="tarif_per_kg" placeholder="Tarif/kg"></div>
+            <div class="col-12"><button class="btn btn-sm btn-agrid w-100">Tambah Ekspedisi</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if p else 'Posting' }} Produk — AGR.ID{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width:900px">
+  <div class="card card-prod shadow-sm">
+    <div class="card-header bg-success text-white d-flex justify-content-between">
+      <h5 class="mb-0"><i class="bi bi-box-seam"></i> {{ 'Edit Produk' if p else 'Posting Produk Baru' }}</h5>
+      <button type="button" class="btn btn-sm btn-light" onclick="isiDenganAI()"><i class="bi bi-robot"></i> Bantu isi dengan AI</button>
+    </div>
+    <div class="card-body">
+      <form method="post" class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label fw-bold">Kategori <span class="req-star">*</span></label>
+          <select class="form-select" name="kategori" id="fKat" required>
+            {% for k in categories %}<option {{ 'selected' if p and p.kategori==k }}>{{ k }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-bold">Sub Kategori <span class="req-star">*</span></label>
+          <select class="form-select" name="subkategori" id="fSub" required></select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-bold">Nama Produk <span class="req-star">*</span>
+            <small class="text-muted">（auto-save ke DB Produk）</small></label>
+          <input class="form-control" name="nama_produk" id="fNama" required autocomplete="off"
+                 value="{{ p.nama_produk if p }}" placeholder="Ketik / pilih dari database…">
+          <div id="sugBox" class="list-group position-absolute shadow-sm d-none" style="z-index:20;max-height:220px;overflow:auto"></div>
+          <small id="newHint" class="text-info d-none">💡 Nama baru → akan otomatis disimpan ke Database Produk.</small>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Jenis / Varietas</label>
+          <input class="form-control" name="jenis" id="fJenis" value="{{ p.jenis if p }}" placeholder="terisi otomatis dari database">
+          <small class="text-muted" id="jenisList"></small>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-bold">Harga per Satuan (Rp) <span class="req-star">*</span></label>
+          <input class="form-control" type="number" min="1" name="harga" required value="{{ p.harga if p }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Satuan</label>
+          <select class="form-select" name="satuan">
+            {% for s in ['kg','ton','ikat','ekor','box','karung 20kg','pallet','liter','butir','tongkol'] %}
+            <option {{ 'selected' if p and p.satuan==s }}>{{ s }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold">Stok <span class="req-star">*</span></label>
+          <input class="form-control" type="number" step="0.5" min="0" name="stok" required value="{{ p.stok if p }}">
+        </div>
+
+        <div class="col-12 alert alert-warning py-2 d-none" id="halalWarn">
+          ⚠️ Sub kategori <b>Babi</b> — produk ini akan otomatis ditandai label <b>NON HALAL</b> di marketplace.
+        </div>
+
+        <div class="col-12"><label class="form-label">Deskripsi Produk</label>
+          <textarea class="form-control" name="deskripsi" rows="3">{{ p.deskripsi if p }}</textarea></div>
+
+        <div class="col-md-6">
+          <label class="form-label"><i class="bi bi-camera"></i> Foto Produk (URL)</label>
+          <input class="form-control" name="foto" value="{{ p.foto if p }}" placeholder="https://…/foto.jpg">
+          <small class="text-muted">Tempel URL foto hasil panen/kolam/kandang untuk ketelusuran visual.</small>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Sertifikasi (organik/halal/SNI/SKKH/IG)</label>
+          <input class="form-control" name="sertifikasi" value="{{ p.sertifikasi if p }}">
+        </div>
+
+        <div class="col-12"><label class="form-label fw-bold"><i class="bi bi-geo-alt"></i> Alamat Lahan / Kolam / Kandang <span class="req-star">*</span></label>
+          <input class="form-control" name="alamat_lahan" required value="{{ p.alamat_lahan if p }}"></div>
+        <div class="col-md-4">
+          <label class="form-label">Latitude GPS</label>
+          <div class="input-group"><input class="form-control" type="number" step="0.000001" name="lat" id="lat" value="{{ p.lat if p and p.lat }}">
+          <button class="btn btn-outline-success" type="button" onclick="ambilGPS()"><i class="bi bi-crosshair"></i></button></div>
+        </div>
+        <div class="col-md-4"><label class="form-label">Longitude GPS</label>
+          <input class="form-control" type="number" step="0.000001" name="lng" id="lng" value="{{ p.lng if p and p.lng }}"></div>
+        <div class="col-md-4 d-flex align-items-end">
+          <a href="#" class="small" onclick="window.open('https://google.com/maps?ll='+((document.getElementById('lat').value)||'-2')+','+((document.getElementById('lng').value)||118)+',6');return false">🗺️ Cek titik di peta</a>
+        </div>
+
+        {% if p %}
+        <div class="col-md-4"><label class="form-label">Status Listing</label>
+          <select class="form-select" name="status"><option {{ 'selected' if p.status=='aktif' }}>aktif</option><option {{ 'selected' if p.status=='arsip' }}>arsip</option></select></div>
+        {% endif %}
+        <div class="col-12 d-grid"><button class="btn btn-agrid btn-lg fw-bold"><i class="bi bi-upload"></i> {{ 'Simpan Perubahan' if p else 'Posting ke Marketplace' }}</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+const MASTER = {{ categories|tojson }};
+const fKat = document.getElementById('fKat'), fSub = document.getElementById('fSub'),
+      fNama = document.getElementById('fNama'), fJenis = document.getElementById('fJenis');
+
+function fillSub(){
+  const subs = MASTER[fKat.value].subkategori || [];
+  fSub.innerHTML = subs.map(s=>`<option>${s}</option>`).join('');
+  checkHalal(); loadSuggestions();
+}
+function checkHalal(){
+  document.getElementById('halalWarn').classList.toggle('d-none', !(fKat.value==='Peternakan' && fSub.value==='Babi'));
+}
+fKat.onchange = fillSub; fSub.onchange = ()=>{checkHalal(); loadSuggestions();};
+
+// ---- Autocomplete dari Database Produk (API) ----
+let sugTimer;
+fNama.addEventListener('input', ()=>{ clearTimeout(sugTimer); sugTimer=setTimeout(loadSuggestions,200); });
+async function loadSuggestions(){
+  const q = encodeURIComponent(fNama.value||'');
+  const r = await fetch(`/api/produk-master?q=${q}&kategori=${encodeURIComponent(fKat.value)}&subkategori=${encodeURIComponent(fSub.value)}`);
+  const rows = await r.json();
+  const box = document.getElementById('sugBox');
+  if(!rows.length){ box.classList.add('d-none');
+    document.getElementById('newHint').classList.toggle('d-none', !fNama.value);
+    return; }
+  document.getElementById('newHint').classList.add('d-none');
+  box.innerHTML = rows.map(x=>`<button type="button" class="list-group-item list-group-item-action py-1 small"
+     data-nama="${x.nama}" data-jenis="${x.jenis.join(', ')}" data-nonhalal="${x.non_halal}">
+     ${x.nama} <span class="text-muted">· ${x.subkategori}</span> ${x.non_halal?'<span class="badge bg-danger">Non Halal</span>':''}</button>`).join('');
+  box.classList.remove('d-none');
+  box.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    fNama.value=b.dataset.nama; fJenis.value='';
+    document.getElementById('jenisList').innerHTML='Pilihan jenis: '+b.dataset.jenis;
+    box.classList.add('d-none');
+  });
+}
+document.addEventListener('click', e=>{ if(!e.target.closest('#fNama,#sugBox')) document.getElementById('sugBox').classList.add('d-none'); });
+
+function ambilGPS(){
+  navigator.geolocation.getCurrentPosition(p=>{
+    document.getElementById('lat').value=p.coords.latitude.toFixed(6);
+    document.getElementById('lng').value=p.coords.longitude.toFixed(6);
+  },()=>alert('Gagal deteksi GPS, isi manual.'));
+}
+function isiDenganAI(){ toggleChat(); document.getElementById('chatInput').value='cara jual produk'; sendChat(); }
+fillSub();
+{% if p %}fSub.value="{{ p.subkategori }}"; checkHalal();{% endif %}
+</script>
+{% endblock %}

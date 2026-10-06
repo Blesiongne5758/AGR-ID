@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Pendaftaran — AGR.ID{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width:860px">
+  <div class="card card-prod shadow-sm">
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="bi bi-person-plus"></i> Pendaftaran Akun Baru AGR.ID</h5>
+      <button class="btn btn-sm btn-warning fw-bold" onclick="skkjModal.show()"><i class="bi bi-file-earmark-text"></i> Lihat S&K</button>
+    </div>
+    <div class="card-body">
+      <!-- Pilih peran -->
+      <div class="row g-2 mb-4">
+        <div class="col-6"><button type="button" id="tabPenjual" class="btn w-100 fw-bold role-btn"><i class="bi bi-shop"></i> Saya PENJUAL<br><small>(Petani/Nelayan/Peternak)</small></button></div>
+        <div class="col-6"><button type="button" id="tabPembeli" class="btn w-100 fw-bold role-btn"><i class="bi bi-bag"></i> Saya PEMBELI<br><small>(Perorangan/Corporate)</small></button></div>
+      </div>
+
+      <form method="post" id="regForm">
+        <input type="hidden" name="role" id="roleInput" value="{{ role }}">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Nama Lengkap / Badan Usaha <span class="req-star">*</span></label>
+            <input class="form-control" name="nama" required placeholder="mis: Pak Budi / Koperasi Tani Makmur / PT Segar Food"></div>
+          <div class="col-md-6"><label class="form-label">Email <span class="req-star">*</span></label>
+            <input class="form-control" type="email" name="email" required placeholder="nama@email.com"></div>
+          <div class="col-md-6"><label class="form-label">Password <span class="req-star">*</span></label>
+            <input class="form-control" type="password" name="password" required minlength="6"></div>
+          <div class="col-md-6"><label class="form-label">No. HP / WhatsApp <span class="req-star">*</span></label>
+            <input class="form-control" name="phone" required placeholder="0812xxxx"></div>
+
+          <div class="col-12"><label class="form-label fw-bold">Tipe {{ 'Penjual' if role=='penjual' else 'Pembeli' }} <span class="req-star">*</span></label>
+            <div class="d-flex gap-3 flex-wrap" id="tipeBox">
+              {% if role == 'penjual' %}
+                {% for t in tipe_penjual %}<div class="form-check">
+                  <input class="form-check-input" type="radio" name="tipe" id="tp{{loop.index}}" value="{{ t }}" {{ 'checked' if loop.index==1 }}>
+                  <label class="form-check-label" for="tp{{loop.index}}">{{ ['👤','🏦','👥'][loop.index0] }} {{ t }}</label></div>{% endfor %}
+              {% else %}
+                {% for t in tipe_pembeli %}<div class="form-check">
+                  <input class="form-check-input" type="radio" name="tipe" id="tp{{loop.index}}" value="{{ t }}" {{ 'checked' if loop.index==1 }}>
+                  <label class="form-check-label" for="tp{{loop.index}}">{{ ['👤','🏢'][loop.index0] }} {{ t }}</label></div>{% endfor %}
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="col-12"><label class="form-label">Alamat Lengkap <span class="req-star">*</span></label>
+            <textarea class="form-control" name="alamat" rows="2" required></textarea></div>
+          <div class="col-md-6"><label class="form-label">Kota/Kabupaten</label><input class="form-control" name="kota"></div>
+          <div class="col-md-6"><label class="form-label">Provinsi</label><input class="form-control" name="provinsi"></div>
+
+          <div class="col-md-6"><label class="form-label"><i class="bi bi-geo-alt"></i> Latitude (GPS)</label>
+            <div class="input-group"><input class="form-control" name="lat" id="lat" step="0.000001" type="number" placeholder="-6.914724">
+            <button class="btn btn-outline-success" type="button" onclick="ambilGPS()"><i class="bi bi-crosshair"></i> Deteksi</button></div></div>
+          <div class="col-md-6"><label class="form-label">Longitude (GPS)</label>
+            <input class="form-control" name="lng" id="lng" step="0.000001" type="number" placeholder="107.609810"></div>
+
+          <div class="col-md-6 corporate-field"><label class="form-label">NPWP <small class="text-muted">(wajib Corporate)</small></label>
+            <input class="form-control" name="npwp" placeholder="01.234.567.8-901.000"></div>
+          <div class="col-md-6 corporate-field"><label class="form-label">NIB / Nomor Badan Usaha</label>
+            <input class="form-control" name="nib"></div>
+
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="agreeReg" required>
+              <label class="form-check-label small" for="agreeReg">Saya menyetujui <a href="#" onclick="skkjModal.show();return false">Syarat & Ketentuan serta Kebijakan Privasi</a> AGR.ID.</label>
+            </div>
+          </div>
+          <div class="col-12 d-grid"><button class="btn btn-agrid btn-lg fw-bold" type="submit"><i class="bi bi-check2-circle"></i> Daftar & Masuk ke Dashboard</button></div>
+          <div class="col-12 text-center small">Sudah punya akun? <a href="/login">Login di sini</a></div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+const TIPE = {
+  penjual: ["Perorangan", "Koperasi", "Kelompok Tani (Paguyuban)"],
+  pembeli: ["Perorangan", "Corporate"]
+};
+const ICON = {penjual:["👤","🏦","👥"], pembeli:["👤","🏢"]};
+let currentRole = "{{ role }}";
+function paintTabs(){
+  document.getElementById('tabPenjual').className = 'btn w-100 fw-bold ' + (currentRole==='penjual'?'btn-agrid':'btn-outline-success');
+  document.getElementById('tabPembeli').className = 'btn w-100 fw-bold ' + (currentRole==='pembeli'?'btn-warning':'btn-outline-warning');
+}
+function setRole(r){
+  currentRole = r; document.getElementById('roleInput').value = r; paintTabs();
+  const box = document.getElementById('tipeBox');
+  box.innerHTML = TIPE[r].map((t,i)=>`<div class="form-check">
+     <input class="form-check-input" type="radio" name="tipe" id="tp${i}" value="${t}" ${i===0?'checked':''}>
+     <label class="form-check-label" for="tp${i}">${ICON[r][i]} ${t}</label></div>`).join('');
+  box.querySelectorAll('input').forEach(inp=>inp.addEventListener('change', toggleCorp));
+  toggleCorp();
+}
+function toggleCorp(){
+  const v = (document.querySelector('input[name=tipe]:checked')||{}).value || '';
+  document.querySelectorAll('.corporate-field').forEach(el=>{
+    el.style.display = (v==='Corporate'||v==='Koperasi'||v.includes('Paguyuban')) ? '' : 'none';
+  });
+}
+document.getElementById('tabPenjual').onclick=()=>setRole('penjual');
+document.getElementById('tabPembeli').onclick=()=>setRole('pembeli');
+paintTabs(); setRole(currentRole);
+function ambilGPS(){
+  if(!navigator.geolocation){alert('Browser tidak mendukung GPS');return;}
+  navigator.geolocation.getCurrentPosition(p=>{
+    document.getElementById('lat').value = p.coords.latitude.toFixed(6);
+    document.getElementById('lng').value = p.coords.longitude.toFixed(6);
+  }, ()=>alert('Gagal mengambil lokasi. Isi manual koordinat Anda.'));
+}
+// Validasi S&K sebelum submit
+document.getElementById('regForm').addEventListener('submit', e=>{
+  if(!document.getElementById('agreeReg').checked){ e.preventDefault(); skkjModal.show(); }
+});
+</script>
+{% endblock %}
