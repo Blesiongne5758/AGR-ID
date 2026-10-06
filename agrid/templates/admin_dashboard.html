@@ -13,9 +13,9 @@
     {% endfor %}
   </div>
   <div class="row g-3 mb-4">
-    <div class="col-md-6"><div class="card bg-dark text-white"><div class="card-body">
+    <div class="col-md-6"><div class="card" style="background:linear-gradient(135deg,#14532d,#16a34a);color:#fff;border-color:#14532d"><div class="card-body">
       <div class="small">GMV (Nilai Transaksi Kotor)</div><h3>Rp{{ stats.gmv|rp }}</h3></div></div></div>
-    <div class="col-md-6"><div class="card bg-success text-white"><div class="card-body">
+    <div class="col-md-6"><div class="card stat-card"><div class="card-body">
       <div class="small">💰 Pendapatan Platform (Biaya Penanganan) — Laporan Transaksi Keuangan</div>
       <h3>Rp{{ stats.revenue|rp }}</h3></div></div></div>
   </div>

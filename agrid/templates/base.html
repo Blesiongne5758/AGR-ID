@@ -7,44 +7,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<style>
-  :root{--agrid:#2e7d32;--agrid-d:#1b5e20;--agracc:#ffca28;}
-  body{background:#f4f6f2;font-family:'Segoe UI',system-ui,sans-serif;}
-  .navbar-agrid{background:linear-gradient(90deg,var(--agrid-d),var(--agrid));}
-  .brand-badge{background:var(--agracc);color:#333;font-weight:800;border-radius:8px;padding:2px 8px;}
-  /* Ticker */
-  .ticker-wrap{overflow:hidden;background:#103317;color:#fff;position:relative;}
-  .ticker{display:flex;gap:2rem;white-space:nowrap;padding:.45rem 0;width:max-content;animation:ticker 60s linear infinite;}
-  .ticker:hover{animation-play-state:paused;}
-  @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-  .tk-up{color:#69f0ae}.tk-down{color:#ff8a80}
-  .btn-agrid{background:var(--agrid);color:#fff}.btn-agrid:hover{background:var(--agrid-d);color:#fff}
-  .card-prod{transition:.2s;border:0;box-shadow:0 2px 10px rgba(0,0,0,.07)}
-  .card-prod:hover{transform:translateY(-4px);box-shadow:0 8px 22px rgba(0,0,0,.13)}
-  .halal-chip{font-size:.72rem}.badge-nonhalal{background:#c62828}
-  .hero{background:linear-gradient(rgba(16,51,23,.82),rgba(16,51,23,.82)),url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1600&q=60') center/cover;color:#fff}
-  .stat-card{border-left:4px solid var(--agrid);}
-  .chat-fab{position:fixed;bottom:22px;right:22px;z-index:1040;width:58px;height:58px;border-radius:50%;background:var(--agrid);color:#fff;font-size:1.5rem;border:0;box-shadow:0 6px 18px rgba(0,0,0,.3)}
-  .chat-box{position:fixed;bottom:92px;right:22px;width:min(380px,92vw);height:460px;z-index:1040;display:none;flex-direction:column;border-radius:16px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.3);background:#fff}
-  .chat-head{background:var(--agrid);color:#fff;padding:.7rem 1rem}
-  .chat-body{flex:1;overflow-y:auto;padding:1rem;background:#eef3ec}
-  .msg{max-width:85%;padding:.55rem .8rem;border-radius:12px;margin-bottom:.5rem;white-space:pre-wrap;font-size:.9rem}
-  .msg.ai{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)}
-  .msg.user{background:var(--agrid);color:#fff;margin-left:auto}
-  .req-star{color:#c62828}
-  .footer{background:#103317;color:#cfe8cf}
-  .table-dashboard thead{background:#e8f2e8}
-  /* Penilaian kepuasan */
-  .btn-star{background:#fff;border:1px solid #ddd;color:#ffc107;font-size:1.4rem;line-height:1;padding:.35rem .6rem;border-radius:10px}
-  .btn-check:checked+.btn-star{background:#fff8e1;border-color:#ffb300;box-shadow:0 0 0 .15rem rgba(255,179,0,.35)}
-  .stars-inline{color:#f9a825;letter-spacing:1px}
-  .rating-badge{cursor:pointer}
-</style>
+<!-- shadcn/ui theme layer dimuat TERAKHIR agar token & komponen shadcn
+     (Card/Button/Badge/Input/Table/Tabs/Dialog/Dropdown/Accordion/
+      Tooltip/Skeleton/Switch/Avatar/Progress) mengalahkan Bootstrap -->
+<link href="{{ url_for('static', filename='shadcn.css') }}?v=3" rel="stylesheet">
+<script>/* anti-FOUC dark mode: pasang class sebelum render */
+(function(){try{var t=localStorage.getItem('agrid-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
 </head>
-<body>
+<body class="min-h-screen font-sans antialiased">
 
-<!-- ================= NAVBAR ================= -->
-<nav class="navbar navbar-expand-lg navbar-dark navbar-agrid sticky-top">
+<!-- ================= NAVBAR (shadcn header) ================= -->
+<nav class="navbar navbar-expand-lg navbar-agrid sticky-top">
   <div class="container">
     <a class="navbar-brand fw-bold" href="{{ url_for('home') }}">🌾 AGR<span class="brand-badge">.ID</span></a>
     <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
@@ -59,12 +32,13 @@
         <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard_admin') }}"><i class="bi bi-gear"></i> Admin Panel</a></li>
         {% endif %}{% endif %}
       </ul>
+      <button class="btn btn-ghost btn-sm btn-icon me-1" id="themeToggle" title="Mode gelap/terang" onclick="toggleTheme()">🌙</button>
       {% if user %}
-      <span class="navbar-text text-white-50 me-3 small"><i class="bi bi-person-circle"></i> {{ user.nama }} <span class="badge bg-warning text-dark">{{ user.role }}</span></span>
-      <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Keluar</a>
+      <span class="navbar-text me-3 small d-flex align-items-center gap-2"><span class="avatar">{{ user.nama[0]|upper }}</span> {{ user.nama }} <span class="badge bg-secondary">{{ user.role }}</span></span>
+      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Keluar</a>
       {% else %}
-      <button class="btn btn-outline-light btn-sm me-2" onclick="openSknj('login')"><i class="bi bi-box-arrow-in-right"></i> Login</button>
-      <button class="btn btn-warning btn-sm fw-bold" onclick="openSknj('register')"><i class="bi bi-person-plus"></i> Daftar</button>
+      <button class="btn btn-outline-secondary btn-sm me-2" onclick="openSknj('login')"><i class="bi bi-box-arrow-in-right"></i> Login</button>
+      <button class="btn btn-agrid btn-sm fw-semibold" onclick="openSknj('register')"><i class="bi bi-person-plus"></i> Daftar</button>
       {% endif %}
     </div>
   </div>
@@ -138,8 +112,8 @@
 <div class="modal fade" id="skkjModal" data-bs-backdrop="static" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header bg-success text-white">
-        <h5 class="modal-title"><i class="bi bi-file-earmark-text"></i> Syarat & Ketentuan AGR.ID</h5>
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-text text-success"></i> Syarat & Ketentuan AGR.ID</h5>
       </div>
       <div class="modal-body" style="font-size:.92rem">
         <ol class="ps-3">
@@ -161,7 +135,7 @@
           <label class="form-check-label small" for="skkjAccept">Saya telah membaca dan <b>menyetujui Syarat & Ketentuan</b> serta Kebijakan Privasi AGR.ID.</label>
         </div>
         <div class="d-flex gap-2 justify-content-end">
-          <button class="btn btn-outline-secondary btn-sm" onclick="closeSknj()">Nanti saja</button>
+          <button class="btn btn-ghost btn-sm" onclick="closeSknj()">Nanti saja</button>
           <button class="btn btn-agrid" id="skkjOk" disabled onclick="acceptSknj()">Setuju & Lanjut →</button>
         </div>
       </div>
@@ -169,6 +143,14 @@
   </div>
 </div>
 
+<script>
+// shadcn dark-mode toggle (design tokens html.dark)
+function applyTheme(t){ document.documentElement.classList.toggle('dark', t==='dark');
+  const b=document.getElementById('themeToggle'); if(b) b.textContent = t==='dark' ? '☀️' : '🌙'; }
+function toggleTheme(){ applyTheme(document.documentElement.classList.contains('dark')?'light':'dark');
+  localStorage.setItem('agrid-theme', document.documentElement.classList.contains('dark')?'dark':'light'); }
+applyTheme(localStorage.getItem('agrid-theme')||'light');
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const skkjModal = new bootstrap.Modal(document.getElementById('skkjModal'));
@@ -202,7 +184,7 @@ function closeSknj(){ skkjModal.hide(); }
 <div class="chat-box shadow-lg" id="chatBox">
   <div class="chat-head d-flex justify-content-between align-items-center">
     <span><b>🌾 AGR Assistant</b> <small>· AI Agent</small></span>
-    <button class="btn-close btn-close-white" onclick="toggleChat()"></button>
+    <button class="btn-close btn-close-white border-0" style="background:transparent;color:#fff;font-size:1rem;line-height:1;padding:.25rem;" onclick="toggleChat()" aria-label="Tutup">✕</button>
   </div>
   <div class="chat-body" id="chatBody">
     <div class="msg ai">Halo {{ user.nama.split(' ')[0] }}! 👋 Saya asisten AI AGR.ID.
