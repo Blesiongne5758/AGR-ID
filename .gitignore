@@ -1,9 +1,1 @@
-# Python compiled files
-__pycache__/
-*.pyc
-
-# Database files
-*.db
-
-# Log files
-*.log
+(empty)

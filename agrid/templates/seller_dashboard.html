@@ -11,9 +11,9 @@
   </div>
   <div class="row g-3 mb-4">
     <div class="col-md-3"><div class="card stat-card"><div class="card-body py-3">
-      <div class="small text-muted">Produk Aktif</div><h3 class="mb-0">{{ products|selectattr('status',equalto,'aktif')|list|length }}</h3></div></div></div>
+      <div class="small text-muted">Produk Aktif</div><h3 class="mb-0">{{ products|selectattr('status','equalto','aktif')|list|length }}</h3></div></div></div>
     <div class="col-md-3"><div class="card stat-card"><div class="card-body py-3">
-      <div class="small text-muted">Penawaran Masuk</div><h3 class="mb-0">{{ offers|selectattr('status',equalto,'menunggu')|list|length }}</h3></div></div></div>
+      <div class="small text-muted">Penawaran Masuk</div><h3 class="mb-0">{{ offers|selectattr('status','equalto','menunggu')|list|length }}</h3></div></div></div>
     <div class="col-md-3"><div class="card stat-card"><div class="card-body py-3">
       <div class="small text-muted">Transaksi Penjualan</div><h3 class="mb-0">{{ penjualan|length }}</h3></div></div></div>
     <div class="col-md-3"><div class="card stat-card"><div class="card-body py-3">
