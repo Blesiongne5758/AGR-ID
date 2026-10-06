@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero py-5">
+  <div class="container py-4 text-center">
+    <h1 class="fw-bold">🌾 AGR<span style="color:#ffca28">.ID</span></h1>
+    <p class="lead">Marketplace <b>Pertanian · Perkebunan · Perikanan · Peternakan</b><br>
+    Langsung dari petani, nelayan & peternak — dengan penawaran harga, booking DP,<br class="d-none d-md-block">
+    pembayaran payment gateway, ekspedisi, dan ketelusuran eviden foto + GPS. Didukung <b>AI Chat Agent</b> 🤖</p>
+    <a href="{{ url_for('marketplace') }}" class="btn btn-warning btn-lg fw-bold me-2"><i class="bi bi-shop-window"></i> Jelajahi Marketplace</a>
+    <button class="btn btn-outline-light btn-lg" onclick="openSknj('register')"><i class="bi bi-person-plus"></i> Daftar Penjual / Pembeli</button>
+  </div>
+</section>
+
+<div class="container my-5">
+  <div class="row g-3 text-center mb-5">
+    {% for icon, judul, desc in [
+      ("💰","Penawaran Harga","Pembeli mengajukan harga (bidding) langsung ke penjual, nego transparan."),
+      ("🔒","Booking dengan DP","Penawaran yang deal diikat uang muka (DP) via payment gateway QRIS/VA/e-wallet."),
+      ("🚚","Jadwal Kirim & Ekspedisi","Pilih mitra ekspedisi, tentukan jadwal, pantau tracking code."),
+      ("📸","Verifikasi & Ketelusuran","Bukti eviden tiap tahap: foto produk, alamat & koordinat GPS lahan/kolam/kandang.")]:
+    %}
+    <div class="col-md-3"><div class="card card-prod h-100 p-3"><div style="font-size:2rem">{{ icon }}</div>
+      <h6 class="mt-2">{{ judul }}</h6><p class="small text-muted mb-0">{{ desc }}</p></div></div>
+    {% endfor %}
+  </div>
+
+  <h4 class="border-start border-4 border-success ps-2 fw-bold">Kategori Utama</h4>
+  <div class="row g-3 mt-2 mb-5">
+    {% set meta = {
+      'Pertanian': ('🥬','Sayuran & Buah-buahan — cabai, bawang, tomat, pisang, durian, dll.'),
+      'Perkebunan': ('☕','Kopi, kakao, sawit, karet, rempah ekspor, vanili, gula aren.'),
+      'Perikanan': ('🐟','Air Tawar (lele, nila, gurame) & Air Laut (udang, tuna, kerapuh, rumput laut).'),
+      'Peternakan': ('🐄','Sapi, kambing & domba, unggas, kelinci — Babi ditandai ⚠️ Non Halal.')} %}
+    {% for c in categories %}
+    <div class="col-md-3">
+      <a class="text-decoration-none" href="{{ url_for('marketplace', kategori=c) }}">
+      <div class="card card-prod h-100 text-dark p-3">
+        <div style="font-size:2.2rem">{{ meta[c][0] }}</div>
+        <h5 class="mt-1">{{ c }}</h5><p class="small text-muted mb-0">{{ meta[c][1] }}</p>
+      </div></a>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="d-flex justify-content-between align-items-center">
+    <h4 class="border-start border-4 border-success ps-2 fw-bold mb-0">Produk Terbaru</h4>
+    <a href="{{ url_for('marketplace') }}" class="btn btn-sm btn-agrid">Lihat Semua →</a>
+  </div>
+  <div class="row g-3 mt-1">
+    {% for p in products %}{% include "_product_card.html" %}{% endfor %}
+    {% if not products %}<p class="text-muted">Belum ada produk. Jadilah penjual pertama! Daftar <a href="/register?role=penjual">di sini</a>.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

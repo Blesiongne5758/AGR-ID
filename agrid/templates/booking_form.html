@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Booking DP — AGR.ID{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width:720px">
+  <div class="card card-prod shadow-sm border-success">
+    <div class="card-header bg-success text-white"><h5 class="mb-0"><i class="bi bi-lock"></i> Booking Penawaran — DP sebagai Pengikat</h5></div>
+    <div class="card-body">
+      <div class="alert alert-info py-2 small">Penawaran Anda untuk <b>{{ o.product.nama_produk }}</b> ({{ o.qty|rp }} {{ o.product.satuan }} × Rp{{ o.harga_penawaran|rp }}) telah <b>diterima penjual</b>. Kunci kesepakatan dengan membayar DP.</div>
+      <table class="table table-borderless">
+        <tr><td>Total Kesepakatan</td><td class="text-end fw-bold">Rp{{ o.total|rp }}</td></tr>
+        <tr><td>DP Booking ({{ dp_persen|int }}%) — pengikat</td><td class="text-end text-success fw-bold">Rp{{ dp_amount|rp }}</td></tr>
+        <tr><td>Sisa Pembayaran (saat kirim)</td><td class="text-end">Rp{{ sisa|rp }}</td></tr>
+        <tr><td>Biaya Penanganan Platform ({{ fee_persen|int }}%)</td><td class="text-end">Rp{{ fee|rp }}</td></tr>
+      </table>
+      <form method="post" class="row g-3">
+        <div class="col-md-6"><label class="form-label fw-bold">Jadwal Pengiriman</label>
+          <input class="form-control" type="date" name="jadwal_kirim" required min="{{ today if today else '' }}"></div>
+        <div class="col-md-6"><label class="form-label fw-bold">Pilih Jasa Ekspedisi</label>
+          <select class="form-select" name="ekspedisi_id">
+            {% for e in eks_list %}<option value="{{ e.id }}">{{ e.nama }} — {{ e.service_types }} (± Rp{{ e.tarif_per_kg|rp }}/kg)</option>{% endfor %}
+          </select></div>
+        <div class="col-12 small text-muted">📍 Kirim dari: <b>{{ o.product.alamat_lahan or o.product.seller.alamat }}</b> (GPS {{ '%.5f'|format(o.product.lat or 0) }},{{ '%.5f'|format(o.product.lng or 0) }}) → ke alamat Anda: {{ user.alamat }}</div>
+        <div class="col-12 d-grid"><button class="btn btn-agrid btn-lg fw-bold">🔒 Buat Booking & Bayar DP via Payment Gateway</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ p.nama_produk }} — AGR.ID{% endblock %}
+{% block content %}
+<div class="container my-4">
+  <nav><a href="{{ url_for('marketplace') }}" class="small">← Kembali ke Marketplace</a></nav>
+  <div class="row g-4 mt-1">
+    <div class="col-md-5">
+      <div class="card card-prod">
+        <div style="height:300px;background:#e8f2e8;display:flex;align-items:center;justify-content:center;font-size:6rem;position:relative">
+          {% if p.foto %}<img src="{{ p.foto }}" class="w-100 h-100 object-fit-cover">{% else %}
+            {{ {'Pertanian':'🥬','Perkebunan':'☕','Perikanan':'🐟','Peternakan':'🐄'}[p.kategori] }}{% endif %}
+          {% if p.non_halal %}<span class="badge badge-nonhalal fs-6 position-absolute top-0 start-0 p-2">⚠️ NON HALAL</span>{% endif %}
+        </div>
+      </div>
+      <div class="card mt-3"><div class="card-body">
+        <h6><i class="bi bi-person-badge text-success"></i> Profil Penjual</h6>
+        <div class="small">{{ p.seller.nama }} · <span class="badge bg-light border">{{ p.seller.tipe }}</span>
+          {{ '✅ Terverifikasi' if p.seller.verified }}</div>
+        <div class="small text-muted mt-1"><i class="bi bi-geo-alt"></i> {{ p.seller.alamat or p.seller.kota }}, {{ p.seller.provinsi }}</div>
+        <div class="small text-muted"><i class="bi bi-phone"></i> {{ p.seller.phone or '-' }} · <i class="bi bi-envelope"></i> {{ p.seller.email }}</div>
+        {% if p.seller.nib %}<div class="small text-muted">NIB: {{ p.seller.nib }}{% if p.seller.npwp %} · NPWP: {{ p.seller.npwp }}{% endif %}</div>{% endif %}
+      </div></div>
+    </div>
+    <div class="col-md-7">
+      <div class="small text-muted">{{ p.kategori }} › {{ p.subkategori }}{% if p.jenis %} › {{ p.jenis }}{% endif %}</div>
+      <h3 class="fw-bold">{{ p.nama_produk }}</h3>
+      <h4 class="text-success fw-bold">Rp{{ p.harga|rp }} <small class="fs-6 text-muted fw-normal">/ {{ p.satuan }}</small></h4>
+      <div class="d-flex gap-2 flex-wrap mb-3">
+        <span class="badge bg-secondary"><i class="bi bi-box"></i> Stok: {{ p.stok|rp }} {{ p.satuan }}</span>
+        {% if p.sertifikasi %}<span class="badge bg-success"><i class="bi bi-patch-check"></i> {{ p.sertifikasi }}</span>{% endif %}
+        <span class="badge bg-warning text-dark"><i class="bi bi-cash-stack"></i> Booking DP mengikat</span>
+      </div>
+      <p>{{ p.deskripsi }}</p>
+      <div class="card mb-3"><div class="card-body py-2 small">
+        <b><i class="bi bi-geo-alt-fill text-danger"></i> Lokasi asal & Ketelusuran GPS</b><br>
+        {{ p.alamat_lahan or p.seller.alamat }} · koordinat: <code>{{ '%.6f'|format(p.lat or 0) }}, {{ '%.6f'|format(p.lng or 0) }}</code>
+        {% if p.lat %}· <a target="_blank" href="https://www.google.com/maps?q={{ p.lat }},{{ p.lng }}">🗺️ Lihat di Peta</a>{% endif %}
+      </div></div>
+
+      {% if evidences %}
+      <div class="card mb-3"><div class="card-body py-2">
+        <b><i class="bi bi-shield-check text-success"></i> Bukti Eviden Ketelusuran (contoh)</b>
+        <ul class="small mb-0 mt-1">{% for e in evidences %}
+          <li>✅ <b>{{ e.tahap }}</b> — {{ e.keterangan }} {{ ('(GPS %.4f,%.4f)'|format(e.lat,e.lng)) if e.lat }}</li>
+        {% endfor %}</ul>
+      </div></div>
+      {% endif %}
+
+      {% if user and user.role=='pembeli' %}
+      <div class="card border-success"><div class="card-body">
+        <h6 class="fw-bold text-success"><i class="bi bi-cash-coin"></i> Ajukan Penawaran Harga</h6>
+        {% if p.non_halal %}<div class="alert alert-danger py-2 small">⚠️ Produk ini berasal dari sub kategori <b>Babi</b> dan ditandai <b>NON HALAL</b>. Dengan melanjutkan Anda menyatakan telah membaca label tersebut.</div>{% endif %}
+        <form method="post" action="{{ url_for('create_offer', pid=p.id) }}" class="row g-2">
+          <div class="col-6"><label class="small">Jumlah ({{ p.satuan }})</label>
+            <input class="form-control" type="number" step="0.5" min="1" name="qty" required value="{{ p.stok if p.stok>0 else 10 }}"></div>
+          <div class="col-6"><label class="small">Harga penawaran / {{ p.satuan }} (Rp)</label>
+            <input class="form-control" type="number" min="1" name="harga_penawaran" required value="{{ (p.harga*0.95)|round(-2)|int }}"></div>
+          <div class="col-12"><label class="small">Pesan untuk penjual</label>
+            <textarea class="form-control" name="pesan" rows="2" placeholder="mis: butuh rutin mingguan, kirim ke gudang Bandung…"></textarea></div>
+          <div class="col-12"><button class="btn btn-agrid w-100 fw-bold"><i class="bi bi-send"></i> Kirim Penawaran → Booking DP setelah diterima</button></div>
+        </form>
+      </div></div>
+      {% elif not user %}
+      <div class="alert alert-info">🔑 <b>Login sebagai pembeli</b> untuk mengajukan penawaran harga.
+        <button class="btn btn-sm btn-warning" onclick="openSknj('login')">Login</button>
+        <button class="btn btn-sm btn-outline-dark" onclick="openSknj('register')">Daftar</button></div>
+      {% else %}
+      <div class="alert alert-secondary small">Anda login sebagai <b>{{ user.role }}</b>. Hanya akun <b>pembeli</b> yang dapat mengajukan penawaran.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Pembayaran DP — AGR.ID{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width:640px">
+  <div class="card card-prod shadow-sm">
+    <div class="card-header bg-primary text-white"><h5 class="mb-0"><i class="bi bi-credit-card-2-front"></i> Payment Gateway — Bayar DP Booking</h5></div>
+    <div class="card-body">
+      <div class="row justify-content-center mb-3">
+        <div class="col-8 text-center border rounded p-3 bg-light">
+          <div class="small text-muted">Order ID: <code>{{ ref }}</code></div>
+          <h3 class="fw-bold text-primary mt-1">Rp{{ b.dp_amount|rp }}</h3>
+          <div class="small">DP {{ b.dp_persen|int }}% untuk <b>{{ o.product.nama_produk }}</b><br>
+            Sisa Rp{{ b.sisa_bayar|rp}} dibayar saat pengiriman · Biaya penanganan Rp{{ b.biaya_penanganan|rp }}</div>
+          <!-- QRIS dummy -->
+          <div class="mt-2 d-inline-block p-2 bg-white border"><div style="font-family:monospace;font-size:.55rem;line-height:.6rem;letter-spacing:1px">
+            ▛▀▜▓▒░▓▒░▜▛▚▞▛▀▜<br>▐▓▌█▀▄▓▒░▐▛▚▞▐▓▌<br>▐▌▒░▓▒▀▄█▓▌▚▞▛▐▌▐<br>▜▓▒░▐▌▓▒░▀▄▛▀▜▐▓▘<br>▛▀▜▐▓▌▒░▓▒▀▄▐▌▟█</div></div>
+          <div class="small text-muted">QRIS — scan dengan e-wallet favorit Anda</div>
+        </div>
+      </div>
+      {% if pg %}<div class="alert alert-secondary py-2 small"><i class="bi bi-plug"></i> Terhubung ke provider: <b>{{ pg.provider }}</b> ({{ pg.base_url }}) — channel aktif: {{ pg.channels }}</div>{% endif %}
+      <form method="post">
+        <label class="form-label fw-bold">Pilih Metode Pembayaran:</label>
+        <div class="row g-2 mb-3">
+          {% set icon = {'qris':'🔳','virtual_account':'🏦','ewallet':'📱','bank_transfer':'💳','credit_card':'💠'} %}
+          {% for c in channels %}
+          <div class="col-6 col-md-4">
+            <label class="border rounded p-2 d-block w-100 text-center small">
+              <input type="radio" name="metode" value="{{ c }}" required> {{ icon.get(c,'💰') }} <b>{{ c.replace('_',' ')|upper }}</b>
+            </label>
+          </div>{% endfor %}
+        </div>
+        <button class="btn btn-primary btn-lg w-100 fw-bold">✅ Konfirmasi & Bayar DP</button>
+        <p class="small text-muted text-center mt-2">Pembayaran dijamin escrow AGR.ID. DP menjadi pengikat penawaran hingga jadwal kirim.</p>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

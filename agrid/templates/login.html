@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Login — AGR.ID{% endblock %}
+{% block content %}
+<div class="container my-5" style="max-width:460px">
+  <div class="card card-prod shadow-sm">
+    <div class="card-header bg-success text-white"><h5 class="mb-0"><i class="bi bi-box-arrow-in-right"></i> Login AGR.ID</h5></div>
+    <div class="card-body">
+      <form method="post">
+        <div class="mb-3"><label class="form-label">Email</label><input class="form-control" type="email" name="email" required autofocus></div>
+        <div class="mb-3"><label class="form-label">Password</label><input class="form-control" type="password" name="password" required></div>
+        <div class="d-grid mb-2"><button class="btn btn-agrid fw-bold btn-lg">Masuk</button></div>
+        <div class="text-center small">Belum punya akun?
+          <a href="/register?role=penjual">Daftar Penjual</a> · <a href="/register?role=pembeli">Daftar Pembeli</a></div>
+      </form>
+      <hr class="small">
+      <div class="small text-muted">
+        <b>Akun demo:</b><br>🧑‍🌾 penjual@agr.id / penjual123<br>🛒 pembeli@agr.id / pembeli123<br>🏢 corporate@agr.id / corporate123<br>⚙️ admin@agr.id / admin123
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

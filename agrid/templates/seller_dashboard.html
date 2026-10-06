@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Penjual — AGR.ID{% endblock %}
+{% block content %}
+<div class="container-fluid my-4 px-4">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h4 class="fw-bold mb-0"><i class="bi bi-shop text-success"></i> Dashboard Penjual — {{ u.nama }}</h4>
+    <div>
+      <a href="{{ url_for('create_product') }}" class="btn btn-agrid fw-bold"><i class="bi bi-plus-circle"></i> Posting Produk Baru</a>
+      <a href="{{ url_for('chat_page') }}" class="btn btn-outline-success"><i class="bi bi-robot"></i> Tanya AI Agent</a>
+    </div>
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card stat-card"><div class="card-body py-3">
+      <div class="small text-muted">Produk Aktif</div><h3 class="mb-0">{{ products|selectattr('status',equalto,'aktif')|list|length }}</h3></div></div></div>
+    <div class="col-md-3"><div class="card stat-card"><div class="card-body py-3">
+      <div class="small text-muted">Penawaran Masuk</div><h3 class="mb-0">{{ offers|selectattr('status',equalto,'menunggu')|list|length }}</h3></div></div></div>
+    <div class="col-md-3"><div class="card stat-card"><div class="card-body py-3">
+      <div class="small text-muted">Transaksi Penjualan</div><h3 class="mb-0">{{ penjualan|length }}</h3></div></div></div>
+    <div class="col-md-3"><div class="card stat-card"><div class="card-body py-3">
+      <div class="small text-muted">Omzet (Rp)</div><h3 class="mb-0 text-success">{{ omzet|rp }}</h3></div></div></div>
+  </div>
+
+  <ul class="nav nav-tabs mb-3" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tProd">📦 Produk Saya ({{ products|length }})</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tOffer">💬 Penawaran Pembeli ({{ offers|length }})</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tLap">🧾 Laporan Transaksi Penjualan</button></li>
+  </ul>
+  <div class="tab-content">
+    <!-- PRODUK -->
+    <div class="tab-pane fade show active" id="tProd">
+      <div class="table-responsive bg-white rounded shadow-sm">
+      <table class="table table-dashboard align-middle mb-0">
+        <thead><tr><th>Produk</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>GPS/Alamat</th><th>Sertifikasi</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        {% for p in products %}
+          <tr>
+            <td><b>{{ p.nama_produk }}</b> <span class="small text-muted">{{ p.jenis }}</span>
+              {% if p.non_halal %}<span class="badge badge-nonhalal halal-chip">Non Halal</span>{% endif %}</td>
+            <td class="small">{{ p.kategori }} › {{ p.subkategori }}</td>
+            <td>Rp{{ p.harga|rp }}/{{ p.satuan }}</td>
+            <td>{{ p.stok|rp }} {{ p.satuan }}</td>
+            <td class="small">{% if p.lat %}<a target="_blank" href="https://maps.google.com/?q={{p.lat}},{{p.lng}}">📍{{ '%.4f'|format(p.lat) }},{{ '%.4f'|format(p.lng) }}</a><br>{% endif %}{{ p.alamat_lahan }}</td>
+            <td class="small">{{ p.sertifikasi }}</td>
+            <td><span class="badge {{ 'bg-success' if p.status=='aktif' else 'bg-secondary' }}">{{ p.status }}</span></td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-success" href="{{ url_for('edit_product', pid=p.id) }}">✏️</a>
+              <a class="btn btn-sm btn-outline-danger" href="{{ url_for('delete_product', pid=p.id) }}">🗑️</a></td>
+          </tr>
+        {% else %}<tr><td colspan="8" class="text-center text-muted py-4">Belum ada produk. Klik <b>Posting Produk Baru</b>.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+
+    <!-- PENAWARAN -->
+    <div class="tab-pane fade" id="tOffer">
+      <div class="table-responsive bg-white rounded shadow-sm">
+      <table class="table table-dashboard mb-0">
+        <thead><tr><th>Produk</th><th>Pembeli</th><th>Jumlah</th><th>Harga Penawaran</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead>
+        <tbody>
+        {% for o in offers %}
+          <tr>
+            <td>{{ o.product.nama_produk }}</td>
+            <td><b>{{ o.buyer.nama }}</b><br><small class="text-muted">{{ o.buyer.tipe }} · {{ o.buyer.kota }}</small></td>
+            <td>{{ o.qty|rp }} {{ o.product.satuan }}</td>
+            <td>Rp{{ o.harga_penawaran|rp }}</td>
+            <td class="fw-bold">Rp{{ o.total|rp }}</td>
+            <td><span class="badge {{ {'menunggu':'bg-warning text-dark','diterima':'bg-info text-dark','booking':'bg-primary','selesai':'bg-success','ditolak':'bg-danger'}.get(o.status,'bg-secondary') }}">{{ o.status }}</span></td>
+            <td>
+              {% if o.status=='menunggu' %}
+              <form method="post" action="{{ url_for('respond_offer', oid=o.id) }}" class="d-inline">
+                <button name="act" value="terima" class="btn btn-sm btn-agrid">✅ Terima → minta pembeli booking DP</button></form>
+              <form method="post" action="{{ url_for('respond_offer', oid=o.id) }}" class="d-inline">
+                <button name="act" value="tolak" class="btn btn-sm btn-outline-danger">Tolak</button></form>
+              {% elif o.status=='booking' %}
+                <span class="small">Menunggu pembayaran DP oleh pembeli…</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}<tr><td colspan="7" class="text-center text-muted py-4">Belum ada penawaran masuk.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+
+    <!-- LAPORAN PENJUALAN -->
+    <div class="tab-pane fade" id="tLap">
+      <div class="table-responsive bg-white rounded shadow-sm">
+      <table class="table table-dashboard mb-0">
+        <thead><tr><th>Tgl</th><th>Produk</th><th>Pembeli</th><th>Nilai</th><th>DP Masuk</th><th>Biaya Penanganan</th><th>Metode Bayar / Ref</th><th>Status</th><th>Eviden</th></tr></thead>
+        <tbody>
+        {% for t in penjualan %}
+          <tr>
+            <td class="small">{{ t.created_at|dt }}</td>
+            <td>{{ t.product_name }}<br><small class="text-muted">{{ t.qty|rp }} unit</small></td>
+            <td>{{ t.buyer.nama }} <small class="text-muted">({{ t.buyer.tipe }})</small></td>
+            <td class="fw-bold">Rp{{ t.nilai|rp }}</td>
+            <td>Rp{{ t.dp_dibayar|rp }}</td>
+            <td>Rp{{ t.biaya_penanganan|rp }}</td>
+            <td class="small">{{ t.metode_bayar }}<br><code>{{ t.ref_payment }}</code></td>
+            <td><span class="badge {{ 'bg-success' if t.status=='completed' else ('bg-danger' if t.status=='cancelled' else 'bg-info text-dark') }}">{{ t.status }}</span></td>
+            <td><a class="btn btn-sm btn-outline-success" href="{{ url_for('add_eviden', tid=t.id) }}">📸 Kelola Eviden</a></td>
+          </tr>
+        {% else %}<tr><td colspan="9" class="text-center text-muted py-4">Belum ada transaksi penjualan.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+      {% if penjualan %}
+      <div class="alert alert-success mt-2">Total nilai penjualan tercatat: <b>Rp{{ penjualan|sum(attribute='nilai')|rp }}</b> · DP diterima: <b>Rp{{ penjualan|sum(attribute='dp_dibayar')|rp }}</b></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
