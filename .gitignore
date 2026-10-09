@@ -1,5 +1,5 @@
-# Logs
+# Logs and temp files
 *.log
 
-# Database files
-*.db
+# Environment
+.env

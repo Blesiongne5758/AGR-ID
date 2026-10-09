@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container py-4" style="max-width:760px">
   <div class="card shadow-sm border-0">
-    <div class="card-header bg-agrid text-white fw-bold">
+    <div class="card-header">
       ⭐ Penilaian Tingkat Kepuasan Transaksi #{{ t.id }}
       <span class="badge bg-light text-dark ms-2">{{ '🧑‍🌾 Menilai Penjual' if user.role=='pembeli' else '🛒 Menilai Pembeli' }}</span>
     </div>
