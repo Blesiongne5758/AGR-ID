@@ -1,2 +1,0 @@
-# AGR-ID
-agrikultur indonesia
