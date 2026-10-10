@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container my-4" style="max-width:820px">
   <div class="card card-prod shadow-sm">
-    <div class="card-header bg-success text-white"><h5 class="mb-0"><i class="bi bi-shield-check"></i> Verifikasi & Ketelusuran (Traceability) — Transaksi #{{ t.id }} · {{ t.product_name }}</h5></div>
+    <div class="card-header border-bottom"><h5 class="mb-0"><i class="bi bi-shield-check"></i> Verifikasi & Ketelusuran (Traceability) — Transaksi #{{ t.id }} · {{ t.product_name }}</h5></div>
     <div class="card-body">
       <div class="small text-muted mb-3">Nilai Rp{{ t.nilai|rp }} · DP Rp{{ t.dp_dibayar|rp }} · Status <b>{{ t.status }}</b> · Ref bayar <code>{{ t.ref_payment }}</code></div>
 
