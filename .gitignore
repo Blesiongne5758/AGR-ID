@@ -1,1 +1,9 @@
+--- .gitignore (原始)
+# Logs and temp files
+*.log
+
+# Environment
+.env
+
++++ .gitignore (修改后)
 *.log
