@@ -1,1 +1,62 @@
+# ============================================
+# AGR.ID - Git Ignore untuk repo webapp Flask
+# ============================================
+
+# ---- Database & Data Runtime ----
+# DB SQLite dibuat otomatis + seed saat pertama run (lihat README)
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Upload bukti transfer / foto eviden user
+agrid/uploads/
+uploads/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environment (dibuat otomatis oleh start-website.bat)
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Environment & Secrets ----
+# JANGAN commit API key payment gateway / ekspedisi / LLM
+.env
+.env.*
+*.pem
+*.key
+secrets.json
+config_local.py
+
+# ---- Logs & Artefak Pengujian ----
 *.log
+nohup.out
+# File curl-cookie & dump HTML hasil test manual
+cj*.txt
+ck_*
+exp_bel.csv
+
+# ---- Screenshots Preview ----
+agrid/shots/
+shots/
+
+# ---- OS / Editor ----
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
