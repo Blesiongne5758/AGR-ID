@@ -19,6 +19,7 @@
       </div>
       {% if pg %}<div class="alert alert-secondary py-2 small"><i class="bi bi-plug"></i> Terhubung ke provider: <b>{{ pg.provider }}</b> ({{ pg.base_url }}) — channel aktif: {{ pg.channels }}</div>{% endif %}
       <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
         <label class="form-label fw-bold">Pilih Metode Pembayaran:</label>
         <div class="row g-2 mb-3">
           {% set icon = {'qris':'🔳','virtual_account':'🏦','ewallet':'📱','bank_transfer':'💳','credit_card':'💠'} %}

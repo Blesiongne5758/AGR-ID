@@ -17,6 +17,7 @@
       </div>
 
       <form method="post" class="needs-validation">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
         <div class="mb-4 text-center bg-light rounded py-3">
           <label class="form-label fw-bold d-block mb-2">Skor Kepuasan Keseluruhan</label>
           {% for i in [5,4,3,2,1] %}
