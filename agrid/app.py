@@ -17,12 +17,22 @@ from werkzeug.security import generate_password_hash, check_password_hash
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "templates"),
             static_folder=os.path.join(BASE_DIR, "static"))
-app.secret_key = "agrid-secret-key-2026"
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(BASE_DIR, "agrid.db")
+
+# ---- Keamanan sistem: secret key & cookie hardening (lihat security.py) ----
+import security
+security.session_config(app)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
+    "AGR_DATABASE_URL", "sqlite:///" + os.path.join(BASE_DIR, "agrid.db"))
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["JSON_SORT_KEYS"] = False
 db = SQLAlchemy(app)
 
+import utils
 from masterdata import KATEGORI, TIPE_PENJUAL, TIPE_PEMBELI, MASTER_PRODUK, NON_HALAL_LABEL, flatten_products
+import models_api
+models_api.init_models(db)          # tabel audit_logs, api_tokens, login_attempts
+security.init_security(app)         # CSRF global, header keamanan, context csrf_token
 
 # ----------------------------------------------------------------------------
 # MODEL DATABASE
@@ -47,6 +57,9 @@ class User(db.Model):
     nib = db.Column(db.String(40))                           # nomor induk berusaha (corporate/koperasi)
     verified = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # keamanan: lockout akun setelah gagal login berulang
+    failed_logins = db.Column(db.Integer, default=0)
+    locked_until = db.Column(db.DateTime)
 
     products = db.relationship("Product", backref="seller", lazy=True)
 
@@ -614,6 +627,10 @@ def register():
             flash("Email sudah terdaftar.", "danger")
             return redirect(url_for("register", role=role))
         tipe_list = TIPE_PENJUAL if role == "penjual" else TIPE_PEMBELI
+        errs = security.check_password_strength(request.form.get("password", ""))
+        if errs:
+            flash(" | ".join(errs), "danger")
+            return redirect(url_for("register", role=role))
         u = User(
             nama=request.form.get("nama", "").strip(),
             email=email,
@@ -631,6 +648,10 @@ def register():
         )
         db.session.add(u)
         db.session.commit()
+        models_api.AuditLog.record("user_terdaftar", actor=email, role=role, user_id=u.id,
+                                   ip=security.client_ip())
+        db.session.commit()
+        session.clear(); session.permanent = True
         session["uid"] = u.id
         flash(f"Pendaftaran berhasil sebagai {role.title()}! Selamat datang di AGR.ID 🌾", "success")
         return redirect(url_for("dashboard"))
@@ -641,16 +662,44 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        u = User.query.filter_by(email=request.form.get("email", "").strip().lower()).first()
+        email = request.form.get("email", "").strip().lower()
+        ip = security.client_ip()
+        # rate limit percobaan login per IP
+        if not security.login_limiter.allow(ip):
+            flash("Terlalu banyak percobaan login. Tunggu 1 menit.", "danger")
+            models_api.LoginAttempt(email=email, success=False, ip=ip, ua=request.user_agent.string[:200])
+            db.session.commit()
+            return render_template("login.html", user=current_user())
+        u = User.query.filter_by(email=email).first()
+        if u and security.is_locked(u):
+            flash(f"Akun dikunci sementara karena terlalu sering gagal login. "
+                  f"Coba lagi dalam {security.lock_remaining_min(u)} menit.", "danger")
+            return render_template("login.html", user=current_user())
         if u and check_password_hash(u.password, request.form.get("password", "")):
+            security.clear_failed_login(u)
+            models_api.LoginAttempt(email=email, success=True, ip=ip, ua=request.user_agent.string[:200])
+            models_api.AuditLog.record("login_sukses", actor=email, role=u.role, user_id=u.id, ip=ip)
+            db.session.commit()
+            session.clear()
+            session.permanent = True
             session["uid"] = u.id
             return redirect(url_for("dashboard"))
+        if u:
+            security.register_failed_login(u)
+            models_api.LoginAttempt(email=email, success=False, ip=ip, ua=request.user_agent.string[:200])
+            models_api.AuditLog.record("login_gagal", actor=email, user_id=u.id, ip=ip)
+        db.session.commit()
         flash("Email / password salah.", "danger")
     return render_template("login.html", user=current_user())
 
 
 @app.route("/logout")
 def logout():
+    u = current_user()
+    if u:
+        models_api.AuditLog.record("logout", actor=u.email, role=u.role, user_id=u.id,
+                                   ip=security.client_ip())
+        db.session.commit()
     session.clear()
     return redirect(url_for("home"))
 
@@ -917,6 +966,7 @@ def respond_offer(oid):
     if act == "terima":
         o.status = "diterima"
         db.session.commit()
+        audit_current("penawaran_dibalas", "offers", oid, "aksi penjual thd penawaran")
         return redirect(url_for("show_booking_form", oid=o.id))
     if act == "tolak":
         o.status = "ditolak"
@@ -985,6 +1035,7 @@ def pay_booking(bid):
         db.session.add(t)
         db.session.commit()
         flash(f"DP {int(b.dp_amount):,} ({b.metode_dp}) berhasil dibayar via payment gateway {method.upper()} 🎉 Ref: {ref}", "success")
+        audit_current("dp_dibayar_pg", "bookings", bid, "pembayaran DP via payment gateway")
         return redirect(url_for("dashboard_buyer"))
     return render_template("payment.html", b=b, o=o, channels=channels, ref=ref,
                            pg=pg_active, user=current_user(), ticker=ticker_data())
@@ -1015,6 +1066,7 @@ def submit_pelunasan(tid):
         t.status = "menunggu_approval"
         db.session.commit()
         flash("Pengajuan pelunasan dikirim — menunggu approval dari penjual ⏳", "success")
+        audit_current("pelunasan_diajukan", "transaksi", tid, "upload bukti transfer pelunasan")
         return redirect(url_for("dashboard_buyer"))
     return render_template("pelunasan_form.html", t=t, b=b, sisa=sisa, pl=pl_terbaru,
                            cfg=seller_cfg, user=u, ticker=ticker_data())
@@ -1028,6 +1080,7 @@ def review_pelunasan(pid):
     t = pl.transaksi
     u = current_user()
     if t.seller_id != u.id:
+        audit_current("pelunasan_di_review", "pelunasan", pid, "approval/penolakan pelunasan oleh penjual")
         flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard_seller"))
     aksi = request.form.get("aksi")
     catatan = request.form.get("catatan", "")
@@ -1060,7 +1113,8 @@ def add_eviden(tid):
     t = Transaksi.query.get_or_404(tid)
     u = current_user()
     if u.role not in ("penjual", "pembeli") or (t.seller_id != u.id and t.buyer_id != u.id):
-        flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard"))
+        flash("Tidak berwenang.", "danger"); audit_current("eviden_ditambah", "transaksi", tid, "bukti ketelusuran baru")
+        return redirect(url_for("dashboard"))
     if request.method == "POST":
         e = Eviden(transaksi_id=t.id, tahap=request.form.get("tahap"),
                    keterangan=request.form.get("keterangan", ""),
@@ -1083,7 +1137,8 @@ def update_status(tid):
     new = request.form.get("status")
     b = Booking.query.get(t.booking_id) if t.booking_id else None
     if u.role == "penjual" and t.seller_id != u.id:
-        flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard"))
+        flash("Tidak berwenang.", "danger"); audit_current("status_diubah", "transaksi", tid, "perubahan status transaksi")
+        return redirect(url_for("dashboard"))
     if new in ("shipped", "delivered", "completed", "cancelled", "paid"):
         t.status = new
         if new == "completed":
@@ -1111,6 +1166,7 @@ def rate_transaction(tid):
     u = current_user()
     if t.status != "completed":
         flash("Penilaian hanya dapat diberikan setelah transaksi berstatus selesai.", "warning")
+        audit_current("penilaian_dibuat", "transaksi", tid, "rating kepuasan")
         return redirect(url_for("dashboard"))
     if u.role == "pembeli" and t.buyer_id != u.id:
         flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard"))
@@ -1187,6 +1243,7 @@ def save_pg_api():
     pg.enabled = bool(request.form.get("enabled"))
     db.session.add(pg); db.session.commit()
     flash("Konfigurasi API Payment Gateway disimpan ✔", "success")
+    audit_current("pengaturan_pg_api", "pengaturan", None, "perubahan konfigurasi platform")
     return redirect(url_for("dashboard_admin"))
 
 
@@ -1204,6 +1261,7 @@ def save_ekspedisi():
     e.enabled = bool(request.form.get("enabled"))
     db.session.add(e); db.session.commit()
     flash("Data jasa ekspedisi disimpan ✔", "success")
+    audit_current("pengaturan_ekspedisi", "pengaturan", None, "perubahan konfigurasi platform")
     return redirect(url_for("dashboard_admin"))
 
 
@@ -1249,6 +1307,7 @@ def save_pengaturan():
             set_setting(skey, val, lab)
     db.session.commit()
     flash("Pengaturan ubah DP & biaya-biaya diperbarui ✔", "success")
+    audit_current("pengaturan_biaya", "pengaturan", None, "perubahan konfigurasi platform")
     return redirect(url_for("dashboard_admin"))
 
 
@@ -1266,6 +1325,7 @@ def save_seller_payment():
         "tujuan_tunai": request.form.get("tujuan_tunai", u.alamat or "").strip(),
     }
     set_setting(f"pembayaran_penjual_{u.id}", json.dumps(cfg), f"Pengaturan pembayaran penjual #{u.id}")
+    audit_current("pengaturan_metode_dp", "users", u.id, "metode pembayaran DP penjual: " + ",".join(metode))
     flash("Jenis pembayaran pelunasan DP disimpan ✔ (" + ", ".join(metode) + ")", "success")
     return redirect(url_for("dashboard_seller") + "#tSet")
 
@@ -1290,6 +1350,7 @@ def save_footer():
         if v is not None:
             set_setting(k, v.strip(), lab)
     flash("Informasi footer landing page diperbarui ✔", "success")
+    audit_current("pengaturan_footer", "pengaturan", None, "perubahan konfigurasi platform")
     return redirect(url_for("dashboard_admin"))
 
 
@@ -1319,6 +1380,7 @@ def save_pengaturan_laporan():
         limit = "50"
     set_setting("laporan_limit", limit, flags["laporan_limit"])
     flash("Pengaturan tampilan laporan diperbarui ✔", "success")
+    audit_current("pengaturan_laporan", "pengaturan", None, "perubahan konfigurasi platform")
     return redirect(url_for("dashboard_admin"))
 
 
@@ -1460,6 +1522,11 @@ def seed():
             insp_cols = {c[1] for c in db.session.execute(text("PRAGMA table_info(bookings)"))}
             if "metode_dp" not in insp_cols:
                 db.session.execute(text("ALTER TABLE bookings ADD COLUMN metode_dp VARCHAR(30)"))
+            insp_users = {c[1] for c in db.session.execute(text("PRAGMA table_info(users)"))}
+            if "failed_logins" not in insp_users:
+                db.session.execute(text("ALTER TABLE users ADD COLUMN failed_logins INTEGER DEFAULT 0"))
+            if "locked_until" not in insp_users:
+                db.session.execute(text("ALTER TABLE users ADD COLUMN locked_until DATETIME"))
             insp_cols_t = {c[1] for c in db.session.execute(text("PRAGMA table_info(pengaturan)"))}
             if insp_cols_t:
                 pass  # value/label sudah text di model baru; SQLite longgar utk tipe
@@ -1631,7 +1698,31 @@ def seed():
             db.session.commit()
 
 
+# ----------------------------------------------------------------------------
+# BLUEPRINT: REST API v1 + manajemen token API (keamanan & performa di security.py)
+# ----------------------------------------------------------------------------
+import api_v1
+app.register_blueprint(api_v1.api_bp)
+api_v1.register_admin_token_routes(app)
+
+
+def audit_current(action, entity=None, entity_id=None, detail=""):
+    """Helper: catat aksi penting ke log audit dengan konteks user/IP saat ini."""
+    u = current_user()
+    try:
+        models_api.AuditLog.record(action, actor=(u.email if u else "anonim"),
+                                   role=(u.role if u else "-"), user_id=(u.id if u else None),
+                                   entity=entity, entity_id=entity_id, detail=detail,
+                                   ip=security.client_ip())
+    except Exception as e:
+        print("audit:", e)
+
+
 if __name__ == "__main__":
     seed()
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    debug = os.environ.get("AGR_DEBUG", "").lower() in ("1", "true")
+    threaded = True                      # dukung request bersamaan
+    print(f"AGR.ID berjalan pada http://0.0.0.0:{port} "
+          f"[env={os.environ.get('AGR_ENV', 'development')}, debug={debug}]")
+    app.run(host="0.0.0.0", port=port, debug=debug, threaded=threaded)

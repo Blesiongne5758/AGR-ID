@@ -9,6 +9,7 @@
 
       {% if user.role=='penjual' and t.status in ('processing','paid') %}
       <form method="post" class="row g-2 border-bottom pb-3 mb-3">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
         <div class="col-md-3"><label class="small fw-bold">Tahap</label>
           <select class="form-select form-select-sm" name="tahap">
             {% for s in ['panen/produksi','sortasi & grading','pengemasan','penyerahan ekspedisi','pengiriman','lainnya'] %}<option>{{ s }}</option>{% endfor %}
@@ -24,6 +25,7 @@
       {% endif %}
       {% if user.role=='pembeli' and t.status in ('shipped','delivered') %}
       <form method="post" class="row g-2 border-bottom pb-3 mb-3">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
         <div class="col-md-4"><label class="small fw-bold">Tahap</label>
           <select class="form-select form-select-sm" name="tahap"><option>penerimaan barang</option><option>uji kualitas</option><option>komplain</option></select></div>
         <div class="col-md-5"><label class="small fw-bold">Keterangan</label><input class="form-control form-control-sm" name="keterangan" required></div>
@@ -49,6 +51,7 @@
       {% if user.role=='penjual' or user.role=='admin' %}
       <hr>
       <form method="post" action="{{ url_for('update_status', tid=t.id) }}" class="row g-2 align-items-end">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
         <div class="col-md-4"><label class="small fw-bold">Update Status</label>
           <select class="form-select form-select-sm" name="status">
             {% for s in ['paid','shipped','delivered','completed','cancelled'] %}<option {{ 'selected' if t.status==s }}>{{ s }}</option>{% endfor %}
