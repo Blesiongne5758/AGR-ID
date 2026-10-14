@@ -3,6 +3,7 @@
     {# === Tombol simpan favorit (produk) — khusus pembeli === #}
     {% if user and user.role == 'pembeli' %}
     <form method="post" action="{{ url_for('toggle_favorit') }}" class="position-absolute top-0 end-0 m-1" style="z-index:5">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
       <input type="hidden" name="product_id" value="{{ p.id }}">
       <input type="hidden" name="next" value="{{ request.url }}">
       <button class="btn btn-sm {{ 'btn-danger text-white' if (fav_products is defined and p.id in fav_products) or (fav is defined and fav.product) else 'btn-light' }}"

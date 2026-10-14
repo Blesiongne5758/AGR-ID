@@ -15,6 +15,7 @@
       </div>
 
       <form method="post" id="regForm">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
         <input type="hidden" name="role" id="roleInput" value="{{ role }}">
         <div class="row g-3">
           <div class="col-md-6"><label class="form-label">Nama Lengkap / Badan Usaha <span class="req-star">*</span></label>

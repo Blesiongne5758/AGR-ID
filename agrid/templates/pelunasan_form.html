@@ -34,7 +34,8 @@
     <div class="alert alert-danger">✖ Bukti sebelumnya ditolak penjual: <i>{{ pl.review_catatan or 'nominal/bukti tidak sesuai' }}</i>. Silakan ajukan ulang di bawah ini.</div>
   {% endif %}
 
-  <form method="post" class="card shadow-sm"><div class="card-body">
+  <form method="post" class="card shadow-sm">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><div class="card-body">
     <div class="row g-3">
       <div class="col-md-4">
         <label class="form-label fw-bold small">Metode Pembayaran</label>
