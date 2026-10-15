@@ -60,6 +60,8 @@ class User(db.Model):
     # keamanan: lockout akun setelah gagal login berulang
     failed_logins = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime)
+    # blockchain: alamat dompet AGR Coin (privat key TIDAK disimpan di DB)
+    crypto_address = db.Column(db.String(64))
 
     products = db.relationship("Product", backref="seller", lazy=True)
 
@@ -358,6 +360,55 @@ def set_setting(key, value, label=None):
     return p
 
 
+# ----------------------------------------------------------------------------
+# KONFIGURASI ADMIN — REGISTER FITUR (aktif/nonaktif semua fitur terpusat)
+# ----------------------------------------------------------------------------
+FEATURE_KEYS = {
+    "fitur_marketplace":      ("Marketplace & Listing Produk", "Katalog publik, pencarian & filter produk"),
+    "fitur_penawaran":        ("Penawaran Harga (Bidding)", "Pembeli mengajukan harga; penjual terima/tolak"),
+    "fitur_booking_dp":       ("Booking DP Pengikat", "Penguncian transaksi dengan uang muka (DP)"),
+    "fitur_payment_gateway":  ("Payment Gateway", "Pembayaran QRIS/VA/e-wallet via gateway"),
+    "fitur_ekspedisi":        ("Jasa Ekspedisi & Jadwal Kirim", "Perhitungan ongkir & tracking pengiriman"),
+    "fitur_eviden":           ("Verifikasi & Ketelusuran Eviden", "Timeline bukti foto + GPS tiap tahap"),
+    "fitur_chat_agent":       ("AI Chat Agent", "Asisten wizard produk & pencari produk"),
+    "fitur_ticker_harga":     ("Ticker Harga Market", "Marquee harga komoditas harian di header"),
+    "fitur_favorit":          ("Favorit Pembeli", "Simpan penjual/produk favorit (❤)"),
+    "fitur_rating":           ("Penilaian Kepuasan 2 Arah", "Skor bintang pembeli ⇄ penjual"),
+    "fitur_blockchain":       ("Blockchain & Dompet Crypto", "AGR Coin: dompet, transfer & ledger on-chain"),
+    "fitur_pelunasan_manual": ("Pelunasan Manual + Approval", "Upload bukti transfer, approval oleh penjual"),
+}
+
+# default saat kunci belum ada di DB
+FEATURE_DEFAULTS = {k: "1" for k in FEATURE_KEYS}
+FEATURE_DEFAULTS.update({
+    "crypto_auto_settle": "1",      # pembayaran DP/pelunasan otomatis tercatat on-chain
+    "crypto_fee_persen": "0.5",     # biaya jaringan per transfer (%)
+    "crypto_rate_idr": "1",         # 1 AGR Coin = Rp N
+})
+
+
+def fitur_on(key):
+    """Cek status aktif sebuah fitur dari konfigurasi admin."""
+    return get_setting(key, FEATURE_DEFAULTS.get(key, "1")) == "1"
+
+
+import blockchain as _bc
+bchain = _bc.BlockchainService(db, User, Pengaturan, get_setting, set_setting,
+                               app.config.get("SECRET_KEY") or os.environ.get("AGR_SECRET", "agr-dev-secret"))
+app.bchain = bchain
+
+
+@app.context_processor
+def inject_features():
+    """Semua template bisa membaca status fitur → navigasi/kartu disembunyikan saat nonaktif."""
+    try:
+        feats = {k: fitur_on(k) for k in FEATURE_KEYS}
+    except Exception:
+        feats = {k: True for k in FEATURE_KEYS}
+    return {"feat": feats, "feat_meta": FEATURE_KEYS,
+            "blockchain_enabled": feats.get("fitur_blockchain", True)}
+
+
 BIAYA_LABEL = {
     "dp_persen": "Persen DP Booking (%)",
     "biaya_penanganan_persen": "Biaya Penanganan Platform (%)",
@@ -528,10 +579,20 @@ def ai_reply(text, user=None):
                 "1. Membantu Anda **mengisi informasi produk** untuk dijual (ketik: *cara jual produk*)\n"
                 "2. **Mencari produk** yang Anda butuhkan (ketik: *cari lele* / *beli kopi gayo*)\n"
                 "3. Menjelaskan **sistem penawaran, DP booking & pengiriman** (ketik: *cara booking*)")
+    if any(k in t for k in ["crypto", "blockchain", "agr coin", "dompet", "wallet", "on-chain", "onchain"]):
+        st = bchain.stats()
+        return (f"⛓️ **Blockchain AGR Coin** — status jaringan: {'AKTIF' if st['enabled'] else 'NONAKTIF'}\n"
+                f"- Blok terakhir: #{st['last_index']} · total {st['tx_total']} transaksi on-chain\n"
+                f"- Integritas rantai: {'✔ terverifikasi' if st['verified'] else '✖ perlu audit'}\n"
+                f"- Kurs settlement: 1 AGR = Rp{int(st['rate']):,} · biaya jaringan {get_setting('crypto_fee_persen','0.5')}%\n"
+                "Setiap pembayaran DP/pelunasan otomatis didistribusikan antar **dompet crypto** penjual-pembeli "
+                "dan tercatat permanen di ledger (bukti ketelusuran anti-sengketa).\n"
+                "Buka menu 🪙 **Dompet Crypto** di dashboard Anda untuk melihat alamat AGR1…, saldo, riwayat & transfer manual.")
     return ("Saya 🤖 AGR Assistant. Contoh perintah:\n"
             "- \"cara jual cabai\" → pandu wizard input produk\n"
             "- \"cari ikan gurame\" → cari listing pembeli-ready\n"
             "- \"sistem DP booking\" → penjelasan transaksi\n"
+            "- \"dompet crypto\" → status blockchain & AGR Coin\n"
             "- \"daftar ekspedisi\" → mitra kirim aktif")
 
 # ----------------------------------------------------------------------------
@@ -558,6 +619,19 @@ def login_required(*roles):
         return wrapper
     return deco
 
+def feature_required(key):
+    """Guard: tolak akses route bila fitur terkait dinonaktifkan di konfigurasi admin."""
+    def deco(fn):
+        @wraps(fn)
+        def wrapper(*a, **kw):
+            if not fitur_on(key):
+                flash(f"Fitur \u201c{FEATURE_KEYS[key][0]}\u201d sedang dinonaktifkan pada konfigurasi admin.", "warning")
+                return redirect(url_for("home"))
+            return fn(*a, **kw)
+        return wrapper
+    return deco
+
+
 # ----------------------------------------------------------------------------
 # ROUTES: PUBLIC
 # ----------------------------------------------------------------------------
@@ -571,6 +645,7 @@ def home():
 
 
 @app.route("/marketplace")
+@feature_required("fitur_marketplace")
 def marketplace():
     q = request.args.get("q", "").strip()
     kat = request.args.get("kategori", "")
@@ -651,6 +726,12 @@ def register():
         models_api.AuditLog.record("user_terdaftar", actor=email, role=role, user_id=u.id,
                                    ip=security.client_ip())
         db.session.commit()
+        # ---- blockchain: dompet AGR Coin otomatis untuk setiap user baru ----
+        if fitur_on("fitur_blockchain"):
+            try:
+                bchain.ensure_wallet(u.id)
+            except Exception as e:
+                print("wallet:", e)
         session.clear(); session.permanent = True
         session["uid"] = u.id
         flash(f"Pendaftaran berhasil sebagai {role.title()}! Selamat datang di AGR.ID 🌾", "success")
@@ -718,6 +799,22 @@ def dashboard():
     return redirect(url_for("dashboard_buyer"))
 
 
+
+def wallet_ctx(u):
+    """Konteks dompet crypto utk template dashboard (aman bila fitur nonaktif)."""
+    try:
+        if not fitur_on("fitur_blockchain"):
+            return {"on": False}
+        addr = bchain.ensure_wallet(u.id)
+        bal = bchain.balance_of(addr)
+        return {"on": True, "address": addr, "balance": bal,
+                "idr": bchain.to_rupiah(bal), "rate": bchain.rate,
+                "history": bchain.history_of(addr, 10), "stats": bchain.stats()}
+    except Exception as e:
+        print("wallet_ctx:", e)
+        return {"on": False}
+
+
 @app.route("/dashboard/penjual")
 @login_required("penjual")
 def dashboard_seller():
@@ -736,7 +833,7 @@ def dashboard_seller():
            paycfg=seller_payment_cfg(u), pending_pelunasan=pending_pelunasan,
            rstats=rating_stats(u.id), rat_in=ratings_received,
            rat_out=[my_rating_for(t.id, u.id) for t in jualan if my_rating_for(t.id, u.id)],
-           rat_pending=pending_ratings(u.id))
+           rat_pending=pending_ratings(u.id), wallet=wallet_ctx(u))
 
 
 @app.route("/dashboard/pembeli")
@@ -759,7 +856,7 @@ def dashboard_buyer():
                            bookings=bookings, pelunasans=pelunasans, favs=favs,
                            rstats=rating_stats(u.id), rat_in=ratings_received,
                            rat_out=[my_rating_for(t.id, u.id) for t in pembelian if my_rating_for(t.id, u.id)],
-                           rat_pending=pending_ratings(u.id))
+                           rat_pending=pending_ratings(u.id), wallet=wallet_ctx(u))
 
 
 @app.route("/dashboard/admin")
@@ -830,13 +927,16 @@ def dashboard_admin():
                            keuangan=keuangan, by_method=by_method, by_status=by_status,
                            penjualan_rows=penjualan_rows, pembelian_rows=pembelian_rows,
                            total_penjualan=total_nilai_penjualan, total_pembelian=total_nilai_pembelian,
-                           rating_rekap=rating_rekap, rat_rows=rat_rows[:30])
+                           rating_rekap=rating_rekap, rat_rows=rat_rows[:30],
+                           wallet=wallet_ctx(u), bstats=bchain.stats(),
+                           feat_cfg=FEATURE_KEYS)
 
 # ----------------------------------------------------------------------------
 # ROUTES: PRODUK (CRUD + auto-add master)
 # ----------------------------------------------------------------------------
 
 @app.route("/produk/baru", methods=["GET", "POST"])
+@feature_required("fitur_marketplace")
 @login_required("penjual")
 def create_product():
     u = current_user()
@@ -937,6 +1037,7 @@ def api_produk_master():
 # ----------------------------------------------------------------------------
 
 @app.route("/offer/buat/<int:pid>", methods=["POST"])
+@feature_required("fitur_penawaran")
 @login_required("pembeli")
 def create_offer(pid):
     p = Product.query.get_or_404(pid)
@@ -976,6 +1077,7 @@ def respond_offer(oid):
 
 
 @app.route("/booking/<int:oid>", methods=["GET", "POST"])
+@feature_required("fitur_booking_dp")
 @login_required("pembeli")
 def show_booking_form(oid):
     o = Offer.query.get_or_404(oid)
@@ -1011,6 +1113,7 @@ def show_booking_form(oid):
 
 
 @app.route("/booking/<int:bid>/bayar", methods=["GET", "POST"])
+@feature_required("fitur_payment_gateway")
 @login_required("pembeli")
 def pay_booking(bid):
     """Simulasi payment gateway: QRIS/VA/E-wallet/Bank Transfer."""
@@ -1034,14 +1137,23 @@ def pay_booking(bid):
                       ref_payment=ref, status="processing")
         db.session.add(t)
         db.session.commit()
-        flash(f"DP {int(b.dp_amount):,} ({b.metode_dp}) berhasil dibayar via payment gateway {method.upper()} 🎉 Ref: {ref}", "success")
-        audit_current("dp_dibayar_pg", "bookings", bid, "pembayaran DP via payment gateway")
+        # ---- blockchain: distribusi pembayaran DP on-chain ke dompet penjual ----
+        txh = bchain.settle_payment(o.buyer_id, t.seller_id, b.dp_amount,
+                                    ref=f"BOOKING-{b.id}", memo=f"DP booking {o.product.nama_produk}")
+        if txh:
+            t.ref_payment = f"{ref} | AGR-ONCHAIN:{txh[:16]}"
+            db.session.commit()
+        flash(f"DP {int(b.dp_amount):,} ({b.metode_dp}) berhasil dibayar via payment gateway {method.upper()} 🎉 Ref: {ref}"
+              + (" — tercatat on-chain ⛓️" if txh else ""), "success")
+        audit_current("dp_dibayar_pg", "bookings", bid, "pembayaran DP via payment gateway"
+                      + (f" + transfer crypto {txh[:16]}…" if txh else ""))
         return redirect(url_for("dashboard_buyer"))
     return render_template("payment.html", b=b, o=o, channels=channels, ref=ref,
                            pg=pg_active, user=current_user(), ticker=ticker_data())
 
 
 @app.route("/transaksi/<int:tid>/pelunasan", methods=["GET", "POST"])
+@feature_required("fitur_pelunasan_manual")
 @login_required("pembeli")
 def submit_pelunasan(tid):
     """Pembeli menyelesaikan pembayaran pelunasan DP: upload bukti transfer -> approval penjual."""
@@ -1094,7 +1206,14 @@ def review_pelunasan(pid):
         pl.reviewed_at = datetime.utcnow()
         pl.review_catatan = catatan
         db.session.commit()
-        flash("Pelunasan disetujui ✔ transaksi dinyatakan lunas.", "success")
+        # ---- blockchain: distribusi pelunasan on-chain ke dompet penjual ----
+        txh = bchain.settle_payment(t.buyer_id, t.seller_id, pl.jumlah,
+                                    ref=f"TX-{t.id}", memo=f"Pelunasan {t.product_name}")
+        if txh:
+            t.ref_payment = (t.ref_payment or "") + f" | AGR-ONCHAIN:{txh[:16]}"
+            db.session.commit()
+        flash("Pelunasan disetujui ✔ transaksi dinyatakan lunas."
+              + (" Dana didistribusikan on-chain ⛓️" if txh else ""), "success")
     elif aksi == "tolak":
         pl.status = "ditolak"
         t.status = "processing"
@@ -1108,6 +1227,7 @@ def review_pelunasan(pid):
 
 
 @app.route("/transaksi/<int:tid>/eviden", methods=["GET", "POST"])
+@feature_required("fitur_eviden")
 @login_required("penjual", "pembeli")
 def add_eviden(tid):
     t = Transaksi.query.get_or_404(tid)
@@ -1159,6 +1279,7 @@ def update_status(tid):
 # ----------------------------------------------------------------------------
 
 @app.route("/transaksi/<int:tid>/nilai", methods=["GET", "POST"])
+@feature_required("fitur_rating")
 @login_required("penjual", "pembeli")
 def rate_transaction(tid):
     """Pemberian score kepuasan oleh salah satu pihak atas transaksi selesai."""
@@ -1206,6 +1327,7 @@ def rate_transaction(tid):
 
 
 @app.route("/api/rating/<int:uid>")
+@feature_required("fitur_rating")
 def api_user_rating(uid):
     """Rekap rating publik seorang user + daftar ulasan terbaru ( utk badge & modal )."""
     stats = rating_stats(uid)
@@ -1426,6 +1548,7 @@ def export_laporan():
 
 
 @app.route("/favorit/toggle", methods=["POST"])
+@feature_required("fitur_favorit")
 @login_required("pembeli")
 def toggle_favorit():
     """Simpan / hapus penjual atau produk favorit pembeli."""
@@ -1466,10 +1589,159 @@ def hapus_favorit(fqid):
     return redirect(request.referrer or url_for("dashboard_buyer"))
 
 # ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+# ROUTES: KONFIGURASI FITUR (aktif/nonaktif terpusat) — ADMIN
+# ----------------------------------------------------------------------------
+
+@app.route("/admin/fitur", methods=["POST"])
+@login_required("admin")
+def save_fitur():
+    """Mengaktifkan & menonaktifkan SEMUA fitur aplikasi dari konfigurasi admin."""
+    for key, (label, _desc) in FEATURE_KEYS.items():
+        set_setting(key, "1" if request.form.get(key) else "0", "Fitur: " + label)
+    flash("Konfigurasi fitur diperbarui ✔ perubahan langsung berlaku di seluruh aplikasi.", "success")
+    audit_current("pengaturan_fitur", "pengaturan", None, "aktif/nonaktif fitur platform")
+    return redirect(url_for("dashboard_admin") + "#tFeat")
+
+
+@app.route("/admin/crypto", methods=["POST"])
+@login_required("admin")
+def save_crypto_cfg():
+    """Pengaturan blockchain: rasio kurs, fee jaringan, auto-settlement on-chain."""
+    rate = request.form.get("crypto_rate_idr", "1")
+    try:
+        rate = str(max(1, float(rate)))
+    except Exception:
+        rate = "1"
+    set_setting("crypto_rate_idr", rate, "Crypto: Kurs 1 AGR Coin (Rp)")
+    fee = request.form.get("crypto_fee_persen", "0.5")
+    try:
+        fee = str(max(0.0, min(10.0, float(fee))))
+    except Exception:
+        fee = "0.5"
+    set_setting("crypto_fee_persen", fee, "Crypto: Biaya Jaringan (%)")
+    set_setting("crypto_auto_settle", "1" if request.form.get("crypto_auto_settle") else "0",
+                "Crypto: Catat DP/pelunasan otomatis on-chain")
+    flash("Pengaturan blockchain AGR Coin disimpan ✔", "success")
+    audit_current("pengaturan_crypto", "pengaturan", None, "konfigurasi blockchain/dompet crypto")
+    return redirect(url_for("dashboard_admin") + "#tChain")
+
+
+# ----------------------------------------------------------------------------
+# ROUTES: DOMPET CRYPTO (AGR COIN) — PENJUAL / PEMBELI
+# ----------------------------------------------------------------------------
+
+@app.route("/dompet")
+@login_required("penjual", "pembeli")
+def dompet_page():
+    """Halaman dompet crypto user: alamat, saldo, riwayat transaksi on-chain."""
+    u = current_user()
+    if not fitur_on("fitur_blockchain"):
+        flash("Fitur blockchain/crypto dinonaktifkan pada konfigurasi admin.", "warning")
+        return redirect(url_for("dashboard"))
+    w = wallet_ctx(u)
+    peers = [x for x in User.query.filter(User.role != "admin", User.id != u.id).limit(200).all()
+             if getattr(x, "crypto_address", None)]
+    return render_template("wallet.html", user=u, u=u, wallet=w, peers=peers,
+                           ticker=ticker_data())
+
+
+@app.route("/dompet/transfer", methods=["POST"])
+@login_required("penjual", "pembeli")
+def dompet_transfer():
+    """Transfer manual antar dompet AGR Coin (masuk mempool, ditambang validator)."""
+    u = current_user()
+    to_addr = request.form.get("ke", "").strip()
+    if not to_addr and request.form.get("ke_uid"):
+        to_addr = bchain.address_of(int(request.form["ke_uid"]))
+    amount = request.form.get("jumlah", "0")
+    memo = request.form.get("memo", "transfer antar member")
+    ok, res = bchain.submit_transfer(bchain.address_of(u.id), to_addr, amount,
+                                     ref=f"USER-{u.id}", memo=memo)
+    if ok:
+        mine_now = request.form.get("auto_mine")
+        if mine_now:
+            blk = bchain.mine(validator="node@agr.id")
+            res += f" (blok #{blk['index']})"
+        flash(f"Transfer {amount} AGR terkirim on-chain ✔ hash: {res[:24]}…", "success")
+        audit_current("crypto_transfer", "users", u.id, f"transfer {amount} AGR ke {to_addr[:18]}…")
+    else:
+        flash("Gagal: " + res, "danger")
+    return redirect(url_for("dompet_page"))
+
+
+@app.route("/dompet/export-key", methods=["POST"])
+@login_required("penjual", "pembeli")
+def dompet_export_key():
+    """Ekspor privat key terenkripsi (file) — konfirmasi password diperlukan."""
+    from flask import make_response
+    u = current_user()
+    if not check_password_hash(u.password, request.form.get("password", "")):
+        flash("Password salah — ekspor dibatalkan.", "danger")
+        return redirect(url_for("dompet_page"))
+    wallets = bchain._wallets()
+    data = wallets.get(str(u.id))
+    if not data:
+        flash("Dompet belum tersedia.", "warning")
+        return redirect(url_for("dompet_page"))
+    blob = json.dumps({"address": data["address"], "priv_hex": data["priv_hex"],
+                       "algo": data["algo"], "exported_at": datetime.utcnow().isoformat()}, indent=2)
+    audit_current("crypto_key_export", "users", u.id, "ekspor privat key terenkripsi")
+    resp = make_response(blob)
+    resp.headers["Content-Type"] = "application/json"
+    resp.headers["Content-Disposition"] = f"attachment; filename=agr-wallet-{u.id}.json"
+    return resp
+
+
+# ----------------------------------------------------------------------------
+# ROUTES: BLOCKCHAIN EXPLORER & MINING — ADMIN
+# ----------------------------------------------------------------------------
+
+@app.route("/admin/blockchain/mine", methods=["POST"])
+@login_required("admin")
+def admin_mine_block():
+    blk = bchain.mine(validator=current_user().email)
+    flash(f"Blok #{blk['index']} berhasil ditambang (PoA) — {blk['tx_count']} transaksi, hash {blk['hash'][:16]}…", "success")
+    audit_current("block_mined", "blockchain", blk["index"], f"mining blok oleh {current_user().email}")
+    return redirect(url_for("dashboard_admin") + "#tChain")
+
+
+@app.route("/admin/blockchain/verify")
+@login_required("admin")
+def admin_verify_chain():
+    ok, msgs = bchain.verify_chain()
+    flash(("✔ Integritas rantai TERVERIFIKASI: " if ok else "✖ RANTAI KORUP: ") + "; ".join(msgs),
+          "success" if ok else "danger")
+    audit_current("chain_verified", "blockchain", None, "; ".join(msgs))
+    return redirect(url_for("dashboard_admin") + "#tChain")
+
+
+@app.route("/api/v1/chain/blocks")
+@login_required("admin")
+def api_chain_blocks():
+    c = bchain.chain()
+    limit = int(request.args.get("limit", "20"))
+    return jsonify(ok=True, stats=bchain.stats(),
+                   blocks=[b.to_dict() for b in reversed(c.blocks[-limit:])])
+
+
+@app.route("/api/v1/chain/tx/<hash>")
+def api_chain_tx(hash):
+    """Explorer publik: cari bukti transaksi on-chain berdasarkan hash (bila fitur aktif)."""
+    if not fitur_on("fitur_blockchain") or not fitur_on("fitur_marketplace"):
+        return jsonify(ok=False, error="fitur tidak aktif"), 403
+    b, t = bchain.chain().find_tx(hash)
+    if not t:
+        return jsonify(ok=False, error="hash tidak ditemukan"), 404
+    return jsonify(ok=True, block=b.index, block_hash=b.hash, tx=t.to_dict())
+
+
+# ----------------------------------------------------------------------------
 # ROUTES: AI CHAT
 # ----------------------------------------------------------------------------
 
 @app.route("/chat", methods=["GET"])
+@feature_required("fitur_chat_agent")
 @login_required("penjual", "pembeli")
 def chat_page():
     u = current_user()
