@@ -15,7 +15,9 @@
             {% for s in ['panen/produksi','sortasi & grading','pengemasan','penyerahan ekspedisi','pengiriman','lainnya'] %}<option>{{ s }}</option>{% endfor %}
           </select></div>
         <div class="col-md-4"><label class="small fw-bold">Keterangan</label><input class="form-control form-control-sm" name="keterangan" required></div>
-        <div class="col-md-3"><label class="small fw-bold">Foto Bukti (URL)</label><input class="form-control form-control-sm" name="foto" placeholder="https://…"></div>
+        <div class="col-md-3"><label class="small fw-bold">Foto Bukti (cloud)</label>
+          <input type="file" id="fotoEviden1" accept="image/jpeg,image/png,image/webp,image/gif" class="form-control form-control-sm">
+          <input type="hidden" name="foto" id="fotoInput1"></div>
         <div class="col-md-1"><label class="small fw-bold">Lat</label><input class="form-control form-control-sm" name="lat" id="lat"></div>
         <div class="col-md-1"><label class="small fw-bold">Lng</label>
           <div class="input-group input-group-sm"><input class="form-control" name="lng" id="lng">
@@ -29,7 +31,9 @@
         <div class="col-md-4"><label class="small fw-bold">Tahap</label>
           <select class="form-select form-select-sm" name="tahap"><option>penerimaan barang</option><option>uji kualitas</option><option>komplain</option></select></div>
         <div class="col-md-5"><label class="small fw-bold">Keterangan</label><input class="form-control form-control-sm" name="keterangan" required></div>
-        <div class="col-md-3"><label class="small fw-bold">Foto Bukti (URL)</label><input class="form-control form-control-sm" name="foto"></div>
+        <div class="col-md-3"><label class="small fw-bold">Foto Bukti (cloud)</label>
+          <input type="file" id="fotoEviden2" accept="image/jpeg,image/png,image/webp,image/gif" class="form-control form-control-sm">
+          <input type="hidden" name="foto" id="fotoInput2"></div>
         <div class="col-12"><button class="btn btn-sm btn-agrid">📸 Unggah Eviden Penerimaan</button></div>
       </form>
       {% endif %}
@@ -42,7 +46,9 @@
           <div class="small">{{ e.keterangan }}</div>
           {% if e.lat %}<div class="small text-muted"><i class="bi bi-geo-alt"></i> GPS: {{ '%.6f'|format(e.lat) }}, {{ '%.6f'|format(e.lng) }}
             <a target="_blank" href="https://maps.google.com/?q={{e.lat}},{{e.lng}}">🗺️ buka peta</a></div>{% endif %}
-          {% if e.foto %}<img src="{{ e.foto }}" style="max-height:120px" class="rounded mt-1">{% else %}
+          {% if e.foto %}
+            {% if e.foto.startswith('object://') %}<img data-ref="{{ e.foto }}" style="max-height:120px" class="rounded mt-1 agr-media">{% else %}<img src="{{ e.foto }}" style="max-height:120px" class="rounded mt-1">{% endif %}
+            {% else %}
             <div class="small text-muted fst-italic">📷 (foto eviden: tempel URL pada kolom unggah)</div>{% endif %}
         </div>
         {% else %}<p class="text-muted">Belum ada eviden untuk transaksi ini.</p>{% endfor %}
@@ -68,5 +74,9 @@
 function ambilGPS(){navigator.geolocation.getCurrentPosition(p=>{
  document.getElementById('lat').value=p.coords.latitude.toFixed(6);
  document.getElementById('lng').value=p.coords.longitude.toFixed(6);});}
+// Direct-upload foto eviden ke bucket PUBLIC (CDN/thumbnail otomatis) — tidak menyentuh server.
+bindAgrUploader(document.getElementById('fotoEviden1'), {category:'eviden', hiddenId:'fotoInput1'});
+const fe2 = document.getElementById('fotoEviden2');
+if (fe2) bindAgrUploader(fe2, {category:'eviden', hiddenId:'fotoInput2'});
 </script>
 {% endblock %}

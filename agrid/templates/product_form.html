@@ -58,9 +58,12 @@
           <textarea class="form-control" name="deskripsi" rows="3">{{ p.deskripsi if p }}</textarea></div>
 
         <div class="col-md-6">
-          <label class="form-label"><i class="bi bi-camera"></i> Foto Produk (URL)</label>
-          <input class="form-control" name="foto" value="{{ p.foto if p }}" placeholder="https://…/foto.jpg">
-          <small class="text-muted">Tempel URL foto hasil panen/kolam/kandang untuk ketelusuran visual.</small>
+          <label class="form-label"><i class="bi bi-camera"></i> Foto Produk (cloud)</label>
+          {% if p %}<input type="hidden" name="foto" id="fotoInput" value="{{ p.foto }}">{% else %}<input type="hidden" name="foto" id="fotoInput">{% endif %}
+          <input type="file" id="fotoProduk" accept="image/jpeg,image/png,image/webp" class="form-control">
+          <div id="upStatusFoto" class="mt-1"></div>
+          <div id="prevFoto">{% if p and p.foto and p.foto.startswith('object://') %}<img data-ref="{{ p.foto }}" class="rounded border mt-1 agr-media" style="max-height:120px">{% elif p and p.foto %}<img src="{{ p.foto }}" class="rounded border mt-1" style="max-height:120px">{% endif %}</div>
+          <small class="text-muted">☁️ Direct upload ke bucket public — dikompres & dilayani via CDN (WebP + thumbnail otomatis). Maks 5 MB.</small>
         </div>
         <div class="col-md-6">
           <label class="form-label">Sertifikasi (organik/halal/SNI/SKKH/IG)</label>
@@ -136,6 +139,7 @@ function ambilGPS(){
   },()=>alert('Gagal deteksi GPS, isi manual.'));
 }
 function isiDenganAI(){ toggleChat(); document.getElementById('chatInput').value='cara jual produk'; sendChat(); }
+bindAgrUploader(document.getElementById('fotoProduk'), {category:'product', hiddenId:'fotoInput', previewEl:document.getElementById('prevFoto'), statusEl:document.getElementById('upStatusFoto')});
 fillSub();
 {% if p %}fSub.value="{{ p.subkategori }}"; checkHalal();{% endif %}
 </script>

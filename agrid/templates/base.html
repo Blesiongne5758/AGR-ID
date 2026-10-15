@@ -211,6 +211,11 @@ async function sendChat(){
 }
 </script>
 {% endif %}
+<script src="{{ url_for('static', filename='agr-storage.js') }}?v=3"></script>
+<script>
+// Render otomatis media cloud: <img class="agr-media" data-ref="object://..."> -> signed URL singkat
+document.querySelectorAll('img.agr-media[data-ref]').forEach(el => renderMedia(el, el.dataset.ref));
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

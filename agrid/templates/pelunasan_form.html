@@ -49,8 +49,10 @@
       </div>
       <div class="col-md-4">
         <label class="form-label fw-bold small">Upload Bukti Transfer / Foto Kuitansi 💰</label>
-        <input type="file" id="fileBukti" accept="image/*,.pdf" class="form-control">
+        <input type="file" id="fileBukti" accept="image/jpeg,image/png,application/pdf" class="form-control">
         <input type="hidden" name="bukti" id="buktiInput">
+        <div id="upStatus" class="mt-1"></div>
+        <small class="text-muted">☁️ Direct upload terenkripsi ke bucket private (pre-signed URL) — maks 8 MB JPG/PNG/PDF, divalidasi magic bytes. Penjual hanya dapat membuka file setelah Anda mengirim pelunasan.</small>
       </div>
     </div>
     <div id="prevBukti" class="mt-2"></div>
@@ -64,17 +66,21 @@
     </div>
   </div></form>
 </div>
+<script src="{{ url_for('static', filename='agr-storage.js') }}?v=3"></script>
 <script>
-const fi = document.getElementById('fileBukti'), hid = document.getElementById('buktiInput'), prev = document.getElementById('prevBukti');
-fi.addEventListener('change', () => {
-  const f = fi.files[0]; if (!f) return;
-  const r = new FileReader();
-  r.onload = e => {
-    hid.value = e.target.result;
-    if (f.type.startsWith('image/')) prev.innerHTML = `<img src="${e.target.result}" class="rounded border" style="max-height:160px">`;
-    else prev.innerHTML = `📎 ${f.name}`;
-  };
-  r.readAsDataURL(f);
+// Direct-upload ke bucket PRIVATE via pre-signed URL (file tidak menyentuh web server).
+// Validasi sisi klien (Zod-like) mirror storage.py::CATEGORY_RULES['payment'].
+bindAgrUploader(document.getElementById('fileBukti'), {
+  category: 'payment', hiddenId: 'buktiInput',
+  previewEl: document.getElementById('prevBukti'), statusEl: document.getElementById('upStatus')
+});
+
+const btnKirim = document.getElementById('btnKirim');
+document.querySelector('form').addEventListener('submit', e => {
+  if (!document.getElementById('buktiInput').value) {
+    e.preventDefault();
+    alert('Unggah bukti transfer terlebih dahulu — file diunggah langsung ke cloud storage, bukan ke server kami.');
+  }
 });
 </script>
 {% endblock %}

@@ -29,6 +29,7 @@ app.config["JSON_SORT_KEYS"] = False
 db = SQLAlchemy(app)
 
 import utils
+import storage                                   # Storage & Media Architecture (S3 presigned, lihat storage.py)
 from masterdata import KATEGORI, TIPE_PENJUAL, TIPE_PEMBELI, MASTER_PRODUK, NON_HALAL_LABEL, flatten_products
 import models_api
 models_api.init_models(db)          # tabel audit_logs, api_tokens, login_attempts
@@ -376,6 +377,7 @@ FEATURE_KEYS = {
     "fitur_rating":           ("Penilaian Kepuasan 2 Arah", "Skor bintang pembeli ⇄ penjual"),
     "fitur_blockchain":       ("Blockchain & Dompet Crypto", "AGR Coin: dompet, transfer & ledger on-chain"),
     "fitur_pelunasan_manual": ("Pelunasan Manual + Approval", "Upload bukti transfer, approval oleh penjual"),
+    "fitur_storage_cloud":    ("Cloud Object Storage & Media", "Direct upload pre-signed URL ke S3/MinIO/Spaces; bucket public/private; validasi magic bytes; CDN/thumbnail Cloudinary/ImageKit"),
 }
 
 # default saat kunci belum ada di DB
@@ -1167,7 +1169,13 @@ def submit_pelunasan(tid):
     pl_terbaru = Pelunasan.query.filter_by(transaksi_id=t.id).order_by(Pelunasan.created_at.desc()).first()
     if request.method == "POST":
         metode = request.form.get("metode") or "Transfer Bank"
-        bukti = request.form.get("bukti", "")          # data URI hasil pembacaan file di browser
+        bukti = request.form.get("bukti", "")          # ref object://bucket/private (direct upload) atau data URI legacy
+        if bukti.startswith("data:"):                  # fallback: migrasikan base64 ke bucket private, DB tidak lagi menyimpan blob
+            try:
+                bukti = storage.ingest_data_uri(bukti, u.id, "payment") or ""
+            except storage.ValidationError as e:
+                flash(f"Bukti transfer ditolak: {e}", "danger")
+                return redirect(url_for("submit_pelunasan", tid=tid))
         jumlah = float(request.form.get("jumlah") or sisa)
         pl = Pelunasan(transaksi_id=t.id, buyer_id=u.id, jumlah=jumlah, metode=metode,
                        rekening_tujuan=seller_cfg["rekening"] or seller_cfg["tujuan_tunai"],
@@ -1976,6 +1984,10 @@ def seed():
 import api_v1
 app.register_blueprint(api_v1.api_bp)
 api_v1.register_admin_token_routes(app)
+
+# BLUEPRINT: Cloud Object Storage (pre-signed direct upload, bucket public/private)
+import storage_api
+app.register_blueprint(storage_api.storage_bp)
 
 
 def audit_current(action, entity=None, entity_id=None, detail=""):
