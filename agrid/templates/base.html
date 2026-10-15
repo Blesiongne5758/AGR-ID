@@ -15,6 +15,7 @@
 (function(){try{var t=localStorage.getItem('agrid-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
 </head>
 <body class="min-h-screen font-sans antialiased">
+<script>window.CSRF="{{ csrf_token() }}";</script>
 
 <!-- ================= NAVBAR (shadcn header) ================= -->
 <nav class="navbar navbar-expand-lg navbar-agrid sticky-top">
@@ -202,7 +203,7 @@ async function sendChat(){
   const txt=inp.value.trim(); if(!txt) return;
   body.insertAdjacentHTML('beforeend', `<div class="msg user">${txt.replace(/</g,'&lt;')}</div>`);
   inp.value=''; body.scrollTop=body.scrollHeight;
-  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:txt})});
+  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':window.CSRF||''},body:JSON.stringify({message:txt})});
   const d=await r.json();
   body.insertAdjacentHTML('beforeend', `<div class="msg ai">${d.reply.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/</g,(m)=>m)}</div>`);
   body.innerHTML = body.innerHTML.replace(/<(?!\/?(b|i|small)\b)[^>]*$/,'');
@@ -210,6 +211,11 @@ async function sendChat(){
 }
 </script>
 {% endif %}
+<script src="{{ url_for('static', filename='agr-storage.js') }}?v=3"></script>
+<script>
+// Render otomatis media cloud: <img class="agr-media" data-ref="object://..."> -> signed URL singkat
+document.querySelectorAll('img.agr-media[data-ref]').forEach(el => renderMedia(el, el.dataset.ref));
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
