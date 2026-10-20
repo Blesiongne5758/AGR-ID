@@ -27,7 +27,7 @@ if (function_exists('mb_internal_encoding')) { mb_internal_encoding('UTF-8'); } 
 /* ---------- konfigurasi ---------- */
 $CFG = [
     'supabase_url'    => getenv('SUPABASE_URL') ?: '',
-    'supabase_key'    => getenv('SUPABASE_ANON_KEY') ?: '',          // anon key (RLS aktif)
+    'supabase_key'    => getenv('SUPABASE_ANON_KEY') ?: '',          // publishable/anon key (RLS aktif)
     'cloudinary_cloud'  => getenv('CLOUDINARY_CLOUD_NAME') ?: '',
     'cloudinary_key'    => getenv('CLOUDINARY_API_KEY') ?: '',
     'cloudinary_secret' => getenv('CLOUDINARY_API_SECRET') ?: '',
@@ -35,6 +35,39 @@ $CFG = [
     'session_secret'  => getenv('AGR_ID_SESSION_SECRET') ?: 'ubah-secret-ini-di-config',
 ];
 if (is_file(__DIR__ . '/config.php')) { $CFG = array_merge($CFG, require __DIR__ . '/config.php'); }
+
+/* ---------- normalisasi & validasi konfigurasi Supabase ----------
+   - nilai 'https://<ref>.supabase.co' => dipakai apa adanya
+   - nilai '<ref>' saja                => dibangun jadi https://<ref>.supabase.co
+   - key sb_publishable/sb_secret (format baru) TIDAK bisa dipakai sebagai
+     apikey PostgREST — yang dibutuhkan adalah "anon public" key JWT lama. */
+
+function agr_supabase_url(string $v): string {
+    $v = trim($v);
+    if ($v === '') return '';
+    if (preg_match('#^https?://#i', $v)) return rtrim($v, '/');
+    if (preg_match('/^[a-z0-9_-]{8,40}$/i', $v)) return 'https://' . strtolower($v) . '.supabase.co';
+    return $v; // biarkan, validasi di bawah yang menolak
+}
+
+function agr_assert_supabase_config(array $CFG): void {
+    $url = $CFG['supabase_url']; $key = (string)$CFG['supabase_key'];
+    if ($url === '' || $key === '') {
+        err('Supabase belum dikonfigurasi — isi supabase_url (https://<REF>.supabase.co) dan supabase_key (anon public key) di config.php', 503);
+    }
+    if (!preg_match('#^https://[a-z0-9-]+\.supabase\.co$#i', $url)) {
+        err('SUPABASE_URL tidak valid. Format benar: https://<REF>.supabase.co — REF ada di kolom alamat dashboard Supabase (Project Settings -> API).', 500);
+    }
+    if (preg_match('/^sb_(publishable|secret)_/', $key)) {
+        err('Kunci "' . substr($key, 0, 14) . '..." bukan anon key. Untuk gateway REST pakai Project API Key "anon public" (eyJ...) — lihat Project Settings -> API -> Legacy API Keys, atau buat via Service Roles. sb_secret_ JANGAN pernah ditaruh di hosting publik.', 500);
+    }
+    if (strpos($key, 'eyJ') !== 0) {
+        err('supabase_key seharusnya JWT anon public key yang dimulai dengan "eyJ...".', 500);
+    }
+}
+
+$CFG['supabase_url'] = agr_supabase_url((string)$CFG['supabase_url']);
+agr_assert_supabase_config($CFG);
 
 /* ---------- header & CORS ---------- */
 header('Content-Type: application/json; charset=utf-8');

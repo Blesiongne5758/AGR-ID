@@ -6,8 +6,16 @@
  */
 return [
     // ---- Supabase (Project Settings -> API) ----
+    // Boleh URL lengkap ATAU ref project saja:
+    //   'https://abcdefgh.supabase.co'  atau  'abcdefgh'
     'supabase_url'    => 'https://xxxxxxxx.supabase.co',
-    'supabase_key'    => 'eyJhbGciOi...anon-key',      // anon/public key, RLS wajib aktif
+    // WAJIB "anon public" key (JWT, dimulai dengan eyJ...).
+    // CATAT PENTING: kunci format baru sb_publishable_ / sb_secret_ TIDAK
+    // berfungsi untuk PostgREST (gateway api.php). Ambil anon key di:
+    // Dashboard -> Project Settings -> API -> Legacy API Keys -> anon public.
+    // sb_secret_ adalah service key SUPER-PRIVILEGED — jangan pernah
+    // diletakkan di hosting publik/htdocs; hanya untuk backend privat (Flask).
+    'supabase_key'    => 'eyJhbGciOi...anon-key',
 
     // ---- Cloudinary (Dashboard -> Keys) ----
     'cloudinary_cloud'   => 'nama-cloud-anda',
