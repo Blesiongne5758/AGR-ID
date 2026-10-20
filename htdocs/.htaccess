@@ -1,0 +1,33 @@
+# AGR.ID — InfinityFree (docroot: htdocs)
+Options -Indexes
+
+# Front-end SPA statis -> selalu serve shell.html
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^$ /index.html [L]
+
+# Caching aset statis (hemat bandwidth & mempercepat load)
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 week"
+  ExpiresByType application/javascript "access plus 1 week"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType image/svg+xml "access plus 1 month"
+</IfModule>
+
+# Proteksi file konfigurasi & SQL bila accidental upload
+<FilesMatch "^(config\.php|.*\.sql|.*\.md|.*\.log)$">
+  Require all denied
+</FilesMatch>
+<Files "config.example.php">
+  Require all denied
+</Files>
+
+# Header keamanan dasar
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

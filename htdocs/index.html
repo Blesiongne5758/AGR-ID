@@ -1,4 +1,82 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8">
-<meta http-equiv="refresh" content="0;url=/agrid-web/index.html">
-<title>AGR.ID</title></head>
-<body><p>Mengalihkan ke frontend AGR.ID… bila tidak otomatis, buka folder <code>/agrid-web/</code>.</p></body></html>
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AGR.ID — Marketplace Pertanian, Perkebunan, Perikanan & Peternakan</title>
+<meta name="description" content="AGR.ID mempertemukan petani, peternak dan nelayan langsung dengan pembeli: penawaran harga, booking DP, pembayaran, eviden & ketelusuran.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ================= NAVBAR ================= -->
+<header class="nav">
+  <div class="container nav-in">
+    <a class="logo" href="#/beranda">🌾 AGR<span>.ID</span></a>
+    <nav class="links">
+      <a href="#/beranda">Beranda</a>
+      <a href="#/marketplace">Marketplace</a>
+      <a href="#/chat">AI Agent</a>
+    </nav>
+    <div class="rel" id="navAuth"></div>
+  </div>
+</header>
+
+<!-- ================= TICKER HARGA MARKET ================= -->
+<div class="topbar"><div id="ticker"></div></div>
+
+<!-- ================= APP (SPA router mengisi area ini) ================= -->
+<main class="container" id="app"></main>
+
+<!-- ================= FOOTER ================= -->
+<footer class="f-bot">
+  <div class="container">
+    <div class="f-grid">
+      <div>
+        <div class="logo">🌾 AGR<span>.ID</span></div>
+        <p class="muted" id="fTagline">Marketplace hasil bumi Indonesia — dari petani langsung ke pembeli.</p>
+      </div>
+      <div>
+        <h4>Navigasi</h4>
+        <p><a href="#/marketplace">Marketplace</a> · <a href="#/daftar">Daftar</a> · <a href="#/login">Masuk</a> · <a href="#/chat">AI Agent</a></p>
+      </div>
+      <div>
+        <h4>Kontak</h4>
+        <p class="muted">✉️ <span id="fEmail">halo@agr.id</span><br>📱 <span id="fWa">+62 812-0000-0000</span><br>📍 <span id="fAlamat">Jakarta, Indonesia</span></p>
+      </div>
+    </div>
+    <p class="muted" style="text-align:center;margin-top:14px">© <span id="fCopy">2026 AGR.ID — Semua hak dilindungi.</span></p>
+  </div>
+</footer>
+
+<!-- ================= FLOATING SYARAT & KETENTUAN ================= -->
+<div class="modal" id="skModal">
+  <div class="modal-card">
+    <h3>Syarat &amp; Ketentuan AGR.ID</h3>
+    <div class="modal-body">
+      <p>Dengan menggunakan AGR.ID Anda menyetujui:</p>
+      <ol>
+        <li><b>Kategori</b> — Pertanian (Sayuran, Buah-buahan), Perkebunan, Perikanan (Air Tawar, Air Laut), Peternakan. Produk Babi diberi label <b>NON HALAL</b>.</li>
+        <li><b>Tipe akun</b> — Penjual: Perorangan / Koperasi / Kelompok Tani (Paguyuban). Pembeli: Perorangan / Corporate.</li>
+        <li><b>Transaksi</b> — Pembeli mengajukan penawaran harga; setelah diterima penjual, dilakukan <b>booking dengan DP</b> (% diatur admin) sebagai pengikat, lalu pelunasan sesuai jadwal pengiriman.</li>
+        <li><b>Ketelusuran</b> — Setiap tahap dicatat sebagai eviden (foto, GPS, waktu). Data alamat &amp; koordinat hanya terbuka setelah DP dibayar.</li>
+        <li><b>Biaya</b> — Biaya penanganan platform dipungut dari setiap transaksi selesai; besaran tercantum sebelum konfirmasi.</li>
+        <li><b>Penilaian</b> — Penjual &amp; pembeli saling memberi skor kepuasan setelah transaksi selesai.</li>
+        <li><b>Larangan</b> — Dilarang memposting produk ilegal, berbahaya, atau menyesatkan. Akun dapat diblokir oleh admin.</li>
+      </ol>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" id="skReject">Tidak Setuju</button>
+      <button class="btn btn-primary" id="skAccept">Saya Setuju ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TOASTS ================= -->
+<div id="toasts"></div>
+
+<script src="data-master.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
