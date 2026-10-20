@@ -13,6 +13,7 @@
         <tr><td>Biaya Penanganan Platform ({{ fee_persen|int }}%)</td><td class="text-end">Rp{{ fee|rp }}</td></tr>
       </table>
       <form method="post" class="row g-3">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
         <div class="col-md-6"><label class="form-label fw-bold">Jadwal Pengiriman</label>
           <input class="form-control" type="date" name="jadwal_kirim" required min="{{ today if today else '' }}"></div>
         <div class="col-md-6"><label class="form-label fw-bold">Pilih Jasa Ekspedisi</label>

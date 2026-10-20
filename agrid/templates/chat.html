@@ -28,7 +28,7 @@ function sendChat(){
   const txt=inp.value.trim(); if(!txt) return;
   body.insertAdjacentHTML('beforeend', `<div class="msg user">${txt.replace(/</g,'&lt;')}</div>`);
   inp.value=''; body.scrollTop=body.scrollHeight;
-  fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:txt})})
+  fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':window.CSRF||''},body:JSON.stringify({message:txt})})
    .then(r=>r.json()).then(d=>{
      const div=document.createElement('div'); div.className='msg ai'; div.textContent=d.reply;
      body.appendChild(div); body.scrollTop=body.scrollHeight;
