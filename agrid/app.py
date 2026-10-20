@@ -22,14 +22,34 @@ app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "templates"),
 import security
 security.session_config(app)
 
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "AGR_DATABASE_URL", "sqlite:///" + os.path.join(BASE_DIR, "agrid.db"))
+# ---- Dukungan Supabase Postgres (hosting frontend statis di InfinityFree) ----
+# Bila SUPABASE_DB_URL / DB_HOST diset, aplikasi otomatis memakai Postgres
+# Supabase; tanpa itu tetap SQLite lokal (dev).
+def _database_uri():
+    url = os.environ.get("AGR_DATABASE_URL") or os.environ.get("SUPABASE_DB_URL")
+    if url:
+        if url.startswith("postgres://"):            # format lama Supabase
+            url = url.replace("postgres://", "postgresql://", 1)
+        return url
+    if os.environ.get("DB_HOST"):                    # variabel terpisah heroku-style
+        return ("postgresql://{u}:{p}@{h}:{port}/{d}?sslmode=require".format(
+            u=os.environ.get("DB_USER", "postgres"),
+            p=os.environ.get("DB_PASSWORD", ""),
+            h=os.environ["DB_HOST"],
+            port=os.environ.get("DB_PORT", "5432"),
+            d=os.environ.get("DB_NAME", "postgres")))
+    return "sqlite:///" + os.path.join(BASE_DIR, "agrid.db")
+
+
+app.config["SQLALCHEMY_DATABASE_URI"] = _database_uri()
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}   # koneksi SupabasePutus -> auto reconnect
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["JSON_SORT_KEYS"] = False
 db = SQLAlchemy(app)
 
 import utils
 import storage                                   # Storage & Media Architecture (S3 presigned, lihat storage.py)
+import cloud_media                               # Cloudinary.com utk multimedia (lihat cloud_media.py)
 from masterdata import KATEGORI, TIPE_PENJUAL, TIPE_PEMBELI, MASTER_PRODUK, NON_HALAL_LABEL, flatten_products
 import models_api
 models_api.init_models(db)          # tabel audit_logs, api_tokens, login_attempts
@@ -925,6 +945,9 @@ def dashboard_admin():
     }
     return render_template("admin_dashboard.html", u=u, stats=stats, tx=tx, pg=pg, eks=eks,
                            settings=settings, user=u, ticker=ticker_data(),
+                           db_backend=("supabase-postgres" if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgres") else "sqlite"),
+                           cloudinary_on=cloud_media.enabled(),
+                           cloudinary_secret_set=bool(cloud_media.cfg()["api_secret"]),
                            biaya=get_biaya_settings(), labels=BIAYA_LABEL,
                            keuangan=keuangan, by_method=by_method, by_status=by_status,
                            penjualan_rows=penjualan_rows, pembelian_rows=pembelian_rows,
@@ -1485,6 +1508,58 @@ def save_footer():
 
 
 # ----------------------------------------------------------------------------
+# ROUTES: KONFIGURASI CLOUD (Cloudinary & Supabase) — ADMIN
+# ----------------------------------------------------------------------------
+
+@app.route("/admin/konfigurasi-cloud", methods=["POST"])
+@login_required("admin")
+def save_konfigurasi_cloud():
+    """Simpan kredensial Cloudinary (multimedia) & info koneksi Supabase.
+    Nilai secret disimpan di tabel pengaturan (bukan filesystem) dan langsung
+    mengaktifkan cloud_media tanpa restart."""
+    cn = request.form.get("cloudinary_cloud_name", "").strip()
+    ak = request.form.get("cloudinary_api_key", "").strip()
+    se = request.form.get("cloudinary_api_secret", "").strip()
+    pr = request.form.get("cloudinary_upload_preset", "").strip()
+    set_setting("cloudinary_cloud_name", cn, "Cloudinary: Cloud Name")
+    set_setting("cloudinary_api_key", ak, "Cloudinary: API Key")
+    if se and "*" not in se:                        # jangan timpa mask saat submit ulang
+        set_setting("cloudinary_api_secret", se, "Cloudinary: API Secret")
+    set_setting("cloudinary_upload_preset", pr, "Cloudinary: Unsigned Upload Preset")
+    cloud_media.set_override(cloud_name=cn, api_key=ak,
+                             api_secret=(se if se and "*" not in se else None))
+    if pr:
+        os.environ["CLOUDINARY_UPLOAD_PRESET"] = pr
+
+    sb_url = request.form.get("supabase_db_url", "").strip()
+    set_setting("supabase_db_url_masked", ("*"*8 + sb_url[-6:] if sb_url else ""), "Supabase: Connection String (masked)")
+    set_setting("supabase_project_ref", request.form.get("supabase_project_ref", "").strip(), "Supabase: Project Ref")
+    set_setting("frontend_base_url", request.form.get("frontend_base_url", "").strip(), "URL Frontend (InfinityFree)")
+    flash("Konfigurasi cloud tersimpan ✔ (Cloudinary aktif tanpa restart; Supabase dipakai via env SUPABASE_DB_URL)", "success")
+    audit_current("konfigurasi_cloud", "pengaturan", None, f"cloudinary={cn or '(kosong)'}, supabase_ref={request.form.get('supabase_project_ref','')}")
+    return redirect(url_for("dashboard_admin") + "#tCloud")
+
+
+@app.route("/api/v1/config")
+def public_config():
+    """Konfigurasi non-sensitif utk frontend statis (InfinityFree): daftar
+    fitur aktif + parameter upload Cloudinary unsigned. TIDAK pernah
+    mengembalikan api_secret / connection string."""
+    feats = {k: fitur_on(k) for k in FEATURE_KEYS}
+    cc = cloud_media.cfg()
+    cloud_cfg = {"enabled": cloud_media.enabled(), "cloud_name": cc["cloud_name"],
+                 "api_key": cc["api_key"] if cloud_media.enabled() else "",
+                 "upload_preset": get_setting("cloudinary_upload_preset", "agr_unsigned"),
+                 "endpoint_image": (f"https://api.cloudinary.com/v1_1/{cc['cloud_name']}/image/upload"
+                                    if cc["cloud_name"] else "")}
+    return jsonify(ok=True, features=feats, cloudinary=cloud_cfg,
+                   db_backend=("supabase-postgres" if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgres")
+                               else "sqlite"),
+                   dp_persen=get_setting("dp_persen", "20"))
+
+
+
+# ----------------------------------------------------------------------------
 # ROUTES: LAPORAN & PENGATURAN TAMPILAN LAPORAN (ADMIN) + FAVORIT (PEMBELI)
 # ----------------------------------------------------------------------------
 
@@ -1790,7 +1865,8 @@ def dtfmt(d):
 # ----------------------------------------------------------------------------
 
 def seed():
-    if not os.path.exists(app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")):
+    is_sqlite = app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite")
+    if is_sqlite and not os.path.exists(app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")):
         fresh = True
     else:
         fresh = User.query.first() is None if False else False
@@ -1799,17 +1875,33 @@ def seed():
         # --- migrasi ringan untuk DB lama: tambah kolom/tabel yang hilang ---
         try:
             from sqlalchemy import text
-            insp_cols = {c[1] for c in db.session.execute(text("PRAGMA table_info(bookings)"))}
-            if "metode_dp" not in insp_cols:
-                db.session.execute(text("ALTER TABLE bookings ADD COLUMN metode_dp VARCHAR(30)"))
-            insp_users = {c[1] for c in db.session.execute(text("PRAGMA table_info(users)"))}
-            if "failed_logins" not in insp_users:
-                db.session.execute(text("ALTER TABLE users ADD COLUMN failed_logins INTEGER DEFAULT 0"))
-            if "locked_until" not in insp_users:
-                db.session.execute(text("ALTER TABLE users ADD COLUMN locked_until DATETIME"))
-            insp_cols_t = {c[1] for c in db.session.execute(text("PRAGMA table_info(pengaturan)"))}
-            if insp_cols_t:
-                pass  # value/label sudah text di model baru; SQLite longgar utk tipe
+            if is_sqlite:   # PRAGMA hanya ada di SQLite; Postgres punya skema penuh dr create_all
+                insp_cols = {c[1] for c in db.session.execute(text("PRAGMA table_info(bookings)"))}
+                if "metode_dp" not in insp_cols:
+                    db.session.execute(text("ALTER TABLE bookings ADD COLUMN metode_dp VARCHAR(30)"))
+                insp_users = {c[1] for c in db.session.execute(text("PRAGMA table_info(users)"))}
+                if "failed_logins" not in insp_users:
+                    db.session.execute(text("ALTER TABLE users ADD COLUMN failed_logins INTEGER DEFAULT 0"))
+                if "locked_until" not in insp_users:
+                    db.session.execute(text("ALTER TABLE users ADD COLUMN locked_until DATETIME"))
+                if "crypto_address" not in insp_users:
+                    db.session.execute(text("ALTER TABLE users ADD COLUMN crypto_address VARCHAR(80)"))
+            # kolom baru era blockchain/storage — cek per tabel (SQLite)
+            for tbl, col, ddl in [
+                ("users", "crypto_address", "VARCHAR(80)"),
+                ("pengaturan", "label", "VARCHAR(120)"),
+                ("products", "foto", "TEXT"),
+                ("eviden", "foto", "TEXT"),
+                ("transaksi", "pelunasan", "FLOAT"),
+                ("transaksi", "chain_hash", "VARCHAR(80)"),
+                ("bookings", "chain_hash", "VARCHAR(80)"),
+            ]:
+                try:
+                    cols = {c[1] for c in db.session.execute(text(f"PRAGMA table_info({tbl})"))}
+                    if cols and col not in cols:
+                        db.session.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col} {ddl}"))
+                except Exception as _e:
+                    print("migrasi-col:", tbl, col, _e)
             db.session.commit()
         except Exception as e:
             print("migrasi:", e)

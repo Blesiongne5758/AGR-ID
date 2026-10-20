@@ -108,3 +108,68 @@ async function renderMedia(el, refOrUrl) {
     el.src = refOrUrl;
   }
 }
+
+/* ===========================================================================
+   CLOUDINARY (cloudinary.com) — direct upload tanpa backend signature.
+   Dipakai saat frontend di-hosting statis di InfinityFree: browser mengirim
+   file LANGSUNG ke Cloudinary memakai unsigned upload preset. Aturan validasi
+   Zod-like di atas tetap dijalankan sebelum kirim; folder & tipe dibatasi
+   oleh preset di dashboard Cloudinary (server-side enforcement).
+   =========================================================================== */
+let _AGR_CFG = null;
+async function agrConfig(force) {
+  if (_AGR_CFG && !force) return _AGR_CFG;
+  try {
+    const r = await fetch((window.AGR_API_BASE || '') + '/api/v1/config');
+    _AGR_CFG = await r.json();
+  } catch (e) { _AGR_CFG = { ok: false }; }
+  return _AGR_CFG;
+}
+
+/* Implementasi final dengan pengambilan JSON respons */
+async function cloudUpload(file, category, onProgress) {
+  const v = validateFile(file, category);
+  if (!v.ok) throw new Error(v.error);
+  const cfgj = await agrConfig();
+  const c = (cfgj && cfgj.cloudinary) || {};
+  if (!c.enabled || !c.cloud_name) throw new Error('Cloudinary belum dikonfigurasi pada dashboard admin.');
+  const folderMap = { product: 'products', avatar: 'avatar', eviden: 'eviden',
+                      kyc: 'private-kyc', chat: 'private-chat', payment: 'private-payment' };
+  const folder = 'agr.id/' + (folderMap[category] || category);
+  const isImg = (file.type || '').startsWith('image/');
+  const endpoint = `https://api.cloudinary.com/v1_1/${c.cloud_name}/${isImg ? 'image' : 'raw'}/upload`;
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', c.upload_preset);
+  fd.append('folder', folder);
+  if (isImg) fd.append('eager', JSON.stringify([{ transformation: 'f_auto,q_auto,w_300', crop: 'limit' }]));
+  const resp = await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', endpoint, true);
+    xhr.upload.onprogress = e => onProgress && e.lengthComputable &&
+      onProgress(Math.round(e.loaded / e.total * 100));
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) { try { resolve(JSON.parse(xhr.responseText)); } catch (e) { reject(new Error('Respons Cloudinary tidak valid.')); } }
+      else reject(new Error('Cloudinary menolak upload (' + xhr.status + ').'));
+    };
+    xhr.onerror = () => reject(new Error('Jaringan gagal saat direct upload ke Cloudinary.'));
+    xhr.send(fd);
+  });
+  if (!resp.public_id) throw new Error('Upload gagal: public_id tidak diterima.');
+  const priv = folder.indexOf('private') > -1;
+  return {
+    ref: 'cloud://' + resp.public_id,
+    visibility: priv ? 'private' : 'public',
+    mime: resp.format ? (isImg ? 'image/' + resp.format : resp.bytes ? file.type : file.type) : file.type,
+    size: resp.bytes || file.size,
+    url: priv ? null : resp.secure_url,
+    thumb: priv ? null : (resp.eager && resp.eager[0] ? resp.eager[0].secure_url : resp.secure_url),
+  };
+}
+
+/* agrCloud-aware uploader: pakai Cloudinary bila aktif, fallback S3 presigned. */
+async function agrUploadAny(file, category, onProgress) {
+  const cfgj = await agrConfig();
+  if (cfgj && cfgj.ok && cfgj.cloudinary && cfgj.cloudinary.enabled) return cloudUpload(file, category, onProgress);
+  return agrUpload(file, category, onProgress);
+}

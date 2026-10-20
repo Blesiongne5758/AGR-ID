@@ -33,6 +33,7 @@
     {% endif %}
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tRatAdm">⭐ Rekap Penilaian Kepuasan ({{ rating_rekap.total }})</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tSetLap">⚙️ Pengaturan Tampilan Laporan</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tCloud">☁️ Cloud: Supabase & Cloudinary</button></li>
   </ul>
   <div class="tab-content">
 
@@ -337,5 +338,74 @@
       </div>
     </div>
   </div>
+  <!-- ================= TAB: CLOUD — SUPABASE & CLOUDINARY ================= -->
+  <div class="tab-pane fade" id="tCloud">
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header fw-bold bg-white">🗄️ Database Supabase (Postgres)</div>
+          <div class="card-body">
+            <p class="small text-muted">Frontend dapat di-hosting statis di InfinityFree; seluruh data aplikasi disimpan pada database Postgres Supabase. Set connection string via env <code>SUPABASE_DB_URL</code> di backend, atau catat referensinya di sini.</p>
+            <form method="post" action="{{ url_for('save_konfigurasi_cloud') }}" class="row g-2">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <div class="col-12"><label class="small fw-bold">Connection String (postgres://…)</label>
+                <input class="form-control form-control-sm" type="password" name="supabase_db_url" placeholder="postgresql://postgres.[ref]:pass@db.[ref].supabase.co:5432/postgres"></div>
+              {% if settings.get('supabase_db_url_masked') %}
+              <div class="col-12"><span class="badge bg-secondary">Tersimpan: {{ settings.get('supabase_db_url_masked') }}</span></div>
+              {% endif %}
+              <div class="col-6"><label class="small fw-bold">Project Ref</label>
+                <input class="form-control form-control-sm" name="supabase_project_ref" value="{{ settings.get('supabase_project_ref','') }}" placeholder="abcd1234"></div>
+              <div class="col-6"><label class="small fw-bold">URL Frontend (InfinityFree)</label>
+                <input class="form-control form-control-sm" name="frontend_base_url" value="{{ settings.get('frontend_base_url','') }}" placeholder="https://agrid.infinityfreeapp.com"></div>
+              <div class="col-12 mt-2"><button class="btn btn-sm btn-agrid w-100">💾 Simpan Konfigurasi Database</button></div>
+            </form>
+            <hr>
+            <div class="small">Backend aktif saat ini:
+              <span class="badge {{ 'bg-success' if db_backend=='supabase-postgres' else 'bg-warning text-dark' }}">{{ db_backend }}</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header fw-bold bg-white">🖼️ Cloudinary — Penyimpanan Multimedia</div>
+          <div class="card-body">
+            <p class="small text-muted">Foto produk, avatar, eviden & dokumen diunggah langsung browser → Cloudinary (compression + WebP + thumbnail otomatis). Tidak ada file di server hosting.</p>
+            <form method="post" action="{{ url_for('save_konfigurasi_cloud') }}" class="row g-2">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <div class="col-6"><label class="small fw-bold">Cloud Name</label>
+                <input class="form-control form-control-sm" name="cloudinary_cloud_name" value="{{ settings.get('cloudinary_cloud_name','') }}" placeholder="dxy12abc"></div>
+              <div class="col-6"><label class="small fw-bold">API Key</label>
+                <input class="form-control form-control-sm" name="cloudinary_api_key" value="{{ settings.get('cloudinary_api_key','') }}"></div>
+              <div class="col-6"><label class="small fw-bold">API Secret</label>
+                <input class="form-control form-control-sm" type="password" name="cloudinary_api_secret" placeholder="{{ '*'*12 if cloudinary_secret_set else 'rahasia akun Cloudinary' }}"></div>
+              <div class="col-6"><label class="small fw-bold">Unsigned Upload Preset</label>
+                <input class="form-control form-control-sm" name="cloudinary_upload_preset" value="{{ settings.get('cloudinary_upload_preset','agr_unsigned') }}"></div>
+              <div class="col-12 mt-2"><button class="btn btn-sm btn-agrid w-100">💾 Simpan Konfigurasi Cloudinary</button></div>
+            </form>
+            <hr>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <span class="small">Status:</span>
+              <span class="badge {{ 'bg-success' if cloudinary_on else 'bg-secondary' }}">{{ 'Aktif — direct upload ke cloud' if cloudinary_on else 'Belum dikonfigurasi (mode demo lokal)' }}</span>
+              <button class="btn btn-sm btn-outline-primary" onclick="ujiCloud()">🔌 Uji Koneksi</button>
+              <span id="cloudProbe" class="small text-muted"></span>
+            </div>
+            <div class="alert alert-info small mt-3 mb-0">ℹ️ Untuk frontend statis InfinityFree, gunakan mode <b>unsigned preset</b> (isi API Key + Preset saja). Endpoint konfigurasi publik: <code>/api/v1/config</code>.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function ujiCloud(){
+  const s=document.getElementById('cloudProbe'); s.textContent='Menguji…';
+  try{
+    const r=await fetch('/api/v1/config'); const j=await r.json();
+    const c=j.cloudinary||{};
+    s.innerHTML = c.enabled ? `✔ Cloud <b>${c.cloud_name}</b> siap, preset <b>${c.upload_preset}</b>` : '✖ Cloudinary belum dikonfigurasi';
+  }catch(e){ s.textContent='✖ gagal: '+e.message; }
+}
+</script>
 {% endblock %}

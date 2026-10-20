@@ -1,1 +1,7 @@
-(empty
+__pycache__/
+*.pyc
+*.db
+*.log
+.env
+.env.local
+.secret_key
