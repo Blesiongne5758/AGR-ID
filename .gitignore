@@ -1,7 +1,36 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+.venv/
+venv/
+
+# Database & runtime
 *.db
-*.log
+*.sqlite*
+*.db-wal
+*.db-journal
+uploads/
+
+# Secrets
 .env
-.env.local
+.env.*
+!.env.example
 .secret_key
+*.pem
+*.key
+secrets.json
+
+# Logs
+*.log
+nohup.out
+
+# Artefak pengujian
+agrid/cj*.txt
+agrid/ck_*
+agrid/exp_*.csv
+agrid/login.html
+agrid/shots/
+
+# InfinityFree (htdocs)
+htdocs/config.php
+htdocs/mock_sb.php

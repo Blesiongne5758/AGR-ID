@@ -1,0 +1,23 @@
+<?php
+/**
+ * AGR.ID — contoh konfigurasi.
+ * Salin file ini menjadi config.php lalu isi kredensial asli.
+ * JANGAN commit config.php (sudah di-.gitignore).
+ */
+return [
+    // ---- Supabase (Project Settings -> API) ----
+    'supabase_url'    => 'https://xxxxxxxx.supabase.co',
+    'supabase_key'    => 'eyJhbGciOi...anon-key',      // anon/public key, RLS wajib aktif
+
+    // ---- Cloudinary (Dashboard -> Keys) ----
+    'cloudinary_cloud'   => 'nama-cloud-anda',
+    'cloudinary_key'     => '123456789012345',
+    'cloudinary_secret'  => 'secret-16-karakter',
+
+    // ---- Backend Flask opsional (Render/Railway/VPS) untuk payment gateway,
+    //      blockchain/crypto & AI chat. Kosongkan bila tidak dipakai. ----
+    'flask_url'       => '',                            // cth: https://agr-id-api.onrender.com
+
+    // ---- Secret untuk menandatangani token sesi (ganti string acak panjang) ----
+    'session_secret'  => 'ganti-dengan-string-acak-64-karakter',
+];
