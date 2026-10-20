@@ -250,12 +250,98 @@ switch ($action) {
         $b = body_json();
         $set = get_pengaturan('persen_dp');
         $persenDP = (float)($set[0]['value'] ?? 20);
-        $total = (float)($b['total'] ?? 0); $dp = round($total * $persenDP / 100);
-        $row = sb('bookings', 'POST', [], ['offer_id' => (int)($b['offer_id'] ?? 0), 'buyer_id' => $u['id'],
+        $feeSet = get_pengaturan('biaya_penanganan');
+        $feePct = (float)($feeSet[0]['value'] ?? 2.5);
+        $offerId = (int)($b['offer_id'] ?? 0);
+        $offers = sb('offers', 'GET', ['id=eq.' . $offerId]);
+        if (!$offers) err('Penawaran tidak ditemukan', 404);
+        $of = $offers[0];
+        if ($of['status'] !== 'diterima') err('Penawaran belum diterima penjual — tidak dapat dibooking', 409);
+        if ((int)$of['buyer_id'] !== (int)$u['id']) err('Bukan penawaran Anda', 403);
+        $dup = sb('bookings', 'GET', ['offer_id=eq.' . $offerId, 'select=id']);
+        if ($dup) err('Penawaran ini sudah dibooking', 409);
+        $prod = sb('products', 'GET', ['id=eq.' . (int)$of['product_id'], 'select=user_id,nama_product'])[0] ?? null;
+        if (!$prod) err('Produk tidak ditemukan', 404);
+        $total = round((float)$of['harga_tawar'] * (float)$of['jumlah']);
+        $dp = round($total * $persenDP / 100);
+        $bk = sb('bookings', 'POST', [], ['offer_id' => $offerId, 'buyer_id' => $u['id'],
             'total' => $total, 'dp' => $dp, 'sisa' => $total - $dp, 'metode_dp' => $b['metode_dp'] ?? 'Transfer Bank',
             'jadwal_kirim' => $b['jadwal_kirim'] ?? '', 'ekspedisi' => $b['ekspedisi'] ?? '',
             'status' => 'dp_pending', 'created_at' => date('c')])[0] ?? null;
-        out(['ok' => true, 'booking' => $row, 'persen_dp' => $persenDP], 201);
+        if (!$bk) err('Gagal membuat booking', 502);
+        $potongan = round($total * $feePct / 100);
+        $tx = sb('transaksi', 'POST', [], ['booking_id' => $bk['id'], 'product_id' => (int)$of['product_id'],
+            'seller_id' => (int)$prod['user_id'], 'buyer_id' => $u['id'], 'harga_total' => $total, 'dp' => $dp,
+            'potongan_platform' => $potongan, 'metode_bayar' => $bk['metode_dp'], 'status' => 'dp_pending',
+            'created_at' => date('c')])[0] ?? null;
+        out(['ok' => true, 'booking' => $bk, 'transaksi' => $tx, 'persen_dp' => $persenDP], 201);
+    }
+
+    /* ---- BAYAR DP: konfirmasi pembayaran (gateway/transfer manual) ---- */
+    case 'dp-confirm': {
+        $u = require_session($token, 'pembeli');
+        $b = body_json(); $id = (int)($b['transaction_id'] ?? 0);
+        $rows = sb('transaksi', 'GET', ['id=eq.' . $id]);
+        if (!$rows) err('Transaksi tidak ditemukan', 404);
+        if ((int)$rows[0]['buyer_id'] !== (int)$u['id']) err('Bukan transaksi Anda', 403);
+        if ($rows[0]['status'] !== 'dp_pending') err('DP sudah dibayar / status tidak dapat diubah', 409);
+        sb('transaksi', 'PATCH', ['id=eq.' . $id], ['status' => 'dp_paid',
+            'ref_payment' => $b['ref_payment'] ?? '', 'bukti_transfer' => $b['bukti'] ?? '']);
+        if (!empty($rows[0]['booking_id'])) sb('bookings', 'PATCH', ['id=eq.' . $rows[0]['booking_id']], ['status' => 'dp_paid']);
+        out(['ok' => true]);
+    }
+
+    /* ---- PELUNASAN DP: pembeli upload bukti -> approval penjual ---- */
+    case 'pelunasan-submit': {
+        $u = require_session($token, 'pembeli');
+        $b = body_json();
+        $id = (int)($b['transaction_id'] ?? 0);
+        $rows = sb('transaksi', 'GET', ['id=eq.' . $id]);
+        if (!$rows) err('Transaksi tidak ditemukan', 404);
+        if ((int)$rows[0]['buyer_id'] !== (int)$u['id']) err('Bukan transaksi Anda', 403);
+        if (!in_array($rows[0]['status'], ['dp_paid','lunas_dp','menunggu_approval'])) err('Status tidak menunggu pelunasan', 409);
+        sb('transaksi', 'PATCH', ['id=eq.' . $id], ['status' => 'menunggu_approval',
+            'bukti_transfer' => $b['bukti'] ?? '', 'catatan_pelunasan' => $b['catatan'] ?? '']);
+        out(['ok' => true]);
+    }
+    case 'pelunasan-list': {
+        $u = require_session($token, 'penjual');
+        out(sb('transaksi', 'GET', ['seller_id=eq.' . $u['id'], 'status=eq.menunggu_approval', 'select=*', 'order=created_at.desc']));
+    }
+    case 'pelunasan-respond': {
+        $u = require_session($token, 'penjual');
+        $b = body_json(); $id = (int)($b['transaction_id'] ?? 0);
+        $rows = sb('transaksi', 'GET', ['id=eq.' . $id]);
+        if (!$rows) err('Transaksi tidak ditemukan', 404);
+        if ((int)$rows[0]['seller_id'] !== (int)$u['id']) err('Bukan transaksi Anda', 403);
+        if ($rows[0]['status'] !== 'menunggu_approval') err('Tidak dalam antrean approval', 409);
+        $status = ($b['keputusan'] ?? '') === 'setuju' ? 'lunas' : 'dp_paid';
+        sb('transaksi', 'PATCH', ['id=eq.' . $id], ['status' => $status]);
+        if (!empty($b['booking_id'])) sb('bookings', 'PATCH', ['id=eq.' . (int)$b['booking_id']], ['status' => $status === 'lunas' ? 'lunas' : 'dp_paid']);
+        out(['ok' => true, 'status' => $status]);
+    }
+
+    /* ---- KIRIM & SELESAI ---- */
+    case 'tx-kirim': {
+        $u = require_session($token, 'penjual');
+        $b = body_json(); $id = (int)($b['transaction_id'] ?? 0);
+        $rows = sb('transaksi', 'GET', ['id=eq.' . $id]);
+        if (!$rows || (int)$rows[0]['seller_id'] !== (int)$u['id']) err('Tidak ditemukan / bukan hak Anda', 403);
+        sb('transaksi', 'PATCH', ['id=eq.' . $id], ['status' => 'dikirim',
+            'tracking_code' => $b['tracking_code'] ?? '', 'ekspedisi' => $b['ekspedisi'] ?? '']);
+        if (!empty($b['booking_id'])) sb('bookings', 'PATCH', ['id=eq.' . (int)$b['booking_id']], ['status' => 'dikirim', 'tracking_code' => $b['tracking_code'] ?? '']);
+        out(['ok' => true]);
+    }
+    case 'tx-complete': {
+        $u = require_session($token);
+        $b = body_json(); $id = (int)($b['transaction_id'] ?? 0);
+        $rows = sb('transaksi', 'GET', ['id=eq.' . $id]);
+        if (!$rows) err('Transaksi tidak ditemukan', 404);
+        if (!in_array($u['role'], ['admin']) && (int)$rows[0]['buyer_id'] !== (int)$u['id'] && (int)$rows[0]['seller_id'] !== (int)$u['id']) err('Bukan transaksi Anda', 403);
+        if ($rows[0]['status'] !== 'dikirim') err('Hanya transaksi berstatus dikirim yang dapat diselesaikan', 409);
+        sb('transaksi', 'PATCH', ['id=eq.' . $id], ['status' => 'completed']);
+        if (!empty($rows[0]['booking_id'])) sb('bookings', 'PATCH', ['id=eq.' . $rows[0]['booking_id']], ['status' => 'completed']);
+        out(['ok' => true]);
     }
 
     /* ---- TRANSAKSI & LAPORAN (dashboard) ---- */

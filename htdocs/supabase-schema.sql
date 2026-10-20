@@ -107,6 +107,9 @@ create table if not exists transaksi (
   metode_bayar      text,
   ref_payment       text,                      -- referensi payment gateway
   bukti_transfer    text,                      -- folder privat Cloudinary
+  catatan_pelunasan text,
+  tracking_code     text,
+  ekspedisi         text,
   status            text default 'dp_pending', -- dp_pending/dp_paid/menunggu_approval/lunas/dikirim/completed/dibatalkan
   created_at        timestamptz default now()
 );
