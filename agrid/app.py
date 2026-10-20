@@ -17,12 +17,43 @@ from werkzeug.security import generate_password_hash, check_password_hash
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "templates"),
             static_folder=os.path.join(BASE_DIR, "static"))
-app.secret_key = "agrid-secret-key-2026"
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(BASE_DIR, "agrid.db")
+
+# ---- Keamanan sistem: secret key & cookie hardening (lihat security.py) ----
+import security
+security.session_config(app)
+
+# ---- Dukungan Supabase Postgres (hosting frontend statis di InfinityFree) ----
+# Bila SUPABASE_DB_URL / DB_HOST diset, aplikasi otomatis memakai Postgres
+# Supabase; tanpa itu tetap SQLite lokal (dev).
+def _database_uri():
+    url = os.environ.get("AGR_DATABASE_URL") or os.environ.get("SUPABASE_DB_URL")
+    if url:
+        if url.startswith("postgres://"):            # format lama Supabase
+            url = url.replace("postgres://", "postgresql://", 1)
+        return url
+    if os.environ.get("DB_HOST"):                    # variabel terpisah heroku-style
+        return ("postgresql://{u}:{p}@{h}:{port}/{d}?sslmode=require".format(
+            u=os.environ.get("DB_USER", "postgres"),
+            p=os.environ.get("DB_PASSWORD", ""),
+            h=os.environ["DB_HOST"],
+            port=os.environ.get("DB_PORT", "5432"),
+            d=os.environ.get("DB_NAME", "postgres")))
+    return "sqlite:///" + os.path.join(BASE_DIR, "agrid.db")
+
+
+app.config["SQLALCHEMY_DATABASE_URI"] = _database_uri()
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}   # koneksi SupabasePutus -> auto reconnect
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["JSON_SORT_KEYS"] = False
 db = SQLAlchemy(app)
 
+import utils
+import storage                                   # Storage & Media Architecture (S3 presigned, lihat storage.py)
+import cloud_media                               # Cloudinary.com utk multimedia (lihat cloud_media.py)
 from masterdata import KATEGORI, TIPE_PENJUAL, TIPE_PEMBELI, MASTER_PRODUK, NON_HALAL_LABEL, flatten_products
+import models_api
+models_api.init_models(db)          # tabel audit_logs, api_tokens, login_attempts
+security.init_security(app)         # CSRF global, header keamanan, context csrf_token
 
 # ----------------------------------------------------------------------------
 # MODEL DATABASE
@@ -47,6 +78,11 @@ class User(db.Model):
     nib = db.Column(db.String(40))                           # nomor induk berusaha (corporate/koperasi)
     verified = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # keamanan: lockout akun setelah gagal login berulang
+    failed_logins = db.Column(db.Integer, default=0)
+    locked_until = db.Column(db.DateTime)
+    # blockchain: alamat dompet AGR Coin (privat key TIDAK disimpan di DB)
+    crypto_address = db.Column(db.String(64))
 
     products = db.relationship("Product", backref="seller", lazy=True)
 
@@ -345,6 +381,56 @@ def set_setting(key, value, label=None):
     return p
 
 
+# ----------------------------------------------------------------------------
+# KONFIGURASI ADMIN — REGISTER FITUR (aktif/nonaktif semua fitur terpusat)
+# ----------------------------------------------------------------------------
+FEATURE_KEYS = {
+    "fitur_marketplace":      ("Marketplace & Listing Produk", "Katalog publik, pencarian & filter produk"),
+    "fitur_penawaran":        ("Penawaran Harga (Bidding)", "Pembeli mengajukan harga; penjual terima/tolak"),
+    "fitur_booking_dp":       ("Booking DP Pengikat", "Penguncian transaksi dengan uang muka (DP)"),
+    "fitur_payment_gateway":  ("Payment Gateway", "Pembayaran QRIS/VA/e-wallet via gateway"),
+    "fitur_ekspedisi":        ("Jasa Ekspedisi & Jadwal Kirim", "Perhitungan ongkir & tracking pengiriman"),
+    "fitur_eviden":           ("Verifikasi & Ketelusuran Eviden", "Timeline bukti foto + GPS tiap tahap"),
+    "fitur_chat_agent":       ("AI Chat Agent", "Asisten wizard produk & pencari produk"),
+    "fitur_ticker_harga":     ("Ticker Harga Market", "Marquee harga komoditas harian di header"),
+    "fitur_favorit":          ("Favorit Pembeli", "Simpan penjual/produk favorit (❤)"),
+    "fitur_rating":           ("Penilaian Kepuasan 2 Arah", "Skor bintang pembeli ⇄ penjual"),
+    "fitur_blockchain":       ("Blockchain & Dompet Crypto", "AGR Coin: dompet, transfer & ledger on-chain"),
+    "fitur_pelunasan_manual": ("Pelunasan Manual + Approval", "Upload bukti transfer, approval oleh penjual"),
+    "fitur_storage_cloud":    ("Cloud Object Storage & Media", "Direct upload pre-signed URL ke S3/MinIO/Spaces; bucket public/private; validasi magic bytes; CDN/thumbnail Cloudinary/ImageKit"),
+}
+
+# default saat kunci belum ada di DB
+FEATURE_DEFAULTS = {k: "1" for k in FEATURE_KEYS}
+FEATURE_DEFAULTS.update({
+    "crypto_auto_settle": "1",      # pembayaran DP/pelunasan otomatis tercatat on-chain
+    "crypto_fee_persen": "0.5",     # biaya jaringan per transfer (%)
+    "crypto_rate_idr": "1",         # 1 AGR Coin = Rp N
+})
+
+
+def fitur_on(key):
+    """Cek status aktif sebuah fitur dari konfigurasi admin."""
+    return get_setting(key, FEATURE_DEFAULTS.get(key, "1")) == "1"
+
+
+import blockchain as _bc
+bchain = _bc.BlockchainService(db, User, Pengaturan, get_setting, set_setting,
+                               app.config.get("SECRET_KEY") or os.environ.get("AGR_SECRET", "agr-dev-secret"))
+app.bchain = bchain
+
+
+@app.context_processor
+def inject_features():
+    """Semua template bisa membaca status fitur → navigasi/kartu disembunyikan saat nonaktif."""
+    try:
+        feats = {k: fitur_on(k) for k in FEATURE_KEYS}
+    except Exception:
+        feats = {k: True for k in FEATURE_KEYS}
+    return {"feat": feats, "feat_meta": FEATURE_KEYS,
+            "blockchain_enabled": feats.get("fitur_blockchain", True)}
+
+
 BIAYA_LABEL = {
     "dp_persen": "Persen DP Booking (%)",
     "biaya_penanganan_persen": "Biaya Penanganan Platform (%)",
@@ -515,10 +601,20 @@ def ai_reply(text, user=None):
                 "1. Membantu Anda **mengisi informasi produk** untuk dijual (ketik: *cara jual produk*)\n"
                 "2. **Mencari produk** yang Anda butuhkan (ketik: *cari lele* / *beli kopi gayo*)\n"
                 "3. Menjelaskan **sistem penawaran, DP booking & pengiriman** (ketik: *cara booking*)")
+    if any(k in t for k in ["crypto", "blockchain", "agr coin", "dompet", "wallet", "on-chain", "onchain"]):
+        st = bchain.stats()
+        return (f"⛓️ **Blockchain AGR Coin** — status jaringan: {'AKTIF' if st['enabled'] else 'NONAKTIF'}\n"
+                f"- Blok terakhir: #{st['last_index']} · total {st['tx_total']} transaksi on-chain\n"
+                f"- Integritas rantai: {'✔ terverifikasi' if st['verified'] else '✖ perlu audit'}\n"
+                f"- Kurs settlement: 1 AGR = Rp{int(st['rate']):,} · biaya jaringan {get_setting('crypto_fee_persen','0.5')}%\n"
+                "Setiap pembayaran DP/pelunasan otomatis didistribusikan antar **dompet crypto** penjual-pembeli "
+                "dan tercatat permanen di ledger (bukti ketelusuran anti-sengketa).\n"
+                "Buka menu 🪙 **Dompet Crypto** di dashboard Anda untuk melihat alamat AGR1…, saldo, riwayat & transfer manual.")
     return ("Saya 🤖 AGR Assistant. Contoh perintah:\n"
             "- \"cara jual cabai\" → pandu wizard input produk\n"
             "- \"cari ikan gurame\" → cari listing pembeli-ready\n"
             "- \"sistem DP booking\" → penjelasan transaksi\n"
+            "- \"dompet crypto\" → status blockchain & AGR Coin\n"
             "- \"daftar ekspedisi\" → mitra kirim aktif")
 
 # ----------------------------------------------------------------------------
@@ -545,6 +641,19 @@ def login_required(*roles):
         return wrapper
     return deco
 
+def feature_required(key):
+    """Guard: tolak akses route bila fitur terkait dinonaktifkan di konfigurasi admin."""
+    def deco(fn):
+        @wraps(fn)
+        def wrapper(*a, **kw):
+            if not fitur_on(key):
+                flash(f"Fitur \u201c{FEATURE_KEYS[key][0]}\u201d sedang dinonaktifkan pada konfigurasi admin.", "warning")
+                return redirect(url_for("home"))
+            return fn(*a, **kw)
+        return wrapper
+    return deco
+
+
 # ----------------------------------------------------------------------------
 # ROUTES: PUBLIC
 # ----------------------------------------------------------------------------
@@ -558,6 +667,7 @@ def home():
 
 
 @app.route("/marketplace")
+@feature_required("fitur_marketplace")
 def marketplace():
     q = request.args.get("q", "").strip()
     kat = request.args.get("kategori", "")
@@ -614,6 +724,10 @@ def register():
             flash("Email sudah terdaftar.", "danger")
             return redirect(url_for("register", role=role))
         tipe_list = TIPE_PENJUAL if role == "penjual" else TIPE_PEMBELI
+        errs = security.check_password_strength(request.form.get("password", ""))
+        if errs:
+            flash(" | ".join(errs), "danger")
+            return redirect(url_for("register", role=role))
         u = User(
             nama=request.form.get("nama", "").strip(),
             email=email,
@@ -631,6 +745,16 @@ def register():
         )
         db.session.add(u)
         db.session.commit()
+        models_api.AuditLog.record("user_terdaftar", actor=email, role=role, user_id=u.id,
+                                   ip=security.client_ip())
+        db.session.commit()
+        # ---- blockchain: dompet AGR Coin otomatis untuk setiap user baru ----
+        if fitur_on("fitur_blockchain"):
+            try:
+                bchain.ensure_wallet(u.id)
+            except Exception as e:
+                print("wallet:", e)
+        session.clear(); session.permanent = True
         session["uid"] = u.id
         flash(f"Pendaftaran berhasil sebagai {role.title()}! Selamat datang di AGR.ID 🌾", "success")
         return redirect(url_for("dashboard"))
@@ -641,16 +765,44 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        u = User.query.filter_by(email=request.form.get("email", "").strip().lower()).first()
+        email = request.form.get("email", "").strip().lower()
+        ip = security.client_ip()
+        # rate limit percobaan login per IP
+        if not security.login_limiter.allow(ip):
+            flash("Terlalu banyak percobaan login. Tunggu 1 menit.", "danger")
+            models_api.LoginAttempt(email=email, success=False, ip=ip, ua=request.user_agent.string[:200])
+            db.session.commit()
+            return render_template("login.html", user=current_user())
+        u = User.query.filter_by(email=email).first()
+        if u and security.is_locked(u):
+            flash(f"Akun dikunci sementara karena terlalu sering gagal login. "
+                  f"Coba lagi dalam {security.lock_remaining_min(u)} menit.", "danger")
+            return render_template("login.html", user=current_user())
         if u and check_password_hash(u.password, request.form.get("password", "")):
+            security.clear_failed_login(u)
+            models_api.LoginAttempt(email=email, success=True, ip=ip, ua=request.user_agent.string[:200])
+            models_api.AuditLog.record("login_sukses", actor=email, role=u.role, user_id=u.id, ip=ip)
+            db.session.commit()
+            session.clear()
+            session.permanent = True
             session["uid"] = u.id
             return redirect(url_for("dashboard"))
+        if u:
+            security.register_failed_login(u)
+            models_api.LoginAttempt(email=email, success=False, ip=ip, ua=request.user_agent.string[:200])
+            models_api.AuditLog.record("login_gagal", actor=email, user_id=u.id, ip=ip)
+        db.session.commit()
         flash("Email / password salah.", "danger")
     return render_template("login.html", user=current_user())
 
 
 @app.route("/logout")
 def logout():
+    u = current_user()
+    if u:
+        models_api.AuditLog.record("logout", actor=u.email, role=u.role, user_id=u.id,
+                                   ip=security.client_ip())
+        db.session.commit()
     session.clear()
     return redirect(url_for("home"))
 
@@ -667,6 +819,22 @@ def dashboard():
     if u.role == "admin":
         return redirect(url_for("dashboard_admin"))
     return redirect(url_for("dashboard_buyer"))
+
+
+
+def wallet_ctx(u):
+    """Konteks dompet crypto utk template dashboard (aman bila fitur nonaktif)."""
+    try:
+        if not fitur_on("fitur_blockchain"):
+            return {"on": False}
+        addr = bchain.ensure_wallet(u.id)
+        bal = bchain.balance_of(addr)
+        return {"on": True, "address": addr, "balance": bal,
+                "idr": bchain.to_rupiah(bal), "rate": bchain.rate,
+                "history": bchain.history_of(addr, 10), "stats": bchain.stats()}
+    except Exception as e:
+        print("wallet_ctx:", e)
+        return {"on": False}
 
 
 @app.route("/dashboard/penjual")
@@ -687,7 +855,7 @@ def dashboard_seller():
            paycfg=seller_payment_cfg(u), pending_pelunasan=pending_pelunasan,
            rstats=rating_stats(u.id), rat_in=ratings_received,
            rat_out=[my_rating_for(t.id, u.id) for t in jualan if my_rating_for(t.id, u.id)],
-           rat_pending=pending_ratings(u.id))
+           rat_pending=pending_ratings(u.id), wallet=wallet_ctx(u))
 
 
 @app.route("/dashboard/pembeli")
@@ -710,7 +878,7 @@ def dashboard_buyer():
                            bookings=bookings, pelunasans=pelunasans, favs=favs,
                            rstats=rating_stats(u.id), rat_in=ratings_received,
                            rat_out=[my_rating_for(t.id, u.id) for t in pembelian if my_rating_for(t.id, u.id)],
-                           rat_pending=pending_ratings(u.id))
+                           rat_pending=pending_ratings(u.id), wallet=wallet_ctx(u))
 
 
 @app.route("/dashboard/admin")
@@ -777,17 +945,23 @@ def dashboard_admin():
     }
     return render_template("admin_dashboard.html", u=u, stats=stats, tx=tx, pg=pg, eks=eks,
                            settings=settings, user=u, ticker=ticker_data(),
+                           db_backend=("supabase-postgres" if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgres") else "sqlite"),
+                           cloudinary_on=cloud_media.enabled(),
+                           cloudinary_secret_set=bool(cloud_media.cfg()["api_secret"]),
                            biaya=get_biaya_settings(), labels=BIAYA_LABEL,
                            keuangan=keuangan, by_method=by_method, by_status=by_status,
                            penjualan_rows=penjualan_rows, pembelian_rows=pembelian_rows,
                            total_penjualan=total_nilai_penjualan, total_pembelian=total_nilai_pembelian,
-                           rating_rekap=rating_rekap, rat_rows=rat_rows[:30])
+                           rating_rekap=rating_rekap, rat_rows=rat_rows[:30],
+                           wallet=wallet_ctx(u), bstats=bchain.stats(),
+                           feat_cfg=FEATURE_KEYS)
 
 # ----------------------------------------------------------------------------
 # ROUTES: PRODUK (CRUD + auto-add master)
 # ----------------------------------------------------------------------------
 
 @app.route("/produk/baru", methods=["GET", "POST"])
+@feature_required("fitur_marketplace")
 @login_required("penjual")
 def create_product():
     u = current_user()
@@ -888,6 +1062,7 @@ def api_produk_master():
 # ----------------------------------------------------------------------------
 
 @app.route("/offer/buat/<int:pid>", methods=["POST"])
+@feature_required("fitur_penawaran")
 @login_required("pembeli")
 def create_offer(pid):
     p = Product.query.get_or_404(pid)
@@ -917,6 +1092,7 @@ def respond_offer(oid):
     if act == "terima":
         o.status = "diterima"
         db.session.commit()
+        audit_current("penawaran_dibalas", "offers", oid, "aksi penjual thd penawaran")
         return redirect(url_for("show_booking_form", oid=o.id))
     if act == "tolak":
         o.status = "ditolak"
@@ -926,6 +1102,7 @@ def respond_offer(oid):
 
 
 @app.route("/booking/<int:oid>", methods=["GET", "POST"])
+@feature_required("fitur_booking_dp")
 @login_required("pembeli")
 def show_booking_form(oid):
     o = Offer.query.get_or_404(oid)
@@ -961,6 +1138,7 @@ def show_booking_form(oid):
 
 
 @app.route("/booking/<int:bid>/bayar", methods=["GET", "POST"])
+@feature_required("fitur_payment_gateway")
 @login_required("pembeli")
 def pay_booking(bid):
     """Simulasi payment gateway: QRIS/VA/E-wallet/Bank Transfer."""
@@ -984,13 +1162,23 @@ def pay_booking(bid):
                       ref_payment=ref, status="processing")
         db.session.add(t)
         db.session.commit()
-        flash(f"DP {int(b.dp_amount):,} ({b.metode_dp}) berhasil dibayar via payment gateway {method.upper()} 🎉 Ref: {ref}", "success")
+        # ---- blockchain: distribusi pembayaran DP on-chain ke dompet penjual ----
+        txh = bchain.settle_payment(o.buyer_id, t.seller_id, b.dp_amount,
+                                    ref=f"BOOKING-{b.id}", memo=f"DP booking {o.product.nama_produk}")
+        if txh:
+            t.ref_payment = f"{ref} | AGR-ONCHAIN:{txh[:16]}"
+            db.session.commit()
+        flash(f"DP {int(b.dp_amount):,} ({b.metode_dp}) berhasil dibayar via payment gateway {method.upper()} 🎉 Ref: {ref}"
+              + (" — tercatat on-chain ⛓️" if txh else ""), "success")
+        audit_current("dp_dibayar_pg", "bookings", bid, "pembayaran DP via payment gateway"
+                      + (f" + transfer crypto {txh[:16]}…" if txh else ""))
         return redirect(url_for("dashboard_buyer"))
     return render_template("payment.html", b=b, o=o, channels=channels, ref=ref,
                            pg=pg_active, user=current_user(), ticker=ticker_data())
 
 
 @app.route("/transaksi/<int:tid>/pelunasan", methods=["GET", "POST"])
+@feature_required("fitur_pelunasan_manual")
 @login_required("pembeli")
 def submit_pelunasan(tid):
     """Pembeli menyelesaikan pembayaran pelunasan DP: upload bukti transfer -> approval penjual."""
@@ -1004,7 +1192,13 @@ def submit_pelunasan(tid):
     pl_terbaru = Pelunasan.query.filter_by(transaksi_id=t.id).order_by(Pelunasan.created_at.desc()).first()
     if request.method == "POST":
         metode = request.form.get("metode") or "Transfer Bank"
-        bukti = request.form.get("bukti", "")          # data URI hasil pembacaan file di browser
+        bukti = request.form.get("bukti", "")          # ref object://bucket/private (direct upload) atau data URI legacy
+        if bukti.startswith("data:"):                  # fallback: migrasikan base64 ke bucket private, DB tidak lagi menyimpan blob
+            try:
+                bukti = storage.ingest_data_uri(bukti, u.id, "payment") or ""
+            except storage.ValidationError as e:
+                flash(f"Bukti transfer ditolak: {e}", "danger")
+                return redirect(url_for("submit_pelunasan", tid=tid))
         jumlah = float(request.form.get("jumlah") or sisa)
         pl = Pelunasan(transaksi_id=t.id, buyer_id=u.id, jumlah=jumlah, metode=metode,
                        rekening_tujuan=seller_cfg["rekening"] or seller_cfg["tujuan_tunai"],
@@ -1015,6 +1209,7 @@ def submit_pelunasan(tid):
         t.status = "menunggu_approval"
         db.session.commit()
         flash("Pengajuan pelunasan dikirim — menunggu approval dari penjual ⏳", "success")
+        audit_current("pelunasan_diajukan", "transaksi", tid, "upload bukti transfer pelunasan")
         return redirect(url_for("dashboard_buyer"))
     return render_template("pelunasan_form.html", t=t, b=b, sisa=sisa, pl=pl_terbaru,
                            cfg=seller_cfg, user=u, ticker=ticker_data())
@@ -1028,6 +1223,7 @@ def review_pelunasan(pid):
     t = pl.transaksi
     u = current_user()
     if t.seller_id != u.id:
+        audit_current("pelunasan_di_review", "pelunasan", pid, "approval/penolakan pelunasan oleh penjual")
         flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard_seller"))
     aksi = request.form.get("aksi")
     catatan = request.form.get("catatan", "")
@@ -1041,7 +1237,14 @@ def review_pelunasan(pid):
         pl.reviewed_at = datetime.utcnow()
         pl.review_catatan = catatan
         db.session.commit()
-        flash("Pelunasan disetujui ✔ transaksi dinyatakan lunas.", "success")
+        # ---- blockchain: distribusi pelunasan on-chain ke dompet penjual ----
+        txh = bchain.settle_payment(t.buyer_id, t.seller_id, pl.jumlah,
+                                    ref=f"TX-{t.id}", memo=f"Pelunasan {t.product_name}")
+        if txh:
+            t.ref_payment = (t.ref_payment or "") + f" | AGR-ONCHAIN:{txh[:16]}"
+            db.session.commit()
+        flash("Pelunasan disetujui ✔ transaksi dinyatakan lunas."
+              + (" Dana didistribusikan on-chain ⛓️" if txh else ""), "success")
     elif aksi == "tolak":
         pl.status = "ditolak"
         t.status = "processing"
@@ -1055,12 +1258,14 @@ def review_pelunasan(pid):
 
 
 @app.route("/transaksi/<int:tid>/eviden", methods=["GET", "POST"])
+@feature_required("fitur_eviden")
 @login_required("penjual", "pembeli")
 def add_eviden(tid):
     t = Transaksi.query.get_or_404(tid)
     u = current_user()
     if u.role not in ("penjual", "pembeli") or (t.seller_id != u.id and t.buyer_id != u.id):
-        flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard"))
+        flash("Tidak berwenang.", "danger"); audit_current("eviden_ditambah", "transaksi", tid, "bukti ketelusuran baru")
+        return redirect(url_for("dashboard"))
     if request.method == "POST":
         e = Eviden(transaksi_id=t.id, tahap=request.form.get("tahap"),
                    keterangan=request.form.get("keterangan", ""),
@@ -1083,7 +1288,8 @@ def update_status(tid):
     new = request.form.get("status")
     b = Booking.query.get(t.booking_id) if t.booking_id else None
     if u.role == "penjual" and t.seller_id != u.id:
-        flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard"))
+        flash("Tidak berwenang.", "danger"); audit_current("status_diubah", "transaksi", tid, "perubahan status transaksi")
+        return redirect(url_for("dashboard"))
     if new in ("shipped", "delivered", "completed", "cancelled", "paid"):
         t.status = new
         if new == "completed":
@@ -1104,6 +1310,7 @@ def update_status(tid):
 # ----------------------------------------------------------------------------
 
 @app.route("/transaksi/<int:tid>/nilai", methods=["GET", "POST"])
+@feature_required("fitur_rating")
 @login_required("penjual", "pembeli")
 def rate_transaction(tid):
     """Pemberian score kepuasan oleh salah satu pihak atas transaksi selesai."""
@@ -1111,6 +1318,7 @@ def rate_transaction(tid):
     u = current_user()
     if t.status != "completed":
         flash("Penilaian hanya dapat diberikan setelah transaksi berstatus selesai.", "warning")
+        audit_current("penilaian_dibuat", "transaksi", tid, "rating kepuasan")
         return redirect(url_for("dashboard"))
     if u.role == "pembeli" and t.buyer_id != u.id:
         flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard"))
@@ -1150,6 +1358,7 @@ def rate_transaction(tid):
 
 
 @app.route("/api/rating/<int:uid>")
+@feature_required("fitur_rating")
 def api_user_rating(uid):
     """Rekap rating publik seorang user + daftar ulasan terbaru ( utk badge & modal )."""
     stats = rating_stats(uid)
@@ -1187,6 +1396,7 @@ def save_pg_api():
     pg.enabled = bool(request.form.get("enabled"))
     db.session.add(pg); db.session.commit()
     flash("Konfigurasi API Payment Gateway disimpan ✔", "success")
+    audit_current("pengaturan_pg_api", "pengaturan", None, "perubahan konfigurasi platform")
     return redirect(url_for("dashboard_admin"))
 
 
@@ -1204,6 +1414,7 @@ def save_ekspedisi():
     e.enabled = bool(request.form.get("enabled"))
     db.session.add(e); db.session.commit()
     flash("Data jasa ekspedisi disimpan ✔", "success")
+    audit_current("pengaturan_ekspedisi", "pengaturan", None, "perubahan konfigurasi platform")
     return redirect(url_for("dashboard_admin"))
 
 
@@ -1249,6 +1460,7 @@ def save_pengaturan():
             set_setting(skey, val, lab)
     db.session.commit()
     flash("Pengaturan ubah DP & biaya-biaya diperbarui ✔", "success")
+    audit_current("pengaturan_biaya", "pengaturan", None, "perubahan konfigurasi platform")
     return redirect(url_for("dashboard_admin"))
 
 
@@ -1266,6 +1478,7 @@ def save_seller_payment():
         "tujuan_tunai": request.form.get("tujuan_tunai", u.alamat or "").strip(),
     }
     set_setting(f"pembayaran_penjual_{u.id}", json.dumps(cfg), f"Pengaturan pembayaran penjual #{u.id}")
+    audit_current("pengaturan_metode_dp", "users", u.id, "metode pembayaran DP penjual: " + ",".join(metode))
     flash("Jenis pembayaran pelunasan DP disimpan ✔ (" + ", ".join(metode) + ")", "success")
     return redirect(url_for("dashboard_seller") + "#tSet")
 
@@ -1290,7 +1503,60 @@ def save_footer():
         if v is not None:
             set_setting(k, v.strip(), lab)
     flash("Informasi footer landing page diperbarui ✔", "success")
+    audit_current("pengaturan_footer", "pengaturan", None, "perubahan konfigurasi platform")
     return redirect(url_for("dashboard_admin"))
+
+
+# ----------------------------------------------------------------------------
+# ROUTES: KONFIGURASI CLOUD (Cloudinary & Supabase) — ADMIN
+# ----------------------------------------------------------------------------
+
+@app.route("/admin/konfigurasi-cloud", methods=["POST"])
+@login_required("admin")
+def save_konfigurasi_cloud():
+    """Simpan kredensial Cloudinary (multimedia) & info koneksi Supabase.
+    Nilai secret disimpan di tabel pengaturan (bukan filesystem) dan langsung
+    mengaktifkan cloud_media tanpa restart."""
+    cn = request.form.get("cloudinary_cloud_name", "").strip()
+    ak = request.form.get("cloudinary_api_key", "").strip()
+    se = request.form.get("cloudinary_api_secret", "").strip()
+    pr = request.form.get("cloudinary_upload_preset", "").strip()
+    set_setting("cloudinary_cloud_name", cn, "Cloudinary: Cloud Name")
+    set_setting("cloudinary_api_key", ak, "Cloudinary: API Key")
+    if se and "*" not in se:                        # jangan timpa mask saat submit ulang
+        set_setting("cloudinary_api_secret", se, "Cloudinary: API Secret")
+    set_setting("cloudinary_upload_preset", pr, "Cloudinary: Unsigned Upload Preset")
+    cloud_media.set_override(cloud_name=cn, api_key=ak,
+                             api_secret=(se if se and "*" not in se else None))
+    if pr:
+        os.environ["CLOUDINARY_UPLOAD_PRESET"] = pr
+
+    sb_url = request.form.get("supabase_db_url", "").strip()
+    set_setting("supabase_db_url_masked", ("*"*8 + sb_url[-6:] if sb_url else ""), "Supabase: Connection String (masked)")
+    set_setting("supabase_project_ref", request.form.get("supabase_project_ref", "").strip(), "Supabase: Project Ref")
+    set_setting("frontend_base_url", request.form.get("frontend_base_url", "").strip(), "URL Frontend (InfinityFree)")
+    flash("Konfigurasi cloud tersimpan ✔ (Cloudinary aktif tanpa restart; Supabase dipakai via env SUPABASE_DB_URL)", "success")
+    audit_current("konfigurasi_cloud", "pengaturan", None, f"cloudinary={cn or '(kosong)'}, supabase_ref={request.form.get('supabase_project_ref','')}")
+    return redirect(url_for("dashboard_admin") + "#tCloud")
+
+
+@app.route("/api/v1/config")
+def public_config():
+    """Konfigurasi non-sensitif utk frontend statis (InfinityFree): daftar
+    fitur aktif + parameter upload Cloudinary unsigned. TIDAK pernah
+    mengembalikan api_secret / connection string."""
+    feats = {k: fitur_on(k) for k in FEATURE_KEYS}
+    cc = cloud_media.cfg()
+    cloud_cfg = {"enabled": cloud_media.enabled(), "cloud_name": cc["cloud_name"],
+                 "api_key": cc["api_key"] if cloud_media.enabled() else "",
+                 "upload_preset": get_setting("cloudinary_upload_preset", "agr_unsigned"),
+                 "endpoint_image": (f"https://api.cloudinary.com/v1_1/{cc['cloud_name']}/image/upload"
+                                    if cc["cloud_name"] else "")}
+    return jsonify(ok=True, features=feats, cloudinary=cloud_cfg,
+                   db_backend=("supabase-postgres" if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgres")
+                               else "sqlite"),
+                   dp_persen=get_setting("dp_persen", "20"))
+
 
 
 # ----------------------------------------------------------------------------
@@ -1319,6 +1585,7 @@ def save_pengaturan_laporan():
         limit = "50"
     set_setting("laporan_limit", limit, flags["laporan_limit"])
     flash("Pengaturan tampilan laporan diperbarui ✔", "success")
+    audit_current("pengaturan_laporan", "pengaturan", None, "perubahan konfigurasi platform")
     return redirect(url_for("dashboard_admin"))
 
 
@@ -1364,6 +1631,7 @@ def export_laporan():
 
 
 @app.route("/favorit/toggle", methods=["POST"])
+@feature_required("fitur_favorit")
 @login_required("pembeli")
 def toggle_favorit():
     """Simpan / hapus penjual atau produk favorit pembeli."""
@@ -1404,10 +1672,159 @@ def hapus_favorit(fqid):
     return redirect(request.referrer or url_for("dashboard_buyer"))
 
 # ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+# ROUTES: KONFIGURASI FITUR (aktif/nonaktif terpusat) — ADMIN
+# ----------------------------------------------------------------------------
+
+@app.route("/admin/fitur", methods=["POST"])
+@login_required("admin")
+def save_fitur():
+    """Mengaktifkan & menonaktifkan SEMUA fitur aplikasi dari konfigurasi admin."""
+    for key, (label, _desc) in FEATURE_KEYS.items():
+        set_setting(key, "1" if request.form.get(key) else "0", "Fitur: " + label)
+    flash("Konfigurasi fitur diperbarui ✔ perubahan langsung berlaku di seluruh aplikasi.", "success")
+    audit_current("pengaturan_fitur", "pengaturan", None, "aktif/nonaktif fitur platform")
+    return redirect(url_for("dashboard_admin") + "#tFeat")
+
+
+@app.route("/admin/crypto", methods=["POST"])
+@login_required("admin")
+def save_crypto_cfg():
+    """Pengaturan blockchain: rasio kurs, fee jaringan, auto-settlement on-chain."""
+    rate = request.form.get("crypto_rate_idr", "1")
+    try:
+        rate = str(max(1, float(rate)))
+    except Exception:
+        rate = "1"
+    set_setting("crypto_rate_idr", rate, "Crypto: Kurs 1 AGR Coin (Rp)")
+    fee = request.form.get("crypto_fee_persen", "0.5")
+    try:
+        fee = str(max(0.0, min(10.0, float(fee))))
+    except Exception:
+        fee = "0.5"
+    set_setting("crypto_fee_persen", fee, "Crypto: Biaya Jaringan (%)")
+    set_setting("crypto_auto_settle", "1" if request.form.get("crypto_auto_settle") else "0",
+                "Crypto: Catat DP/pelunasan otomatis on-chain")
+    flash("Pengaturan blockchain AGR Coin disimpan ✔", "success")
+    audit_current("pengaturan_crypto", "pengaturan", None, "konfigurasi blockchain/dompet crypto")
+    return redirect(url_for("dashboard_admin") + "#tChain")
+
+
+# ----------------------------------------------------------------------------
+# ROUTES: DOMPET CRYPTO (AGR COIN) — PENJUAL / PEMBELI
+# ----------------------------------------------------------------------------
+
+@app.route("/dompet")
+@login_required("penjual", "pembeli")
+def dompet_page():
+    """Halaman dompet crypto user: alamat, saldo, riwayat transaksi on-chain."""
+    u = current_user()
+    if not fitur_on("fitur_blockchain"):
+        flash("Fitur blockchain/crypto dinonaktifkan pada konfigurasi admin.", "warning")
+        return redirect(url_for("dashboard"))
+    w = wallet_ctx(u)
+    peers = [x for x in User.query.filter(User.role != "admin", User.id != u.id).limit(200).all()
+             if getattr(x, "crypto_address", None)]
+    return render_template("wallet.html", user=u, u=u, wallet=w, peers=peers,
+                           ticker=ticker_data())
+
+
+@app.route("/dompet/transfer", methods=["POST"])
+@login_required("penjual", "pembeli")
+def dompet_transfer():
+    """Transfer manual antar dompet AGR Coin (masuk mempool, ditambang validator)."""
+    u = current_user()
+    to_addr = request.form.get("ke", "").strip()
+    if not to_addr and request.form.get("ke_uid"):
+        to_addr = bchain.address_of(int(request.form["ke_uid"]))
+    amount = request.form.get("jumlah", "0")
+    memo = request.form.get("memo", "transfer antar member")
+    ok, res = bchain.submit_transfer(bchain.address_of(u.id), to_addr, amount,
+                                     ref=f"USER-{u.id}", memo=memo)
+    if ok:
+        mine_now = request.form.get("auto_mine")
+        if mine_now:
+            blk = bchain.mine(validator="node@agr.id")
+            res += f" (blok #{blk['index']})"
+        flash(f"Transfer {amount} AGR terkirim on-chain ✔ hash: {res[:24]}…", "success")
+        audit_current("crypto_transfer", "users", u.id, f"transfer {amount} AGR ke {to_addr[:18]}…")
+    else:
+        flash("Gagal: " + res, "danger")
+    return redirect(url_for("dompet_page"))
+
+
+@app.route("/dompet/export-key", methods=["POST"])
+@login_required("penjual", "pembeli")
+def dompet_export_key():
+    """Ekspor privat key terenkripsi (file) — konfirmasi password diperlukan."""
+    from flask import make_response
+    u = current_user()
+    if not check_password_hash(u.password, request.form.get("password", "")):
+        flash("Password salah — ekspor dibatalkan.", "danger")
+        return redirect(url_for("dompet_page"))
+    wallets = bchain._wallets()
+    data = wallets.get(str(u.id))
+    if not data:
+        flash("Dompet belum tersedia.", "warning")
+        return redirect(url_for("dompet_page"))
+    blob = json.dumps({"address": data["address"], "priv_hex": data["priv_hex"],
+                       "algo": data["algo"], "exported_at": datetime.utcnow().isoformat()}, indent=2)
+    audit_current("crypto_key_export", "users", u.id, "ekspor privat key terenkripsi")
+    resp = make_response(blob)
+    resp.headers["Content-Type"] = "application/json"
+    resp.headers["Content-Disposition"] = f"attachment; filename=agr-wallet-{u.id}.json"
+    return resp
+
+
+# ----------------------------------------------------------------------------
+# ROUTES: BLOCKCHAIN EXPLORER & MINING — ADMIN
+# ----------------------------------------------------------------------------
+
+@app.route("/admin/blockchain/mine", methods=["POST"])
+@login_required("admin")
+def admin_mine_block():
+    blk = bchain.mine(validator=current_user().email)
+    flash(f"Blok #{blk['index']} berhasil ditambang (PoA) — {blk['tx_count']} transaksi, hash {blk['hash'][:16]}…", "success")
+    audit_current("block_mined", "blockchain", blk["index"], f"mining blok oleh {current_user().email}")
+    return redirect(url_for("dashboard_admin") + "#tChain")
+
+
+@app.route("/admin/blockchain/verify")
+@login_required("admin")
+def admin_verify_chain():
+    ok, msgs = bchain.verify_chain()
+    flash(("✔ Integritas rantai TERVERIFIKASI: " if ok else "✖ RANTAI KORUP: ") + "; ".join(msgs),
+          "success" if ok else "danger")
+    audit_current("chain_verified", "blockchain", None, "; ".join(msgs))
+    return redirect(url_for("dashboard_admin") + "#tChain")
+
+
+@app.route("/api/v1/chain/blocks")
+@login_required("admin")
+def api_chain_blocks():
+    c = bchain.chain()
+    limit = int(request.args.get("limit", "20"))
+    return jsonify(ok=True, stats=bchain.stats(),
+                   blocks=[b.to_dict() for b in reversed(c.blocks[-limit:])])
+
+
+@app.route("/api/v1/chain/tx/<hash>")
+def api_chain_tx(hash):
+    """Explorer publik: cari bukti transaksi on-chain berdasarkan hash (bila fitur aktif)."""
+    if not fitur_on("fitur_blockchain") or not fitur_on("fitur_marketplace"):
+        return jsonify(ok=False, error="fitur tidak aktif"), 403
+    b, t = bchain.chain().find_tx(hash)
+    if not t:
+        return jsonify(ok=False, error="hash tidak ditemukan"), 404
+    return jsonify(ok=True, block=b.index, block_hash=b.hash, tx=t.to_dict())
+
+
+# ----------------------------------------------------------------------------
 # ROUTES: AI CHAT
 # ----------------------------------------------------------------------------
 
 @app.route("/chat", methods=["GET"])
+@feature_required("fitur_chat_agent")
 @login_required("penjual", "pembeli")
 def chat_page():
     u = current_user()
@@ -1448,7 +1865,8 @@ def dtfmt(d):
 # ----------------------------------------------------------------------------
 
 def seed():
-    if not os.path.exists(app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")):
+    is_sqlite = app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite")
+    if is_sqlite and not os.path.exists(app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")):
         fresh = True
     else:
         fresh = User.query.first() is None if False else False
@@ -1457,12 +1875,33 @@ def seed():
         # --- migrasi ringan untuk DB lama: tambah kolom/tabel yang hilang ---
         try:
             from sqlalchemy import text
-            insp_cols = {c[1] for c in db.session.execute(text("PRAGMA table_info(bookings)"))}
-            if "metode_dp" not in insp_cols:
-                db.session.execute(text("ALTER TABLE bookings ADD COLUMN metode_dp VARCHAR(30)"))
-            insp_cols_t = {c[1] for c in db.session.execute(text("PRAGMA table_info(pengaturan)"))}
-            if insp_cols_t:
-                pass  # value/label sudah text di model baru; SQLite longgar utk tipe
+            if is_sqlite:   # PRAGMA hanya ada di SQLite; Postgres punya skema penuh dr create_all
+                insp_cols = {c[1] for c in db.session.execute(text("PRAGMA table_info(bookings)"))}
+                if "metode_dp" not in insp_cols:
+                    db.session.execute(text("ALTER TABLE bookings ADD COLUMN metode_dp VARCHAR(30)"))
+                insp_users = {c[1] for c in db.session.execute(text("PRAGMA table_info(users)"))}
+                if "failed_logins" not in insp_users:
+                    db.session.execute(text("ALTER TABLE users ADD COLUMN failed_logins INTEGER DEFAULT 0"))
+                if "locked_until" not in insp_users:
+                    db.session.execute(text("ALTER TABLE users ADD COLUMN locked_until DATETIME"))
+                if "crypto_address" not in insp_users:
+                    db.session.execute(text("ALTER TABLE users ADD COLUMN crypto_address VARCHAR(80)"))
+            # kolom baru era blockchain/storage — cek per tabel (SQLite)
+            for tbl, col, ddl in [
+                ("users", "crypto_address", "VARCHAR(80)"),
+                ("pengaturan", "label", "VARCHAR(120)"),
+                ("products", "foto", "TEXT"),
+                ("eviden", "foto", "TEXT"),
+                ("transaksi", "pelunasan", "FLOAT"),
+                ("transaksi", "chain_hash", "VARCHAR(80)"),
+                ("bookings", "chain_hash", "VARCHAR(80)"),
+            ]:
+                try:
+                    cols = {c[1] for c in db.session.execute(text(f"PRAGMA table_info({tbl})"))}
+                    if cols and col not in cols:
+                        db.session.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col} {ddl}"))
+                except Exception as _e:
+                    print("migrasi-col:", tbl, col, _e)
             db.session.commit()
         except Exception as e:
             print("migrasi:", e)
@@ -1631,7 +2070,35 @@ def seed():
             db.session.commit()
 
 
+# ----------------------------------------------------------------------------
+# BLUEPRINT: REST API v1 + manajemen token API (keamanan & performa di security.py)
+# ----------------------------------------------------------------------------
+import api_v1
+app.register_blueprint(api_v1.api_bp)
+api_v1.register_admin_token_routes(app)
+
+# BLUEPRINT: Cloud Object Storage (pre-signed direct upload, bucket public/private)
+import storage_api
+app.register_blueprint(storage_api.storage_bp)
+
+
+def audit_current(action, entity=None, entity_id=None, detail=""):
+    """Helper: catat aksi penting ke log audit dengan konteks user/IP saat ini."""
+    u = current_user()
+    try:
+        models_api.AuditLog.record(action, actor=(u.email if u else "anonim"),
+                                   role=(u.role if u else "-"), user_id=(u.id if u else None),
+                                   entity=entity, entity_id=entity_id, detail=detail,
+                                   ip=security.client_ip())
+    except Exception as e:
+        print("audit:", e)
+
+
 if __name__ == "__main__":
     seed()
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    debug = os.environ.get("AGR_DEBUG", "").lower() in ("1", "true")
+    threaded = True                      # dukung request bersamaan
+    print(f"AGR.ID berjalan pada http://0.0.0.0:{port} "
+          f"[env={os.environ.get('AGR_ENV', 'development')}, debug={debug}]")
+    app.run(host="0.0.0.0", port=port, debug=debug, threaded=threaded)
