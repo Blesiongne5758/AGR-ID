@@ -51,7 +51,7 @@ jobs:
 
     steps:
       - name: Checkout kode terbaru
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Siapkan PHP untuk validasi
         run: |
@@ -78,7 +78,7 @@ jobs:
           echo "📦 Ukuran paket deploy:" && du -sh .
 
       - name: Sync file ke InfinityFree via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@4.4.0
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}

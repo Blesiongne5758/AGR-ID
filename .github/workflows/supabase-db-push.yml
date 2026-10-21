@@ -37,10 +37,10 @@ jobs:
     name: Lint SQL
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -76,7 +76,7 @@ jobs:
       PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       MGMT_TOKEN: ${{ secrets.SUPABASE_MANAGEMENT_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # ---------- Guard idempotensi: cek apakah tabel publik sudah ada ----------
       - name: Cek kondisi database saat ini
@@ -100,7 +100,7 @@ jobs:
       # ---------- Jalur utama: Supabase CLI link + db push ----------
       - name: Setup Supabase CLI
         if: steps.guard.outputs.SKIP == 'false'
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v1 # Node24-ready
         with:
           version: latest
 
