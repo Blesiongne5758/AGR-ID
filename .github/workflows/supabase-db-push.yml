@@ -18,8 +18,7 @@ on:
     branches: [main]
     paths:
       - "supabase/migrations/**"
-      - "htdocs/supabase-schema.sql"
-      - "htdocs/seed-supabase.sql"
+      - "htdocs/*.sql"                       # schema, seed, fix-rls-*
       - ".github/workflows/supabase-db-push.yml"
   workflow_dispatch:
     inputs:
@@ -164,6 +163,30 @@ jobs:
               run_sql "seed  0002" supabase/migrations/0002_seed_data.sql
             fi
           fi
+
+      # ---------- Perbaikan RLS schema_migrations (issue Supabase Advisor) ----------
+      # Idempoten & selalu jalan (tidak terpengaruh guard SKIP): enable RLS +
+      # revoke grant anon/authenticated pada tabel schema_migrations, lalu
+      # catat penanda versi 002.
+      - name: Apply fix RLS schema_migrations
+        continue-on-error: true
+        run: |
+          python3 - "fix-rls" "htdocs/fix-rls-schema-migrations.sql" <<'PY'
+          import json, os, subprocess, sys
+          label, path = sys.argv[1], sys.argv[2]
+          sql = open(path).read()
+          r = subprocess.run([
+              "curl","-s","--max-time","90","--retry","3","--retry-delay","5",
+              f"https://api.supabase.com/v1/projects/{os.environ['PROJECT_REF']}/database/query",
+              "-H", f"Authorization: Bearer {os.environ['MGMT_TOKEN']}",
+              "-H","Content-Type: application/json",
+              "-d", json.dumps({"query": sql}),
+          ], capture_output=True, text=True)
+          out = r.stdout.strip()
+          print(f"[{label}] {out[:600]}")
+          if not out or '"error"' in out.lower():
+              sys.exit(f"Gagal {label}: {out[:800]}")
+          PY
 
       # ---------- Verifikasi hasil ----------
       # Query tunggal sederhana yang sudah terbukti sukses dari sandbox:
