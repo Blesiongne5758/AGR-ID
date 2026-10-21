@@ -105,7 +105,7 @@ jobs:
           version: latest
 
       - name: Link & db push via CLI
-        if: steps.guard.outputs.SKIP == 'false'
+        if: steps.guard.outputs.SKIP == 'false' && env.SUPABASE_ACCESS_TOKEN != ''
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
@@ -114,7 +114,17 @@ jobs:
           if [ "${EXIT:-0}" != "0" ]; then
             echo "::warning::CLI db push gagal (exit ${EXIT}) — fallback ke Management API SQL di langkah berikutnya."
             echo "CLI_FAILED=true" >> "$GITHUB_ENV"
+          else
+            touch /tmp/.sb_cli_ok
           fi
+
+      - name: Deteksi token CLI tidak tersedia
+        if: steps.guard.outputs.SKIP == 'false' && env.SUPABASE_ACCESS_TOKEN == ''
+        run: |
+          echo "::notice title=Guard::SUPABASE_ACCESS_TOKEN kosong — lewati jalur CLI, langsung pakai Management API."
+          echo "CLI_FAILED=true" >> "$GITHUB_ENV"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       # ---------- Fallback: eksekusi SQL via Management API ----------
       - name: Fallback apply SQL via Management API
@@ -139,10 +149,20 @@ jobs:
               sys.exit(f"Gagal menjalankan {label}: {out[:800]}")
           PY
           }
-          # Hanya jalankan fallback bila CLI belum suksesapply
+          # Cek ulang kondisi DB lewat API — hindari double-apply object already exists
+          ALREADY=$(curl -sS --max-time 60 --retry 2 -X POST \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${MGMT_TOKEN}" -H "Content-Type: application/json" \
+            -d '{"query":"SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema=''\''public''\'' AND table_name IN (''\''users'',''\''products'',''\''transaksi'',''\''bookings'');"}' \
+            | grep -o '"n":[0-9]*' | cut -d: -f2)
+          echo "Tabel inti saat ini: ${ALREADY:-0}/4"
           if [ "${CLI_FAILED:-}" = "true" ] || [ ! -f /tmp/.sb_cli_ok ]; then
-            run_sql "schema 0001" supabase/migrations/0001_init_schema.sql
-            run_sql "seed  0002" supabase/migrations/0002_seed_data.sql
+            if [ "${ALREADY:-0}" -ge 4 ]; then
+              echo "::notice title=Idempoten::Schema lengkap sudah ada di Supabase — tidak ada SQL yang dijalankan ulang."
+            else
+              run_sql "schema 0001" supabase/migrations/0001_init_schema.sql
+              run_sql "seed  0002" supabase/migrations/0002_seed_data.sql
+            fi
           fi
 
       # ---------- Verifikasi hasil ----------
