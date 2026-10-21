@@ -1,0 +1,6 @@
+# AGR.ID — Supabase CLI project config
+project_id = "sxcahpbmderuwfvoxkix"
+[db]
+major_version = 17
+[api]
+enabled = true

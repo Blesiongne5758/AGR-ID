@@ -1,0 +1,174 @@
+name: Push Database ke Supabase
+
+# ============================================================
+# AGR.ID — Workflow sinkronisasi database Supabase
+# Memicu otomatis saat file SQL berubah, atau manual via
+# Actions tab -> "Push Database ke Supabase" -> Run workflow.
+#
+# Secrets yang WAJIB ada di GitHub (Settings -> Secrets and
+# variables -> Actions -> Repository secrets):
+#   SUPABASE_ACCESS_TOKEN        = token personal supabase CLI
+#                                  (dashboard.supabase.com -> Account -> Tokens)
+#   SUPABASE_PROJECT_REF         = sxcahpbmderuwfvoxkix
+#   SUPABASE_MANAGEMENT_TOKEN    = token sbp_... (Management API / SQL query)
+# ============================================================
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "htdocs/supabase-schema.sql"
+      - "htdocs/seed-supabase.sql"
+      - ".github/workflows/supabase-db-push.yml"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Paksa jalankan walau guard mendeteksi schema sudah ada"
+        type: boolean
+        default: false
+
+concurrency:
+  group: supabase-db-push
+  cancel-in-progress: false
+
+jobs:
+  lint:
+    name: Lint SQL
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Pasang pglast (parser PostgreSQL)
+        run: pip install pglast
+
+      - name: Validasi sintaks semua file SQL
+        run: |
+          python3 - <<'PY'
+          import sys, pathlib
+          try:
+              import pglast
+          except ImportError:
+              print("pglast tidak tersedia, skip lint"); sys.exit(0)
+          files = sorted(list(pathlib.Path("supabase/migrations").glob("*.sql")) +
+                         list(pathlib.Path("htdocs").glob("*supabase*.sql")))
+          err = 0
+          for f in files:
+              try:
+                  pglast.parse_sql(f.read_text())
+                  print(f"OK   {f}")
+              except Exception as e:
+                  err += 1
+                  print(f"FAIL {f}: {e}")
+          sys.exit(1 if err else 0)
+          PY
+
+  push-db:
+    name: Apply Migration ke Supabase
+    runs-on: ubuntu-latest
+    needs: lint
+    env:
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      MGMT_TOKEN: ${{ secrets.SUPABASE_MANAGEMENT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------- Guard idempotensi: cek apakah tabel publik sudah ada ----------
+      - name: Cek kondisi database saat ini
+        id: guard
+        run: |
+          RESP=$(curl -sf --max-time 30 -X POST \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${MGMT_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema='\''public'\'' AND table_name IN ('\''users'\'','\''products'\'','\''transaksi'\'');"}') || RESP='{"n":0}'
+          N=$(echo "$RESP" | grep -o '"n":[0-9]*' | cut -d: -f2)
+          echo "Tabel inti ditemukan: ${N:-0}/3"
+          echo "tables_found=${N:-0}" >> "$GITHUB_OUTPUT"
+          if [ "${N:-0}" -ge 3 ] && [ "${{ inputs.force }}" != "true" ]; then
+            echo "SKIP=true" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Guard::Schema sudah terpasang — lewati migrasi (pakai input force=true untuk memaksa)."
+          else
+            echo "SKIP=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ---------- Jalur utama: Supabase CLI link + db push ----------
+      - name: Setup Supabase CLI
+        if: steps.guard.outputs.SKIP == 'false'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link & db push via CLI
+        if: steps.guard.outputs.SKIP == 'false'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase link --project-ref "$PROJECT_REF"
+          supabase db push --include-all-migrations || EXIT=$?
+          if [ "${EXIT:-0}" != "0" ]; then
+            echo "::warning::CLI db push gagal (exit ${EXIT}) — fallback ke Management API SQL di langkah berikutnya."
+            echo "CLI_FAILED=true" >> "$GITHUB_ENV"
+          fi
+
+      # ---------- Fallback: eksekusi SQL via Management API ----------
+      - name: Fallback apply SQL via Management API
+        if: steps.guard.outputs.SKIP == 'false'
+        run: |
+          run_sql() {
+            local label="$1" file="$2"
+            python3 - "$label" "$file" <<'PY'
+          import json, subprocess, sys
+          label, path = sys.argv[1], sys.argv[2]
+          sql = open(path).read()
+          r = subprocess.run([
+              "curl","-s","--max-time","120",
+              f"https://api.supabase.com/v1/projects/{__import__('os').environ['PROJECT_REF']}/database/query",
+              "-H", f"Authorization: Bearer {__import__('os').environ['MGMT_TOKEN']}",
+              "-H","Content-Type: application/json",
+              "-d", json.dumps({"query": sql}),
+          ], capture_output=True, text=True)
+          out = r.stdout.strip()
+          print(f"[{label}] {out[:400]}")
+          if not out or '"error"' in out.lower():
+              sys.exit(f"Gagal menjalankan {label}: {out[:800]}")
+          PY
+          }
+          # Hanya jalankan fallback bila CLI belum suksesapply
+          if [ "${CLI_FAILED:-}" = "true" ] || [ ! -f /tmp/.sb_cli_ok ]; then
+            run_sql "schema 0001" supabase/migrations/0001_init_schema.sql
+            run_sql "seed  0002" supabase/migrations/0002_seed_data.sql
+          fi
+
+      # ---------- Verifikasi hasil ----------
+      - name: Verifikasi tabel & jumlah data
+        run: |
+          RESP=$(curl -sf --max-time 30 -X POST \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${MGMT_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema='\''public'\'') AS total_tables, (SELECT count(*) FROM users) AS users, (SELECT count(*) FROM product_master) AS produk_master, (SELECT count(*) FROM pengaturan) AS pengaturan;"')
+          echo "$RESP" > /tmp/verify.json
+          cat /tmp/verify.json
+
+      - name: Ringkasan ke Step Summary
+        run: |
+          {
+            echo "## 🗄️ Hasil Push Database — Supabase \`${PROJECT_REF}\`"
+            echo ""
+            echo "| Metrik | Nilai |"
+            echo "|---|---|"
+            python3 - <<'PY'
+          import json
+          d = json.load(open("/tmp/verify.json"))[0]
+          for k, v in d.items():
+              print(f"| {k.replace('_',' ').title()} | **{v}** |")
+          PY
+            echo ""
+            echo "_Deploy frontend InfinityFree tetap terpisah → workflow \`deploy.yml\`._"
+          } >> "$GITHUB_STEP_SUMMARY"
