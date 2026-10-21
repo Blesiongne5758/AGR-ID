@@ -209,12 +209,18 @@ jobs:
 
       - name: Ringkasan ke Step Summary
         if: always()
+        env:
+          TABLES_COUNT: ${{ steps.verify.outputs.tables_count }}
         run: |
+          # Catatan: ekspresi ${steps.*} TIDAK boleh dipakai di dalam blok run shell —
+          # bash menolak sintaks "${VAR:-?}" dengan "bad substitution".
+          # Nilai output step dilewatkan lewat environment variable di atas.
+          TC="${TABLES_COUNT:-?}"
           {
             echo "## 🗄️ Hasil Push Database — Supabase \`${PROJECT_REF}\`"
             echo ""
             if [ -s /tmp/verify.json ]; then
-              echo "Tabel publik (${steps.verify.outputs.tables_count:-?}):"
+              echo "Tabel publik ($TC):"
               echo ""
               python3 - <<'PY'
           import json
