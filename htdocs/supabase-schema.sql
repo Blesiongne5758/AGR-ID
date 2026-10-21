@@ -162,8 +162,18 @@ insert into pengaturan(key,value) values
 on conflict (key) do nothing;
 
 -- =====================================================================
+-- SCHEMA MIGRATIONS (dipakai idempotency guard GitHub Actions)
+-- Tabel internal CI: TIDAK boleh diakses publik -> RLS + revoke grant.
+-- =====================================================================
+create table if not exists schema_migrations (
+  version    text primary key,            -- mis. '001_init' / hash commit
+  name       text,
+  applied_at timestamptz default now()
+);
+
+-- =====================================================================
 -- ROW LEVEL SECURITY — kunci akses browser HANYA lewat anon key,
--- semua operasi sah dimediasi gateway api.php (tabel sessions).
+-- semua operasi sah dimediasi api.php (tabel sessions).
 -- Karena gateway memakai service-role key di server, RLS di bawah ini
 -- memblokir akses langsung dari klien terhadap data sensitif.
 -- =====================================================================
@@ -186,4 +196,11 @@ create policy "users_public_profile"  on users         for select using (role in
 
 -- Tanpa policy tulis untuk anon => INSERT/UPDATE/DELETE dari browser ditolak;
 -- hanya gateway PHP (service_role) yang boleh menulis.
+
+-- schema_migrations: tabel internal CI. RLS TANPA policy = nol baris
+-- terlihat/dapat ditulis oleh anon & authenticated (hanya service_role
+-- yang menembus RLS). Revoke grant menambah lapisan pengaman.
+alter table schema_migrations enable row level security;
+revoke all on schema_migrations from anon, authenticated;
+
 select 'AGR.ID skema supabase siap' as status;
