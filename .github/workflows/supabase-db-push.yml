@@ -82,7 +82,7 @@ jobs:
       - name: Cek kondisi database saat ini
         id: guard
         run: |
-          RESP=$(curl -sf --max-time 30 -X POST \
+          RESP=$(curl -sSf --max-time 90 --retry 3 --retry-delay 5 -X POST \
             "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
             -H "Authorization: Bearer ${MGMT_TOKEN}" \
             -H "Content-Type: application/json" \
@@ -148,7 +148,7 @@ jobs:
       # ---------- Verifikasi hasil ----------
       - name: Verifikasi tabel & jumlah data
         run: |
-          RESP=$(curl -sf --max-time 30 -X POST \
+          RESP=$(curl -sSf --max-time 90 --retry 3 --retry-delay 5 -X POST \
             "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
             -H "Authorization: Bearer ${MGMT_TOKEN}" \
             -H "Content-Type: application/json" \
