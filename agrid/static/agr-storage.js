@@ -78,7 +78,8 @@ function bindAgrUploader(input, { category, hiddenId, previewEl, statusEl, onDon
     if (!v.ok) { if (statusEl) statusEl.innerHTML = `<span class="text-danger small">✖ ${v.error}</span>`; input.value = ''; return; }
     if (statusEl) statusEl.innerHTML = '<span class="small text-muted">Mengunggah langsung ke cloud… 0%</span>';
     try {
-      const info = await agrUpload(file, category, p => {
+      // Otomatis: Cloudinary bila aktif di konfigurasi, fallback S3 presigned.
+      const info = await agrUploadAny(file, category, p => {
         if (statusEl) statusEl.innerHTML = `<span class="small text-muted">Mengunggah langsung ke cloud… ${p}%</span>`;
       });
       if (hid) hid.value = info.ref;                       // simpan ref object://…, BUKAN base64
@@ -100,6 +101,18 @@ function bindAgrUploader(input, { category, hiddenId, previewEl, statusEl, onDon
 /** Pengganti <img src="data:..."> lama → render dari cloud/signed URL. */
 async function renderMedia(el, refOrUrl) {
   if (!refOrUrl) return;
+  if (refOrUrl.startsWith('cloud://')) {
+    // Cloudinary: petakan folder private -> signed URL via backend bila tersedia.
+    const pid = refOrUrl.slice(8);
+    if (/\/private-|agr.id\/private/.test(pid) && window.AGRApi && AGRApi.view) {
+      try { const r = await AGRApi.view(refOrUrl); if (r.ok && r.url) { el.src = r.url; return; } } catch (e) {}
+      el.outerHTML = '<span class="badge bg-secondary">🔒 File privat — akses terbatas</span>';
+      return;
+    }
+    el.src = 'https://res.cloudinary.com/' + ((await agrConfig()).cloudinary || {}).cloud_name +
+             '/image/upload/f_auto,q_auto,w_600/' + pid;
+    return;
+  }
   if (refOrUrl.startsWith('object://')) {
     const r = await AGRApi.view(refOrUrl);
     if (r.ok && r.url) el.src = r.url;

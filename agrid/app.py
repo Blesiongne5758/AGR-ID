@@ -1531,6 +1531,11 @@ def save_konfigurasi_cloud():
     if pr:
         os.environ["CLOUDINARY_UPLOAD_PRESET"] = pr
 
+    # Auto-aktifkan toggle fitur storage cloud saat kredensial lengkap diisi,
+    # agar seluruh upload user langsung diarahkan ke Cloudinary tanpa langkah manual.
+    if cn and ak:
+        set_setting("fitur_storage_cloud", "1")
+
     sb_url = request.form.get("supabase_db_url", "").strip()
     set_setting("supabase_db_url_masked", ("*"*8 + sb_url[-6:] if sb_url else ""), "Supabase: Connection String (masked)")
     set_setting("supabase_project_ref", request.form.get("supabase_project_ref", "").strip(), "Supabase: Project Ref")

@@ -25,6 +25,7 @@ dinonaktifkan seluruh endpoint menolak dengan 403 (fallback mode legacy).
 from flask import Blueprint, current_app, jsonify, request, Response
 
 import storage
+import cloud_media
 
 storage_bp = Blueprint("storage", __name__)
 
@@ -125,6 +126,16 @@ def view_signed():
     if err:
         return err
     ref = request.args.get("ref", "")
+    # Ref cloud:// dari Cloudinary (direct upload unsigned) — private butuh signed URL.
+    if ref.startswith("cloud://"):
+        pid = ref[len("cloud://"):]
+        from app import audit_current
+        if "/private" not in pid:  # aset publik CDN
+            return jsonify(ok=True, url=cloud_media.optimized_url(pid), expires_in=0)
+        if not _access_ok(u, ref):
+            audit_current("storage_access_ditolak", "storage", None, f"{ref} oleh user#{u.id}")
+            return jsonify(ok=False, error="Akses ke file privat ditolak."), 403
+        return jsonify(ok=True, url=cloud_media.secure_download_url(pid, 300), expires_in=300)
     try:
         url = storage.signed_view_url(ref, u, _access_ok)
     except PermissionError as e:
