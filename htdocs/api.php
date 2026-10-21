@@ -89,8 +89,14 @@ function body_json(): array { $raw = file_get_contents('php://input'); $j = json
 
 /* ---------- session token (pengganti cookie login Flask) ---------- */
 function agr_token(): string {
-    $t = $_SERVER['HTTP_X_AGR_TOKEN'] ?? ($_GET['token'] ?? '');
-    return preg_match('/^[a-f0-9]{64}$/', $t) ? $t : '';
+    // Header bisa datang dalam berbagai bentuk (X-Agr-Token, HTTP_X_AGR_TOKEN);
+    // beberapa host/shared hosting menormalkan header custom — fallback ke query & Authorization.
+    $t = $_SERVER['HTTP_X_AGRTOKEN'] ?? $_SERVER['HTTP_X_AGR_TOKEN'] ?? ($_GET['token'] ?? '');
+    if (!preg_match('/^[a-f0-9]{64}$/', (string)$t)) {
+        $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+        if (preg_match('/Bearer\s+([a-f0-9]{64})/i', (string)$auth, $m)) $t = $m[1];
+    }
+    return preg_match('/^[a-f0-9]{64}$/', (string)$t) ? (string)$t : '';
 }
 function make_token(int $userId): string {
     global $CFG;
@@ -179,7 +185,10 @@ switch ($action) {
 
     case 'login': {
         $b = body_json();
-        $rows = sb('users', 'GET', ['email=eq.' . urlencode(strtolower($b['email'] ?? '')), 'select=*']);
+        // DUKUNG LOGIN USERNAME ATAU EMAIL — kolom username disamakan dengan email.
+        $ident = trim((string)($b['email'] ?? $b['username'] ?? ''));
+        if ($ident === '') err('Email/username wajib diisi', 422);
+        $rows = sb('users', 'GET', ['or=(email.eq.' . urlencode(strtolower($ident)) . ',username.eq.' . urlencode($ident) . ')', 'select=*']);
         $u = $rows[0] ?? null;
         if (!$u || !password_verify($b['password'] ?? '', $u['password_hash'] ?? '')) err('Email/password salah', 401);
         $tok = make_token((int)$u['id']);
@@ -193,6 +202,24 @@ switch ($action) {
 
     case 'me':
         out(['ok' => true, 'user' => public_user(require_session($token))]);
+
+    /* ---- GANTI PASSWORD (semua role: penjual/pembeli/admin) ---- */
+    case 'change-password': {
+        $u = require_session($token);
+        $b = body_json();
+        $old = (string)($b['old_password'] ?? '');
+        $new = (string)($b['new_password'] ?? '');
+        if ($old === '') err('Password lama wajib diisi', 422);
+        if (!password_verify($old, $u['password_hash'] ?? '')) err('Password lama salah', 401);
+        if (strlen($new) < 8) err('Password baru minimal 8 karakter', 422);
+        if (!preg_match('/[A-Z]/', $new) || !preg_match('/[a-z]/', $new) || !preg_match('/\d/', $new))
+            err('Password baru harus mengandung huruf besar, huruf kecil & angka', 422);
+        if (password_verify($new, $u['password_hash'])) err('Password baru tidak boleh sama dengan password lama', 422);
+        $rows = sb('users', 'PATCH', ['id=eq.' . $u['id']], ['password_hash' => password_hash($new, PASSWORD_BCRYPT)]);
+        if (!$rows) err('Gagal memperbarui password', 502);
+        sb('sessions', 'DELETE', ['user_id=eq.' . $u['id'], 'token=neq.' . $token]); // logout perangkat lain
+        out(['ok' => true, 'message' => 'Password berhasil diganti']);
+    }
 
     /* ---- PRODUK ---- */
     case 'products': {

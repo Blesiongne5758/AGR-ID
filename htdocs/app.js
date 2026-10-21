@@ -39,7 +39,7 @@ const toast = m => { const t=el('div','agr-toast',esc(m)); $('#toasts').appendCh
 const STATUS_LBL = { dp_pending:'Menunggu DP', dp_paid:'DP Dibayar', menunggu_approval:'Menunggu Approval Penjual', lunas:'Lunas', dikirim:'Dikirim', completed:'Selesai', dibatalkan:'Dibatalkan', menunggu:'Menunggu', diterima:'Diterima', ditolak:'Ditolak' };
 const badge = st => `<span class="badge b-${st||'menunggu'}">${esc(STATUS_LBL[st]||st)}</span>`;
 
-const routes = { '#/beranda':'home', '#/marketplace':'market', '#/login':'login', '#/daftar':'register', '#/chat':'chat',
+const routes = { '#/beranda':'home', '#/marketplace':'market', '#/login':'login', '#/daftar':'register', '#/chat':'chat', '#/akun':'akun',
   '#/dashboard':'dash', '#/dashboard/penjual':'dashPenjual', '#/dashboard/pembeli':'dashPembeli', '#/dashboard/admin':'dashAdmin',
   '#/produk-baru':'formProduk' };
 function resolve(){
@@ -78,7 +78,7 @@ async function loadFooter(){
 function updateNav(){
   const u=S.user;
   $('#navAuth').innerHTML = u
-    ? `<a class="btn btn-ghost" href="#/dashboard/${u.role}">Dashboard</a><button class="btn btn-outline" id="btnLogout">Keluar</button>`
+    ? `<a class="btn btn-ghost" href="#/dashboard/${u.role}">Dashboard</a><a class="btn btn-ghost" href="#/akun" title="Ganti password">⚙️ Akun</a><button class="btn btn-outline" id="btnLogout">Keluar</button>`
     : `<a class="btn btn-ghost" href="#/login">Masuk</a><a class="btn btn-primary" href="#/daftar">Daftar</a>`;
   const bl=$('#btnLogout'); if(bl) bl.onclick=async()=>{ try{await api('logout',{method:'POST'})}catch(e){} S.token='';S.user=null;updateNav();location.hash='#/beranda'; };
 }
@@ -164,14 +164,22 @@ async function tampilDetail(id){
 
 renderers.login = () => {
   $('#app').innerHTML = `<div class="auth card-form"><h2>Masuk ke AGR.ID</h2>
-    <label>Email<input id="le" class="input" type="email" placeholder="penjual@agr.id"></label>
-    <label>Password<input id="lp" class="input" type="password" placeholder="penjual123"></label>
+    <label>Email / Username<input id="le" class="input" type="text" autocomplete="username" placeholder="penjual@agr.id"></label>
+    <label>Password<input id="lp" class="input" type="password" autocomplete="current-password" placeholder="••••••••"></label>
     <button class="btn btn-primary wide" id="lgo">Masuk</button>
-    <p class="muted center">Belum punya akun? <a href="#/daftar">Daftar di sini</a><br>Demo: penjual@agr.id / penjual123 · admin@agr.id / admin123</p></div>`;
-  $('#lgo').onclick=doLogin; $('#lp').onkeydown=e=>e.key==='Enter'&&doLogin();
+    <p class="muted center">Belum punya akun? <a href="#/daftar">Daftar di sini</a><br>Demo: penjual@agr.id / penjual123 · admin: test@gmail.com / N0m4d3n0</p></div>`;
+  // Perbaikan kompatibilitas: pastikan input password dapat diketik/diisi autofill
+  // (beberapa browser tidak mengisi field yang dibuat tanpa form & label `for`).
+  const lp = $('#lp'); lp.setAttribute('name', 'password'); lp.label = null;
+  $('#lgo').onclick=doLogin;
+  $('#le').onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); lp.focus(); } };
+  lp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); doLogin(); } };
 };
 async function doLogin(){
-  try{ const r = await api('login',{method:'POST',body:{email:$('#le').value,password:$('#lp').value}});
+  const iden=$('#le').value.trim(), pass=$('#lp').value;
+  if(!iden){ toast('Email/username wajib diisi'); $('#le').focus(); return; }
+  if(pass.length<6){ toast('Password minimal 6 karakter — periksa Caps Lock / spasi'); $('#lp').focus(); return; }
+  try{ const r = await api('login',{method:'POST',body:{email:iden,password:pass}});
     S.token=r.token; S.user=r.user; updateNav(); toast('Selamat datang, '+r.user.nama+'!'); location.hash='#/dashboard/'+r.user.role;
   }catch(e){ toast(e.message); }
 }
@@ -179,9 +187,11 @@ async function doLogin(){
 renderers.register = () => {
   $('#app').innerHTML = `<div class="auth card-form"><h2>Pendaftaran AGR.ID</h2>
     <div class="seg" id="segRole"><button class="on" data-r="penjual">Saya Penjual</button><button data-r="pembeli">Saya Pembeli</button></div>
-    <label>Nama / Nama Usaha<input id="rn" class="input"></label>
-    <label>Email<input id="re" class="input" type="email"></label>
-    <label>Password (min. 8 karakter)<input id="rpw" class="input" type="password"></label>
+    <label>Nama / Nama Usaha<input id="rn" class="input" autocomplete="name"></label>
+    <label>Email<input id="re" class="input" type="email" autocomplete="email"></label>
+    <div class="rel"><label>Password (min. 8 karakter)<input id="rpw" class="input" type="password" name="password" autocomplete="new-password"></label>
+      <button type="button" class="btn btn-outline btn-sm pwd-eye" data-for="rpw" title="Tampilkan/sembunyikan">👁</button></div>
+    <div class="pw-meter"><i id="pwBar"></i></div><small id="pwHint" class="muted">Gunakan generator: <button type="button" class="btn btn-outline btn-sm" id="pwGen">🔐 Buat Password Kuat</button></small>
     <label>No. HP<input id="rhp" class="input"></label>
     <label>Tipe <select id="rtipe" class="input"></select></label>
     <div id="corpFields" style="display:none"><label>NPWP<input id="rnpwp" class="input"></label><label>NIB<input id="rnib" class="input"></label></div>
@@ -196,13 +206,49 @@ renderers.register = () => {
   isiSeg();
   $('#segRole').querySelectorAll('button').forEach(b=>b.onclick=()=>{ role=b.dataset.r; $('#segRole').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); isiSeg(); });
   $('#rtipe').onchange=chkTipe;
+  // ---- helper password: toggle lihat, strength meter, generator kuat ----
+  document.querySelectorAll('.pwd-eye').forEach(b=>b.onclick=()=>{ const i=$('#'+b.dataset.for); i.type = i.type==='password'?'text':'password'; });
+  const pwScore=v=>{ let s=0; if(v.length>=8)s++; if(/[a-z]/.test(v)&&/[A-Z]/.test(v))s++; if(/\d/.test(v))s++; if(/[^A-Za-z0-9]/.test(v))s++; if(v.length>=12)s++; return Math.min(s,5); };
+  const pwWarn=v=>{ const w=[]; if(v.length<8)w.push('min. 8 karakter'); if(!/[A-Z]/.test(v))w.push('huruf besar'); if(!/[a-z]/.test(v))w.push('huruf kecil'); if(!/\d/.test(v))w.push('angka'); if(!/[^A-Za-z0-9]/.test(v))w.push('simbol'); return w; };
+  $('#rpw').oninput=()=>{ const v=$('#rpw').value, s=pwScore(v), bar=$('#pwBar');
+    bar.style.width=(s*20)+'%'; bar.className='lvl'+s;
+    $('#pwHint').textContent = v?('Kekuatan: '+['Sangat Lemah','Lemah','Cukup','Baik','Kuat','Sangat Kuat'][s]+(s<4?' — kurang: '+pwWarn(v).join(', '):' ✓')):'Gunakan generator:'; };
+  $('#pwGen').onclick=async()=>{ const a='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*_-+=?';
+    let out=''; const rnd=arr=>crypto.getRandomValues(arr); const buf=new Uint32Array(16); rnd(buf);
+    for(let i=0;i<16;i++) out+=a[buf[i]%a.length];
+    out=out.slice(0,3)+'!'+out.slice(3)+'9'; // jamin simbol & angka
+    $('#rpw').value=out; $('#rpw').dispatchEvent(new Event('input'));
+    try{ await navigator.clipboard.writeText(out); toast('Password kuat dibuat & disalin — simpan baik-baik!'); }catch(e){ toast('Password kuat dibuat — salin manual dari kolom.'); } };
+
   $('#rgps').onclick=()=>{ if(!navigator.geolocation){toast('Browser tidak mendukung geolokasi');return;}
     navigator.geolocation.getCurrentPosition(pos=>{ window._lat=pos.coords.latitude; window._lng=pos.coords.longitude; $('#rgpsv').textContent=`${window._lat.toFixed(6)}, ${window._lng.toFixed(6)}`; },()=>toast('Izin geolokasi ditolak')); };
   $('#rgo').onclick=async()=>{
     if(!$('#rsksaya').checked){ toast('Setujui Syarat & Ketentuan terlebih dahulu'); return; }
-    try{ await api('register',{method:'POST',body:{email:$('#re').value,password:$('#rpw').value,nama:$('#rn').value,role,tipe:$('#rtipe').value,alamat:$('#ralamat').value,no_hp:$('#rhp').value,npwp:$('#rnpwp').value||'',nib:$('#rnib').value||'',lat:window._lat??null,lng:window._lng??null}});
+    const pw=$('#rpw').value;
+    if(pw.length<8||pwScore(pw)<3){ toast('Password terlalu lemah — minimal 8 karakter dengan huruf besar, angka & simbol (pakai generator 🔐)'); $('#rpw').focus(); return; }
+    try{ await api('register',{method:'POST',body:{email:$('#re').value.trim(),password:pw,nama:$('#rn').value,role,tipe:$('#rtipe').value,alamat:$('#ralamat').value,no_hp:$('#rhp').value,npwp:$('#rnpwp').value||'',nib:$('#rnib').value||'',lat:window._lat??null,lng:window._lng??null}});
       toast('Pendaftaran berhasil, silakan Masuk'); location.hash='#/login';
     }catch(e){ toast(e.message); } };
+};
+
+/* ---- GANTI PASSWORD untuk semua user (penjual/pembeli/admin) ---- */
+renderers.akun = () => {
+  if(!S.user){ location.hash='#/login'; return; }
+  $('#app').innerHTML = `<div class="auth card-form"><h2>Pengaturan Akun — ${esc(S.user.nama)}</h2>
+    <p class="muted small">Login memakai email/username: <b>${esc(S.user.email)}</b></p>
+    <label>Password Lama<div class="rel"><input id="kOld" class="input" type="password" autocomplete="current-password"><button type="button" class="btn btn-outline btn-sm pwd-eye" data-for="kOld">👁</button></div></label>
+    <label>Password Baru (min. 8 karakter)<div class="rel"><input id="kNew" class="input" type="password" autocomplete="new-password"><button type="button" class="btn btn-outline btn-sm pwd-eye" data-for="kNew">👁</button></div></label>
+    <div class="pw-meter"><i id="kBar"></i></div>
+    <label>Konfirmasi Password Baru<input id="kNew2" class="input" type="password" autocomplete="new-password"></label>
+    <button class="btn btn-primary wide" id="kSave">Simpan Password</button></div>`;
+  document.querySelectorAll('.pwd-eye').forEach(b=>b.onclick=()=>{ const i=$('#'+b.dataset.for); i.type=i.type==='password'?'text':'password'; });
+  const score=v=>{ let s=0; if(v.length>=8)s++; if(/[a-z]/.test(v)&&/[A-Z]/.test(v))s++; if(/\d/.test(v))s++; if(/[^A-Za-z0-9]/.test(v))s++; if(v.length>=12)s++; return Math.min(s,5); };
+  $('#kNew').oninput=()=>{ const v=$('#kNew').value,s=score(v); $('#kBar').style.width=(s*20)+'%'; $('#kBar').className='lvl'+s; };
+  $('#kSave').onclick=async()=>{
+    if($('#kNew').value!==$('#kNew2').value){ toast('Konfirmasi password tidak sama'); return; }
+    if(score($('#kNew').value)<3){ toast('Password baru terlalu lemah — tambahkan huruf besar/angka/simbol'); return; }
+    try{ await api('change-password',{method:'POST',body:{old_password:$('#kOld').value,new_password:$('#kNew').value}});
+      toast('Password berhasil diganti'); $('#kOld').value=$('#kNew').value=$('#kNew2').value=''; }catch(e){toast(e.message);} };
 };
 
 renderers.chat = () => {
@@ -357,7 +403,7 @@ renderers.dashAdmin = async () => {
   const setVal=k=>{const s=sets.find(x=>x.key===k);return s?s.value:''};
   $('#app').innerHTML = `<h2>Dashboard Admin</h2>
    <div class="stats"><div class="stat"><b>${rp(rep.gmv||0)}</b>GMV</div><div class="stat"><b>${rp(rep.pendapatan_platform||0)}</b>Pendapatan Platform</div><div class="stat"><b>${rep.jumlah||0}</b>Transaksi</div></div>
-   <div class="tabs" id="tabsA"><button class="on" data-t="fin">Laporan Keuangan</button><button data-t="biaya">DP &amp; Biaya</button><button data-t="fitur">Toggle Fitur</button><button data-t="footer">Footer</button></div><div id="tabA"></div>`;
+   <div class="tabs" id="tabsA"><button class="on" data-t="fin">Laporan Keuangan</button><button data-t="biaya">DP &amp; Biaya</button><button data-t="fitur">Toggle Fitur</button><button data-t="footer">Footer</button><button data-t="akun">Akun Admin</button></div><div id="tabA"></div>`;
   const show=t=>{ $('#tabsA').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); const box=$('#tabA');
     if(t==='fin'){ const mx=Math.max(1,...Object.values(rep.per_bulan||{}));
       box.innerHTML='<div class="panel"><h4>GMV per Bulan</h4>'+(Object.entries(rep.per_bulan||{}).map(([m,v])=>'<div class="bar-row"><span>'+m+'</span><div class="bar"><i style="width:'+Math.min(100,v/mx*100)+'%"></i></div><b>'+rp(v)+'</b></div>').join('')||'<p class="muted">Belum ada transaksi.</p>')+'</div>'; }
@@ -371,6 +417,22 @@ renderers.dashAdmin = async () => {
       <label>Email Kontak<input id="fMail" class="input" value="${esc(setVal('footer_email'))}"></label><label>WhatsApp<input id="fWa" class="input" value="${esc(setVal('footer_wa'))}"></label>
       <label>Alamat Kantor<input id="fAddr" class="input" value="${esc(setVal('footer_alamat'))}"></label><label>Copyright<input id="fCopy" class="input" value="${esc(setVal('footer_copy'))}"></label>
       <button class="btn btn-primary" id="fkSave">Simpan Footer</button></div>`;
+    if(t==='akun'){ const u=S.user||{};
+      box.innerHTML=`<div class="card-form"><h4>Ganti Password Admin</h4>
+        <label>Password Lama<div class="rel"><input id="aOld" class="input" type="password" autocomplete="current-password"><button type="button" class="btn btn-outline btn-sm pwd-eye" data-for="aOld">👁</button></div></label>
+        <label>Password Baru (min. 8 karakter)<div class="rel"><input id="aNew" class="input" type="password" autocomplete="new-password"><button type="button" class="btn btn-outline btn-sm pwd-eye" data-for="aNew">👁</button></div></label>
+        <div class="pw-meter"><i id="aBar"></i></div>
+        <label>Konfirmasi Password Baru<input id="aNew2" class="input" type="password" autocomplete="new-password"></label>
+        <button class="btn btn-primary" id="aPwSave">Simpan Password</button>
+        <p class="muted small mt-1">Login admin dapat memakai email maupun username: <b>${esc(u.email||'test@gmail.com')}</b></p></div>`;
+      box.querySelectorAll('.pwd-eye').forEach(b=>b.onclick=()=>{ const i=$('#'+b.dataset.for); i.type=i.type==='password'?'text':'password'; });
+      $('#aNew').oninput=()=>{ const v=$('#aNew').value,s=pwScore(v); $('#aBar').style.width=(s*20)+'%'; $('#aBar').className='lvl'+s; };
+      $('#aPwSave').onclick=async()=>{
+        if($('#aNew').value!==$('#aNew2').value){ toast('Konfirmasi password tidak sama'); return; }
+        if(pwScore($('#aNew').value)<3){ toast('Password baru terlalu lemah — pakai generator/huruf besar+angka+simbol'); return; }
+        try{ await api('change-password',{method:'POST',body:{old_password:$('#aOld').value,new_password:$('#aNew').value}});
+          toast('Password admin berhasil diganti'); $('#aOld').value=$('#aNew').value=$('#aNew2').value=''; }catch(e){toast(e.message);} };
+    }
     const sv=async(obj,reload)=>{ try{ await api('settings',{method:'POST',body:obj}); toast('Pengaturan disimpan'); if(reload) loadFooter(); }catch(e){toast(e.message);} };
     if($('#gSave')) $('#gSave').onclick=()=>sv({persen_dp:$('#gDP').value,biaya_penanganan:$('#gFee').value,biaya_tambahan_flat:$('#gFlat').value,biaya_verifikasi:$('#gVer').value});
     if($('#fSave')) $('#fSave').onclick=()=>{ const o={}; box.querySelectorAll('input[type=checkbox]').forEach(c=>o[c.dataset.k]=c.checked?'1':'0'); sv(o); };

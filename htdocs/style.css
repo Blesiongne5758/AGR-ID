@@ -101,3 +101,13 @@ footer h4{color:#fff}footer a{color:#bcd8bc}footer a:hover{color:#fff}
 .agr-toast{background:var(--green);color:#fff;padding:12px 16px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.25);animation:pop .25s;max-width:340px;font-size:.9rem}
 @keyframes pop{from{transform:translateY(12px);opacity:0}}
 @media(max-width:760px){.detail{grid-template-columns:1fr}.f-grid{grid-template-columns:1fr 1fr}.links{display:none}.nav-in{height:56px}}
+
+/* ===== password UX (v4): strength meter, toggle lihat, posisi tombol eye ===== */
+.pw-meter{height:6px;border-radius:99px;background:#e5e7eb;margin-top:6px;overflow:hidden}
+.pw-meter i{display:block;height:100%;width:0;border-radius:99px;background:#ef4444;transition:width .25s,background .25s}
+.pw-meter i.lvl1{background:#ef4444}.pw-meter i.lvl2{background:#f59e0b}
+.pw-meter i.lvl3{background:#eab308}.pw-meter i.lvl4{background:#22c55e}.pw-meter i.lvl5{background:#16a34a}
+.card-form .rel,.auth .rel{position:relative}
+.pwd-eye{position:absolute;right:8px;top:26px;z-index:2;padding:2px 8px;font-size:14px;line-height:1.4}
+.card-form input.input[type=password],.card-form input.input[name=password]{padding-right:44px}
+.auth input.input,.card-form input.input{-webkit-text-fill-color:initial;color-scheme:light}
