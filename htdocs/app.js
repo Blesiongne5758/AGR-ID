@@ -164,10 +164,10 @@ async function tampilDetail(id){
 
 renderers.login = () => {
   $('#app').innerHTML = `<div class="auth card-form"><h2>Masuk ke AGR.ID</h2>
-    <label>Email / Username<input id="le" class="input" type="text" autocomplete="username" placeholder="penjual@agr.id"></label>
+    <label>Email / Username<input id="le" class="input" type="text" autocomplete="username" placeholder="nama@email.com"></label>
     <label>Password<input id="lp" class="input" type="password" autocomplete="current-password" placeholder="••••••••"></label>
     <button class="btn btn-primary wide" id="lgo">Masuk</button>
-    <p class="muted center">Belum punya akun? <a href="#/daftar">Daftar di sini</a><br>Demo: penjual@agr.id / penjual123 · admin: test@gmail.com / N0m4d3n0</p></div>`;
+    <p class="muted center">Belum punya akun? <a href="#/daftar">Daftar di sini</a></p></div>`;
   // Perbaikan kompatibilitas: pastikan input password dapat diketik/diisi autofill
   // (beberapa browser tidak mengisi field yang dibuat tanpa form & label `for`).
   const lp = $('#lp'); lp.setAttribute('name', 'password'); lp.label = null;
