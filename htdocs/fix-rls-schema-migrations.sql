@@ -7,15 +7,15 @@
 
 create table if not exists schema_migrations (
   version    text primary key,
-  name       text,
-  applied_at timestamptz default now()
+  applied_at timestamptz default now(),
+  checksum   text
 );
 
 alter table schema_migrations enable row level security;
 revoke all on schema_migrations from anon, authenticated;
 
-insert into public.schema_migrations (version, name)
-values ('002_rls_schema_migrations','RLS on schema_migrations')
+insert into public.schema_migrations (version)
+values ('002_rls_schema_migrations')
 on conflict (version) do nothing;
 
 -- 1. Izin skema dasar
@@ -59,8 +59,8 @@ drop policy if exists "pengaturan_public_read" on public.pengaturan;
 create policy "pengaturan_public_read" on public.pengaturan
   for select using (true);
 
-insert into public.schema_migrations (version, name)
-values ('003_fix_rls_and_permissions','Fix RLS policies for admin, users, and sessions')
+insert into public.schema_migrations (version)
+values ('003_fix_rls_and_permissions')
 on conflict (version) do nothing;
 
 -- Audit: daftar SEMUA tabel publik beserta status RLS-nya
