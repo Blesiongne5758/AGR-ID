@@ -1,44 +1,17 @@
 # ============================================================
 # AGR.ID — deploy.yml : Auto Deploy ke InfinityFree (FTP)
 # ============================================================
-# Target   : docroot /htdocs/ di infinityfree.com
-# Sumber   : folder ./htdocs/ pada repo (SPA statis + api.php)
-#
-# PRASYARAT (satu kali):
-# 1. Buat akun & website di https://infinityfree.com, catat FTP
-#    details dari Member Area -> Account -> FTP Details:
-#      FTP Server   : ftpupload.net (atau epXX.pro.hosting..., lihat panel)
-#      FTP Username : idXXXXXXX_agrid (format: user_site)
-#      FTP Password : password FTP (bisa disamakan dgn password member)
-# 2. GitHub repo -> Settings -> Secrets and variables -> Actions
-#    -> New repository secret, buat:
-#        FTP_SERVER, FTP_USERNAME, FTP_PASSWORD
-#    -> (Opsional) tab "Variables" buat SITE_DOMAIN berisi domain
-#        Anda, mis. agrid.infinityfreeapp.com atau custom domain.
-# 3. Upload manual SATU KALI via File Manager InfinityFree:
-#      htdocs/config.php  (salin dari config.example.php lalu isi
-#                          kredensial Supabase & Cloudinary)
-#    File ini DIKECUALIKAN dari sync otomatis agar tidak tertimpa/
-#    terekspos lewat repo publik.
-# 4. Push ke branch main -> deploy berjalan otomatis.
-#
-# Catatan InfinityFree:
-# - Folder uploads global dibersihkan tiap 30 hari; karena itu
-#   media disimpan di Cloudinary, bukan filesystem hosting.
-# - Rate limit FTP ada; action sudah pakai retry bawaan.
-# ============================================================
 name: Deploy to InfinityFree
 
 on:
   push:
     branches: [main]
-    paths:            # hemat kuota: hanya jalan bila ada perubahan nyata
+    paths:
       - "htdocs/**"
       - ".htaccess-deploy**"
       - ".github/workflows/deploy.yml"
-  workflow_dispatch: {}   # tombol jalankan manual di tab Actions
+  workflow_dispatch: {}
 
-# Jangan jalankan 2 deploy bersamaan di server yang sama
 concurrency:
   group: infinityfree-deploy
   cancel-in-progress: false
@@ -77,20 +50,34 @@ jobs:
           grep -q "api.php" app.js && echo "✅ Frontend menunjuk gateway api.php"
           echo "📦 Ukuran paket deploy:" && du -sh .
 
+      - name: Siapkan config.php untuk InfinityFree
+        run: |
+          cat << 'EOF' > htdocs/config.php
+          <?php
+          return [
+              'supabase_url'    => 'https://sxcahpbmderuwfvoxkix.supabase.co',
+              'supabase_key'    => 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4Y2FocGJtZGVydXdmdm94a2l4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjUyMzAyNSwiZXhwIjoyMTA4MDk5MDI1fQ.pmLbLWTz_0NC8K_zUT9LqSRArhcoguXIoPi1NNVDUl4',
+              'cloudinary_cloud'   => '',
+              'cloudinary_key'     => '',
+              'cloudinary_secret'  => '',
+              'flask_url'       => '',
+              'session_secret'  => 'Jsu6Ye-9l2AQLPO94eSUtQ-znCOWJioxfogPXU-4ac7f87d-aca4-48e0-8fde-b9b7c55d66e2',
+          ];
+          EOF
+
       - name: Sync file ke InfinityFree via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: /htdocs/          # docroot default InfinityFree
-          local-dir: ./htdocs/          # HANYA folder htdocs yang di-sync
-          exclude: |                    # jangan pernah upload/hapus hal sensitif
+          server-dir: /htdocs/
+          local-dir: ./htdocs/
+          exclude: |
             **/.git*
             **/.git*/**
-            **/config.php               # kredensial diisi manual di server
-            **/config.example.php       # template saja, tak perlu online
-            **/*.sql                    # skema/seed dijalankan di Supabase
+            **/config.example.php
+            **/*.sql
             **/DEPLOY-INFINITYFREE.md
             **/*.log
           log-level: standard
@@ -105,7 +92,7 @@ jobs:
           echo "Cek homepage : $URL"
           curl -sS -m 30 -o /dev/null -w "HTTP %{http_code}\n" "$URL"
           echo "Cek gateway  : $API"
-          curl -sS -m 30 "$API" || echo "⚠️ Health gagal — normal bila config.php belum diisi"
+          curl -sS -m 30 "$API" || echo "⚠️ Health gagal"
 
       - name: Ringkasan hasil deploy
         if: always()
@@ -117,8 +104,5 @@ jobs:
             echo "|---|---|"
             echo "| Commit | \`${GITHUB_SHA::7}\` (${GITHUB_REF_NAME}) |"
             echo "| Sumber | \`htdocs/\` → \`/htdocs/\` (docroot) |"
-            echo "| Job | $([ \"${{ job.status }}\" = 'success' ] && echo '✅ Berhasil' || echo '❌ Gagal') |"
-            echo ""
-            echo "> Bila baru pertama kali: upload \`config.php\` via File Manager,"
-            echo "> lalu jalankan ulang workflow ini."
+            echo "| Job | $([ "${{ job.status }}" = 'success' ] && echo '✅ Berhasil' || echo '❌ Gagal') |"
           } >> "$GITHUB_STEP_SUMMARY"
