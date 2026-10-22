@@ -24,7 +24,7 @@
 Di folder `htdocs/`, salin `config.example.php` menjadi `config.php` lalu isi:
 ```php
 'supabase_url'   => 'https://<REF>.supabase.co',  // atau '<REF>' saja
-'supabase_key'   => 'eyJ...anon-public-key...',
+'supabase_key'   => 'eyJ...jwt-key...',
 'cloudinary_cloud'  => 'dxxxxxxx',                // dashboard.cloudinary.com -> Upload Settings/Pages? Keys
 'cloudinary_key'    => '123456789012345',
 'cloudinary_secret' => 'xxxxxxxxxxxxxxxx',

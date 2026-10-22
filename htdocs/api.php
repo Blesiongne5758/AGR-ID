@@ -188,7 +188,7 @@ switch ($action) {
         // DUKUNG LOGIN USERNAME ATAU EMAIL — kolom username disamakan dengan email.
         $ident = trim((string)($b['email'] ?? $b['username'] ?? ''));
         if ($ident === '') err('Email/username wajib diisi', 422);
-        $rows = sb('users', 'GET', ['or=(email.eq.' . urlencode(strtolower($ident)) . ',username.eq.' . urlencode($ident) . ')', 'select=*']);
+        $rows = sb('users', 'GET', ['email=eq.' . urlencode(strtolower($ident)), 'select=*']);
         $u = $rows[0] ?? null;
         if (!$u || !password_verify($b['password'] ?? '', $u['password_hash'] ?? '')) err('Email/password salah', 401);
         $tok = make_token((int)$u['id']);
