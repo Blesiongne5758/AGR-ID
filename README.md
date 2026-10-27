@@ -11,11 +11,11 @@ Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system *
 ### Marketplace & Katalog
 - **4 kategori utama**: Pertanian, Perkebunan, Perikanan, Peternakan.
 - **Sub kategori**:
-  - Pertanian → *Sayuran*, *Buah-buahan*
-  - Perikanan → *Air Tawar*, *Air Laut*
-  - Perkebunan → *Tanaman Tahunan, Tanaman Industri, Rempah-rempah, Serat*
-  - Peternakan → *Sapi & Kerbau, Kambing & Domba, Unggas, Babi, Susu & Hasil Hewan Lainnya, Lainnya*
-- **±240 nama produk + jenis/varietas** per sub kategori (master data di `masterdata.py`).
+  - Pertanian → *Sayuran, Buah-buahan, Pupuk, Obat Kimia Pertanian, Vitamin & Nutrisi Tanaman*
+  - Perkebunan → *Tanaman Tahunan, Tanaman Industri, Rempah Perkebunan, Karet & Getah, Serat & Lainnya, Pupuk, Obat Kimia Perkebunan, Vitamin & Nutrisi Tanaman*
+  - Perikanan → *Air Tawar, Air Laut, Pakan Ikan, Obat Kimia Perikanan, Vitamin & Suplemen Ikan*
+  - Peternakan → kategori hasil ternak dan *Pakan Ternak, Obat Kimia Peternakan, Vitamin & Suplemen Ternak*.
+- **Master produk dan jenis/varietas** tersedia per sub kategori di `agrid/masterdata.py`, termasuk pupuk organik/NPK, insektisida/fungisida/herbisida, pakan ikan dan ternak, serta vitamin dan suplemen.
 - **Label ⚠️ NON HALAL** otomatis pada sub kategori **Babi** (badge di listing, detail produk, form posting) + toggle filter "sembunyikan Non Halal" di marketplace.
 - **Ticker harga market** berjalan (animated marquee) berisi ±75 komoditas dengan harga & persentase naik/turun harian.
 - **Database Produk auto-update**: saat penjual mengetik nama produk baru di form, autocomplete memanggil `/api/produk-master`; nama yang belum ada **otomatis disimpan ke tabel `produk_master`** (flag `auto_added`).
@@ -53,6 +53,7 @@ Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system *
 - **Tombol penyelesaian pembayaran** untuk sistem DP + upload bukti transfer.
 - **Laporan transaksi pembelian**.
 - **Favorit**: menyimpan penjual dan/atau produk favorit (toggle ❤️), dikelola di dashboard.
+- **Manajemen Kebutuhan**: susun rencana belanja dari semua kategori, isi jumlah, satuan, dan perkiraan harga per satuan; total estimasi dihitung otomatis dan daftar tersimpan per akun pembeli.
 
 ### Dashboard Admin
 - **Laporan transaksi keuangan**: GMV, pendapatan platform (biaya penanganan), rekap per metode pembayaran, export CSV.
@@ -82,6 +83,7 @@ Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system *
 | `transaksi` | Transaksi penjualan & pembelian (status: dp → lunas → dikirim → selesai) |
 | `eviden` | Timeline ketelusuran: foto bukti + koordinat GPS per tahap |
 | `favorites` | Penyimpanan penjual/produk favorit oleh pembeli |
+| `kebutuhan_pembeli` | Rencana belanja pembeli per kategori, jumlah, satuan, harga estimasi, dan total yang dihitung otomatis |
 | `ratings` | Skor kepuasan dua arah + aspek (JSON) + komentar |
 | `payment_gateway_api` | Konfigurasi API payment gateway dari admin |
 | `ekspedisi` | Konfigurasi API & tarif jasa ekspedisi |
