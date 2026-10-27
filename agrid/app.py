@@ -274,6 +274,23 @@ class Favorite(db.Model):
     product = db.relationship("Product")
 
 
+class KebutuhanPembeli(db.Model):
+    """Rencana belanja pembeli untuk beberapa kategori marketplace."""
+    __tablename__ = "kebutuhan_pembeli"
+    id = db.Column(db.Integer, primary_key=True)
+    buyer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    kategori = db.Column(db.String(40), nullable=False)
+    nama_produk = db.Column(db.String(120), nullable=False)
+    jumlah = db.Column(db.Float, nullable=False)
+    satuan = db.Column(db.String(20), nullable=False, default="kg")
+    estimasi_harga = db.Column(db.Float, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def estimasi_total(self):
+        return self.jumlah * self.estimasi_harga
+
+
 class Rating(db.Model):
     """Score penilaian tingkat kepuasan dua arah antara penjual & pembeli.
 
@@ -872,13 +889,48 @@ def dashboard_buyer():
         if pl:
             pelunasans[t.id] = pl
     favs = Favorite.query.filter_by(buyer_id=u.id).order_by(Favorite.created_at.desc()).all()
+    kebutuhan = KebutuhanPembeli.query.filter_by(buyer_id=u.id).order_by(KebutuhanPembeli.created_at.desc()).all()
     ratings_received = Rating.query.filter_by(to_user_id=u.id).order_by(Rating.created_at.desc()).all()
     return render_template("buyer_dashboard.html", u=u, offers=my_offers, pembelian=pembelian,
                            total=total_belanja, user=u, ticker=ticker_data(),
-                           bookings=bookings, pelunasans=pelunasans, favs=favs,
+                           bookings=bookings, pelunasans=pelunasans, favs=favs, kebutuhan=kebutuhan,
+                           kategori_list=KATEGORI,
                            rstats=rating_stats(u.id), rat_in=ratings_received,
                            rat_out=[my_rating_for(t.id, u.id) for t in pembelian if my_rating_for(t.id, u.id)],
                            rat_pending=pending_ratings(u.id), wallet=wallet_ctx(u))
+
+
+@app.route("/dashboard/pembeli/kebutuhan", methods=["POST"])
+@login_required("pembeli")
+def tambah_kebutuhan():
+    u = current_user()
+    kategori = request.form.get("kategori", "").strip()
+    nama = request.form.get("nama_produk", "").strip()
+    satuan = request.form.get("satuan", "").strip()
+    try:
+        jumlah = float(request.form.get("jumlah", "0"))
+        harga = float(request.form.get("estimasi_harga", "0"))
+    except (TypeError, ValueError):
+        flash("Jumlah dan estimasi harga harus berupa angka.", "danger")
+        return redirect(url_for("dashboard_buyer") + "#tNeeds")
+    if kategori not in KATEGORI or not nama or len(nama) > 120 or not satuan or len(satuan) > 20 or jumlah <= 0 or harga < 0:
+        flash("Periksa kategori, nama produk, satuan, jumlah, dan estimasi harga.", "danger")
+        return redirect(url_for("dashboard_buyer") + "#tNeeds")
+    db.session.add(KebutuhanPembeli(buyer_id=u.id, kategori=kategori, nama_produk=nama,
+                                    satuan=satuan, jumlah=jumlah, estimasi_harga=harga))
+    db.session.commit()
+    flash("Kebutuhan belanja ditambahkan.", "success")
+    return redirect(url_for("dashboard_buyer") + "#tNeeds")
+
+
+@app.route("/dashboard/pembeli/kebutuhan/<int:kid>/hapus", methods=["POST"])
+@login_required("pembeli")
+def hapus_kebutuhan(kid):
+    item = KebutuhanPembeli.query.filter_by(id=kid, buyer_id=current_user().id).first_or_404()
+    db.session.delete(item)
+    db.session.commit()
+    flash("Kebutuhan dihapus dari rencana belanja.", "success")
+    return redirect(url_for("dashboard_buyer") + "#tNeeds")
 
 
 @app.route("/dashboard/admin")
@@ -1960,12 +2012,18 @@ def seed():
                 base_url="https://app.midtrans.com/snap/v1", api_key="", server_key="",
                 client_key="", webhook_secret="", enabled=True))
             db.session.commit()
-        # Seed produk master dari masterdata
-        if ProdukMaster.query.count() == 0:
-            for row in flatten_products():
-                db.session.add(ProdukMaster(nama=row["nama_produk"], kategori=row["kategori"],
-                                            subkategori=row["subkategori"], jenis=row["jenis"],
-                                            non_halal=row["non_halal"]))
+        # Seed produk master dari masterdata; tambahkan juga kategori baru ke DB lama.
+        known_master_names = {r[0].lower() for r in db.session.query(ProdukMaster.nama).all()}
+        added_master = False
+        for row in flatten_products():
+            if row["nama_produk"].lower() in known_master_names:
+                continue
+            db.session.add(ProdukMaster(nama=row["nama_produk"], kategori=row["kategori"],
+                                        subkategori=row["subkategori"], jenis=row["jenis"],
+                                        non_halal=row["non_halal"]))
+            known_master_names.add(row["nama_produk"].lower())
+            added_master = True
+        if added_master:
             db.session.commit()
         # Demo accounts
         if User.query.count() == 0:

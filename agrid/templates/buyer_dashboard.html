@@ -21,12 +21,37 @@
   </div>
 
   <ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tNeeds">🧮 Manajemen Kebutuhan</button></li>
     <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tOff">💬 Penawaran Saya ({{ offers|length }})</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tLap">🧾 Laporan Transaksi Pembelian</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tFav">❤️ Favorit Saya ({{ favs|length }})</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tRat">⭐ Penilaian Kepuasan{% if rat_pending %} <span class="badge bg-danger">{{ rat_pending|length }}</span>{% endif %}</button></li>
   </ul>
   <div class="tab-content">
+    <div class="tab-pane fade" id="tNeeds">
+      <div class="row g-3 mb-3">
+        <div class="col-lg-5"><div class="card shadow-sm h-100"><div class="card-header bg-white fw-bold">Tambah rencana belanja</div><div class="card-body">
+          <form method="post" action="{{ url_for('tambah_kebutuhan') }}" class="row g-2">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <div class="col-12"><label class="form-label small">Kategori</label><select class="form-select" name="kategori" required>{% for k in kategori_list %}<option>{{ k }}</option>{% endfor %}</select></div>
+            <div class="col-12"><label class="form-label small">Nama kebutuhan</label><input class="form-control" name="nama_produk" maxlength="120" placeholder="Contoh: pupuk NPK, pakan lele, vitamin ternak" required></div>
+            <div class="col-5"><label class="form-label small">Jumlah</label><input class="form-control" type="number" name="jumlah" min="0.01" step="0.01" required></div>
+            <div class="col-3"><label class="form-label small">Satuan</label><input class="form-control" name="satuan" maxlength="20" value="kg" required></div>
+            <div class="col-4"><label class="form-label small">Harga/satuan (Rp)</label><input class="form-control" type="number" name="estimasi_harga" min="0" step="1" value="0" required></div>
+            <div class="col-12"><button class="btn btn-agrid w-100 fw-bold">＋ Tambahkan ke rencana</button></div>
+          </form>
+          <p class="small text-muted mt-2 mb-0">Isi harga perkiraan per satuan. Total akan dihitung otomatis dan dapat diperbarui kapan saja.</p>
+        </div></div></div>
+        <div class="col-lg-7"><div class="card shadow-sm h-100"><div class="card-header bg-white fw-bold">Estimasi biaya belanja</div><div class="table-responsive"><table class="table table-dashboard mb-0">
+          <thead><tr><th>Kebutuhan</th><th>Jumlah</th><th class="text-end">Estimasi total</th><th></th></tr></thead><tbody>
+          {% set ns = namespace(total=0) %}
+          {% for item in kebutuhan %}{% set ns.total = ns.total + item.estimasi_total %}
+          <tr><td><b>{{ item.nama_produk }}</b><div class="small text-muted">{{ item.kategori }}</div></td><td>{{ item.jumlah|rp }} {{ item.satuan }}<div class="small text-muted">× Rp{{ item.estimasi_harga|rp }}</div></td><td class="text-end fw-bold">Rp{{ item.estimasi_total|rp }}</td><td><form method="post" action="{{ url_for('hapus_kebutuhan', kid=item.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger" title="Hapus">✕</button></form></td></tr>
+          {% else %}<tr><td colspan="4" class="text-center text-muted py-4">Belum ada kebutuhan. Tambahkan rencana belanja di samping.</td></tr>{% endfor %}
+          </tbody><tfoot><tr class="table-light"><th colspan="2">Total estimasi</th><th class="text-end text-success fs-5">Rp{{ ns.total|rp }}</th><th></th></tr></tfoot>
+        </table></div></div></div>
+      </div>
+    </div>
     <div class="tab-pane fade show active" id="tOff">
       <div class="table-responsive bg-white rounded shadow-sm">
       <table class="table table-dashboard mb-0">
@@ -191,4 +216,10 @@
     </div>
   </div>
 </div>
+<script>
+  if (window.location.hash === '#tNeeds') {
+    const needsTab = document.querySelector('[data-bs-target="#tNeeds"]');
+    if (needsTab && window.bootstrap) bootstrap.Tab.getOrCreateInstance(needsTab).show();
+  }
+</script>
 {% endblock %}

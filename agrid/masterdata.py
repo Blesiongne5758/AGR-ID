@@ -10,7 +10,7 @@ TIPE_PEMBELI = ["Perorangan", "Corporate"]
 # Sub kategori + daftar produk & jenisnya per kategori
 MASTER_PRODUK = {
     "Pertanian": {
-        "subkategori": ["Sayuran", "Buah-buahan"],
+        "subkategori": ["Sayuran", "Buah-buahan", "Pupuk", "Obat Kimia Pertanian", "Vitamin & Nutrisi Tanaman"],
         "produk": {
             "Sayuran": [
                 ("Cabai Merah", ["Biasa", "Keriting", "Rawit/Teri"]),
@@ -97,10 +97,13 @@ MASTER_PRODUK = {
                 ("Dragon Fruit Hybrid", ["Cross-pollinated"]),
                 ("Camellia / Buah Kertas", ["Lokal"]),
             ],
+            "Pupuk": [("Pupuk Urea", ["Prill", "Granul"]), ("Pupuk NPK", ["NPK 15-15-15", "NPK Phonska", "NPK Mutiara"]), ("Pupuk Organik", ["Kompos", "Pupuk Kandang", "Kascing"]), ("Pupuk Hayati", ["Biofertilizer", "Mikoriza"]), ("Pupuk ZA", ["Granul"]), ("Pupuk SP-36", ["Granul"]), ("Pupuk KCl", ["Granul"])],
+            "Obat Kimia Pertanian": [("Insektisida", ["Kontak", "Sistemik"]), ("Fungisida", ["Kontak", "Sistemik"]), ("Herbisida", ["Selektif", "Non-selektif"]), ("Akarisida", ["Cair"]), ("Rodentisida", ["Umpan"]), ("Nematisida", ["Granul", "Cair"])],
+            "Vitamin & Nutrisi Tanaman": [("Pupuk Daun", ["Makro", "Mikro"]), ("Zat Pengatur Tumbuh", ["Perangsang akar", "Perangsang bunga"]), ("Kalsium-Boron", ["Cair"]), ("Asam Amino Tanaman", ["Cair"]), ("Nutrisi Hidroponik", ["AB Mix"]), ("Vitamin Tanaman", ["Cair", "Serbuk"])],
         },
     },
     "Perkebunan": {
-        "subkategori": ["Tanaman Tahunan", "Tanaman Industri", "Rempah Perkebunan", "Karet & Getah", "Serat & Lainnya"],
+        "subkategori": ["Tanaman Tahunan", "Tanaman Industri", "Rempah Perkebunan", "Karet & Getah", "Serat & Lainnya", "Pupuk", "Obat Kimia Perkebunan", "Vitamin & Nutrisi Tanaman"],
         "produk": {
             "Tanaman Tahunan": [
                 ("Kopi", ["Arabika Gayo", "Robusta Lampung", "Toraja", "Kintamani", "Java Preanger", "Fine Robusta"]),
@@ -146,10 +149,13 @@ MASTER_PRODUK = {
                 ("Nira Kelapa / Gula Kelapa", ["Cetak", "Serbuk"]),
                 ("Sagu", ["Tepung Sagu", "Sagu Batang"]),
             ],
+            "Pupuk": [("Pupuk Sawit", ["NPK Sawit", "Borate"]), ("Pupuk Kakao & Kopi", ["NPK khusus", "Organik"]), ("Pupuk Karet", ["NPK", "Urea"]), ("Pupuk Organik Perkebunan", ["Kompos", "Pupuk kandang"]), ("Pupuk Dolomit", ["Serbuk", "Granul"])],
+            "Obat Kimia Perkebunan": [("Insektisida Perkebunan", ["Kontak", "Sistemik"]), ("Fungisida Perkebunan", ["Kontak", "Sistemik"]), ("Herbisida Perkebunan", ["Selektif", "Non-selektif"]), ("Rodentisida Perkebunan", ["Umpan"]), ("Nematisida Perkebunan", ["Granul", "Cair"])],
+            "Vitamin & Nutrisi Tanaman": [("Pupuk Daun Perkebunan", ["Makro", "Mikro"]), ("Zat Pengatur Tumbuh", ["Perangsang akar", "Perangsang buah"]), ("Mikronutrien", ["Boron", "Zinc", "Magnesium"]), ("Vitamin Tanaman", ["Cair", "Serbuk"])],
         },
     },
     "Perikanan": {
-        "subkategori": ["Air Tawar", "Air Laut"],
+        "subkategori": ["Air Tawar", "Air Laut", "Pakan Ikan", "Obat Kimia Perikanan", "Vitamin & Suplemen Ikan"],
         "produk": {
             "Air Tawar": [
                 ("Lele", ["Sanggkuriang", "Dumbo/Mutiara", "Kumbia", "Fillet Lele", "Lele Asap"]),
@@ -229,10 +235,13 @@ MASTER_PRODUK = {
                 ("Sarden Laut Dalam", ["Ikan Layang"]),
                 ("Tenggiri Sirip", ["Small Tunny"]),
             ],
+            "Pakan Ikan": [("Pakan Apung", ["Starter", "Grower", "Finisher"]), ("Pakan Tenggelam", ["Pelet"]), ("Pakan Benih", ["Crumb"]), ("Pakan Udang", ["Vaname", "Windu"]), ("Pakan Alami", ["Artemia", "Cacing sutera", "Daphnia"]), ("Probiotik Pakan Ikan", ["Cair", "Serbuk"])],
+            "Obat Kimia Perikanan": [("Disinfektan Kolam", ["Iodin", "Oksidator"]), ("Antiparasit Ikan", ["Perendaman", "Tabur"]), ("Antijamur Ikan", ["Cair"]), ("Obat Luka Ikan", ["Cair"]), ("Pengendali Kualitas Air", ["Kapur", "Penjernih air"])],
+            "Vitamin & Suplemen Ikan": [("Vitamin Ikan", ["Vitamin C", "Multivitamin"]), ("Imunostimulan Ikan", ["Cair", "Serbuk"]), ("Mineral Ikan", ["Elektrolit", "Mineral mix"]), ("Suplemen Ikan", ["Nafsu makan", "Pertumbuhan"])],
         },
     },
     "Peternakan": {
-        "subkategori": ["Sapi & Kerbau", "Kambing & Domba", "Unggas", "Babi", "Perah Susu", "Lainnya"],
+        "subkategori": ["Sapi & Kerbau", "Kambing & Domba", "Unggas", "Babi", "Perah Susu", "Lainnya", "Pakan Ternak", "Obat Kimia Peternakan", "Vitamin & Suplemen Ternak"],
         "produk": {
             "Sapi & Kerbau": [
                 ("Sapi Potong", ["Limousin", "Simmental", "Brangman/Angus", "Sapi Bali", "Sapi Madura", "Peranakan Ongole (PO)", "Charolais", "Highgrade IB"]),
@@ -290,6 +299,9 @@ MASTER_PRODUK = {
                 ("Obat & Vitamin Ternak", ["Vitamin Mix", "Probiotik", "Antiparasit Legal"]),
                 ("Peralatan Kandang", ["Feeder", "Drinker", "Kawat Ternak", "Tali Halter"]),
             ],
+            "Pakan Ternak": [("Pakan Sapi & Kerbau", ["Konsentrat", "Silase", "Hay"]), ("Pakan Kambing & Domba", ["Konsentrat", "Hijauan"]), ("Pakan Unggas", ["Starter", "Grower", "Layer", "Broiler"]), ("Pakan Babi", ["Starter", "Finisher"]), ("Bungkil & Dedak", ["Dedak padi", "Bungkil kedelai"]), ("Mineral Pakan", ["Mineral block", "Premix"])],
+            "Obat Kimia Peternakan": [("Obat Cacing Ternak", ["Oral", "Injeksi"]), ("Antiparasit Ternak", ["Tetes", "Semprot"]), ("Disinfektan Kandang", ["Konsentrat", "Siap pakai"]), ("Obat Luka Ternak", ["Salep", "Semprot"]), ("Antiseptik Ternak", ["Cair"])],
+            "Vitamin & Suplemen Ternak": [("Vitamin Ternak", ["Vitamin A-D-E", "B kompleks"]), ("Elektrolit Ternak", ["Serbuk", "Cair"]), ("Probiotik Ternak", ["Cair", "Serbuk"]), ("Mineral Ternak", ["Mineral block", "Premix"]), ("Suplemen Unggas", ["Kalsium", "Multivitamin"])],
         },
     },
 }
