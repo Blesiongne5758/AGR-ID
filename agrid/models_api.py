@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AGR.ID - Model tambahan backend (keamanan, audit, token API).
+"""AGR.BIZ.ID - Model tambahan backend (keamanan, audit, token API).
 
 Model inti (User, Product, Offer, Booking, Transaksi, dst.) tetap di app.py.
 File ini menambah tabel pendukung untuk keamanan & manajemen data:
