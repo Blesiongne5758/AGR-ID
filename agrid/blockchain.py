@@ -1,8 +1,8 @@
 # ----------------------------------------------------------------------------
-# AGR.ID — BLOCKCHAIN: DOMPET CRYPTO & LEDGER TRANSAKSI (AGR Coin)
+# AGR.BIZ.ID — BLOCKCHAIN: DOMPET CRYPTO & LEDGER TRANSAKSI (AGR Coin)
 # ----------------------------------------------------------------------------
 """
-Implementasi blockchain ringan untuk AGR.ID:
+Implementasi blockchain ringan untuk AGR.BIZ.ID:
 
 1. STRUKTUR BLOK  : header (index, timestamp, merkle root, prev-hash, nonce) + body transaksi.
 2. KONSENSUS PoA  : Proof-of-Authority — hanya node validator (admin platform) yang dapat
@@ -338,7 +338,7 @@ def load_wallet_file(path: str, secret: str):
 
 
 # =============================================================================
-# SERVICE LAYER — integrasi blockchain ke database AGR.ID (dipanggil dari app.py)
+# SERVICE LAYER — integrasi blockchain ke database AGR.BIZ.ID (dipanggil dari app.py)
 # =============================================================================
 WALLET_FILE = "wallets.dat"          # di folder instance app, terenkripsi Fernet
 
