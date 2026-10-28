@@ -3,7 +3,7 @@ Total output lines: 3385
 
 # -*- coding: utf-8 -*-
 """
-AGR.ID - Marketplace Pertanian, Perkebunan, Perikanan & Peternakan
+AGR.BIZ.ID - Marketplace Pertanian, Perkebunan, Perikanan & Peternakan
 Dukungan AI Chat Agent, penawaran harga, booking DP, payment gateway,
 ekspedisi, verifikasi & ketelusuran (traceability) dengan bukti eviden.
 """
@@ -538,7 +538,7 @@ class ProductConversation(db.Model):
 
 
 class ProductConversationMessage(db.Model):
-    """Pesan buyer/seller; sender null menandai notifikasi sistem AGR.ID."""
+    """Pesan buyer/seller; sender null menandai notifikasi sistem AGR.BIZ.ID."""
     __tablename__ = "product_chat_messages"
     id = db.Column(db.Integer, primary_key=True)
     conversation_id = db.Column(db.Integer, db.ForeignKey("product_conversations.id", ondelete="CASCADE"), nullable=False)
@@ -771,7 +771,7 @@ def ai_reply(text, user=None):
     # ---- Intent: input produk ----
     if any(k in t for k in ["jual", "posting produk", "tambah produk", "input produk", "daftar produk"]):
         steps = [
-            "🌱 **Wizard Input Produk AGR.ID** — saya bantu langkah demi langkah:",
+            "🌱 **Wizard Input Produk AGR.BIZ.ID** — saya bantu langkah demi langkah:",
             "1️⃣ Pilih **kategori**: Pertanian / Perkebunan / Perikanan / Peternakan",
             "2️⃣ Pilih **sub kategori** (mis. Sayuran, Buah-buahan, Air Tawar, Air Laut…)",
             "3️⃣ Ketik **nama produk** — bila belum ada di database, akan otomatis tersimpan ke Database Produk.",
@@ -824,7 +824,7 @@ def ai_reply(text, user=None):
     if "dp" in t or "booking" in t:
         pct = get_setting("dp_persen", "20")
         fee = get_setting("biaya_penanganan_persen", "2")
-        return (f"💳 Mekanisme booking AGR.ID:\n- Penawaran Anda diterima penjual → lakukan **booking dengan DP {pct}%** "
+        return (f"💳 Mekanisme booking AGR.BIZ.ID:\n- Penawaran Anda diterima penjual → lakukan **booking dengan DP {pct}%** "
                 f"sebagai pengikat via payment gateway (QRIS/VA/e-wallet).\n- Sisanya dibayar saat barang dikirim/diterima.\n"
                 f"- Biaya penanganan platform {fee}% termasuk dalam rincian pembayaran.\n- Jadwal pengiriman & tracking ekspedisi "
                 f"dapat dipantau di dashboard, dengan bukti eviden foto + GPS tiap tahap.")
@@ -833,9 +833,9 @@ def ai_reply(text, user=None):
     if "ekspedisi" in t or "kirim" in t or "ongkir" in t:
         eks = Ekspedisi.query.filter_by(enabled=True).all()
         names = ", ".join(e.nama for e in eks) or "belum ada mitra aktif"
-        return f"🚚 Mitra ekspedisi aktif di AGR.ID: {names}. Ongkir dihitung otomatis per kg/kubikasi saat checkout booking."
+        return f"🚚 Mitra ekspedisi aktif di AGR.BIZ.ID: {names}. Ongkir dihitung otomatis per kg/kubikasi saat checkout booking."
     if any(k in t for k in ["halo", "hai", "assalamualaikum", "selamat"]):
-        return ("👋 Halo! Saya **AGR Assistant** 🌾 — asisten AI marketplace AGR.ID. Saya bisa:\n"
+        return ("👋 Halo! Saya **AGR Assistant** 🌾 — asisten AI marketplace AGR.BIZ.ID. Saya bisa:\n"
                 "1. Membantu Anda **mengisi informasi produk** untuk dijual (ketik: *cara jual produk*)\n"
                 "2. **Mencari produk** yang Anda butuhkan (ketik: *cari lele* / *beli kopi gayo*)\n"
                 "3. Menjelaskan **sistem penawaran, DP booking & pengiriman** (ketik: *cara booking*)")
@@ -1479,7 +1479,7 @@ def save_seller_auction_settings():
 def save_footer():
     """Pengaturan informasi footer landing page dari dashboard admin."""
     labels = {
-        "footer_tentang": "Footer: Tentang AGR.ID",
+        "footer_tentang": "Footer: Tentang AGR.BIZ.ID",
         "footer_kontak": "Footer: Judul Kontak",
         "footer_alamat": "Footer: Alamat Kantor",
         "footer_email": "Footer: Email",
@@ -2031,8 +2031,8 @@ def seed():
             "footer_email": "halo@agr.id",
             "footer_telepon": "+62 812-3456-7890 (WhatsApp)",
             "footer_jam_operasional": "Senin–Jumat 08.00–17.00 WIB · CS Toko 24/7",
-            "footer_sosial": "Instagram: @agr.idofficial · Facebook: AGR.ID Marketplace · TikTok: @agr.id",
-            "footer_copyright": "© 2026 AGR.ID — Dibuat untuk petani, nelayan & peternak Indonesia 🇮🇩",
+            "footer_sosial": "Instagram: @agr.idofficial · Facebook: AGR.BIZ.ID Marketplace · TikTok: @agr.id",
+            "footer_copyright": "© 2026 AGR.BIZ.ID — Dibuat untuk petani, nelayan & peternak Indonesia 🇮🇩",
             "footer_tautan": "Marketplace: /marketplace · Cara Kerja Booking DP: /marketplace · AI Chat Agent: /chat",
         }
         for k, v in FOOTER_DEFAULTS.items():
@@ -2077,7 +2077,7 @@ def seed():
             db.session.commit()
         # Demo accounts
         if User.query.count() == 0:
-            admin = User(username="admin", nama="Admin AGR.ID", email="admin@agr.id",
+            admin = User(username="admin", nama="Admin AGR.BIZ.ID", email="admin@agr.id",
                          password=generate_password_hash("admin123"), role="admin",
                          tipe="Perorangan", roles=["admin"],
                          tipe_penjual=TIPE_PENJUAL[0], tipe_pembeli=TIPE_PEMBELI[0],
@@ -2224,7 +2224,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("AGR_DEBUG", "").lower() in ("1", "true")
     threaded = True                      # dukung request bersamaan
-    print(f"AGR.ID berjalan pada http://0.0.0.0:{port} "
+    print(f"AGR.BIZ.ID berjalan pada http://0.0.0.0:{port} "
           f"[env={os.environ.get('AGR_ENV', 'development')}, debug={debug}]")
     app.run(host="0.0.0.0", port=port, debug=debug, threaded=threaded)
 
