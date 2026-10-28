@@ -15,7 +15,7 @@ return [
     // Dashboard -> Project Settings -> API -> Legacy API Keys -> anon public.
     // sb_secret_ adalah service key SUPER-PRIVILEGED — jangan pernah
     // diletakkan di hosting publik/htdocs; hanya untuk backend privat (Flask).
-    'supabase_key'    => 'eyJhbGciOi...jwt-key',
+    'supabase_key'    => '',
 
     // ---- Cloudinary (Dashboard -> Settings -> Access Keys) ----
     // API Secret hanya digunakan oleh api.php untuk membuat tanda tangan
