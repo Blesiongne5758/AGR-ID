@@ -409,3 +409,5 @@ body{line-height:1.6;letter-spacing:0;-webkit-font-smoothing:antialiased}
 :focus-visible{outline:3px solid hsl(var(--ring)/.32);outline-offset:2px}
 .navbar-agrid{background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border-bottom:1px solid hsl(var(--border))}
 @media(max-width:575.98px){.container{--bs-gutter-x:1.15rem}.card-body,.card-content{padding:1rem}.hero{border-radius:0}}
+
+/* 60-30-10 distribution: porcelain base, eucalyptus surfaces, harvest-gold accents. */
