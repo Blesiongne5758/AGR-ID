@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Dashboard Pembeli — AGR.ID{% endblock %}
+{% block title %}Dashboard Pembeli — AGR.BIZ.ID{% endblock %}
 {% block content %}
 <div class="container-fluid my-4 px-4">
   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -232,7 +232,7 @@
               <div><b>{{ t.product_name }}</b> <small class="text-muted">· Rp{{ t.nilai|rp }} · Penjual: {{ t.seller.nama }} · selesai {{ t.completed_at|dt }}</small></div>
               <a class="btn btn-sm btn-warning fw-bold" href="{{ url_for('rate_transaction', tid=t.id) }}">⭐ Beri Penilaian</a>
             </div>
-          {% else %}<div class="alert alert-success mb-0 mt-1">Semua transaksi selesai sudah Anda nilai. Terima kasih telah membantu membangun kepercayaan AGR.ID! 🌾</div>{% endfor %}
+          {% else %}<div class="alert alert-success mb-0 mt-1">Semua transaksi selesai sudah Anda nilai. Terima kasih telah membantu membangun kepercayaan AGR.BIZ.ID! 🌾</div>{% endfor %}
         </div></div></div>
       </div>
       <div class="table-responsive bg-white rounded shadow-sm">
