@@ -73,6 +73,15 @@
       {% endif %}
 
       {% if user and user.role=='pembeli' %}
+      <div class="card border-success-subtle mb-3"><div class="card-body py-3">
+        <form method="post" action="{{ url_for('tambah_produk_ke_kebutuhan', pid=p.id) }}" class="row g-2 align-items-end">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <div class="col"><label class="form-label small mb-1" for="needQty">Tambah ke Manajemen Kebutuhan · {{ p.satuan }}</label>
+            <input class="form-control" id="needQty" type="number" name="jumlah" min="0.01" step="0.01" value="1" required></div>
+          <div class="col-auto"><button class="btn btn-outline-success fw-semibold"><i class="bi bi-basket-plus"></i> Simpan</button></div>
+        </form>
+        <div class="small text-muted mt-2">Harga listing Rp{{ p.harga|rp }}/{{ p.satuan }} akan dipakai sebagai estimasi awal.</div>
+      </div></div>
       <div class="card border-success"><div class="card-body">
         <h6 class="fw-bold text-success"><i class="bi bi-cash-coin"></i> Ajukan Penawaran Harga</h6>
         {% if p.non_halal %}<div class="alert alert-danger py-2 small">⚠️ Produk ini berasal dari sub kategori <b>Babi</b> dan ditandai <b>NON HALAL</b>. Dengan melanjutkan Anda menyatakan telah membaca label tersebut.</div>{% endif %}

@@ -933,6 +933,25 @@ def hapus_kebutuhan(kid):
     return redirect(url_for("dashboard_buyer") + "#tNeeds")
 
 
+@app.route("/produk/<int:pid>/kebutuhan", methods=["POST"])
+@login_required("pembeli")
+def tambah_produk_ke_kebutuhan(pid):
+    p = Product.query.filter_by(id=pid, status="aktif").first_or_404()
+    try:
+        jumlah = float(request.form.get("jumlah", "1"))
+    except (TypeError, ValueError):
+        jumlah = 0
+    if jumlah <= 0:
+        flash("Jumlah kebutuhan harus lebih dari nol.", "danger")
+        return redirect(url_for("product_detail", pid=pid))
+    db.session.add(KebutuhanPembeli(buyer_id=current_user().id, kategori=p.kategori,
+                                    nama_produk=p.nama_produk, jumlah=jumlah,
+                                    satuan=p.satuan or "unit", estimasi_harga=p.harga or 0))
+    db.session.commit()
+    flash(f"{p.nama_produk} ditambahkan ke Manajemen Kebutuhan dengan harga listing sebagai estimasi.", "success")
+    return redirect(url_for("dashboard_buyer") + "#tNeeds")
+
+
 @app.route("/dashboard/admin")
 @login_required("admin")
 def dashboard_admin():

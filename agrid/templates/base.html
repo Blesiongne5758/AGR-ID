@@ -12,6 +12,7 @@
      (Card/Button/Badge/Input/Table/Tabs/Dialog/Dropdown/Accordion/
       Tooltip/Skeleton/Switch/Avatar/Progress) mengalahkan Bootstrap -->
 <link href="{{ url_for('static', filename='shadcn.css') }}?v=3" rel="stylesheet">
+<link href="{{ url_for('static', filename='mobile-nav.css') }}?v=1" rel="stylesheet">
 <script>/* anti-FOUC dark mode: pasang class sebelum render */
 (function(){try{var t=localStorage.getItem('agrid-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
 </head>
@@ -109,6 +110,56 @@
   </div>
   <div class="container mt-3 pt-2 border-top border-secondary small">{{ f_copy|safe }}</div>
 </footer>
+
+<!-- Navigasi bawah mobile: aksi tambah menyesuaikan status dan peran akun. -->
+<nav class="mobile-bottom-nav" aria-label="Navigasi utama mobile">
+  <a class="mobile-nav-item {{ 'is-active' if request.endpoint == 'home' }}" href="{{ url_for('home') }}" {% if request.endpoint == 'home' %}aria-current="page"{% endif %}>
+    <i class="bi bi-house-door" aria-hidden="true"></i><span>Home</span>
+  </a>
+  <a class="mobile-nav-item {{ 'is-active' if request.endpoint == 'marketplace' }}" href="{{ url_for('marketplace') }}" {% if request.endpoint == 'marketplace' %}aria-current="page"{% endif %}>
+    <i class="bi bi-search" aria-hidden="true"></i><span>Cari</span>
+  </a>
+  <button class="mobile-nav-item mobile-nav-add" type="button" data-bs-toggle="modal" data-bs-target="#mobileAddModal" aria-label="Tambah produk atau kebutuhan">
+    <span class="mobile-nav-add-icon"><i class="bi bi-plus-lg" aria-hidden="true"></i></span><span>Tambah</span>
+  </button>
+  <a class="mobile-nav-item {{ 'is-active' if request.endpoint == 'chat_page' }}" href="{{ url_for('chat_page') }}" {% if request.endpoint == 'chat_page' %}aria-current="page"{% endif %}>
+    <i class="bi bi-chat-dots" aria-hidden="true"></i><span>Pesan</span>
+  </a>
+  {% if user and user.role == 'penjual' %}{% set profile_url = url_for('dashboard_seller') %}
+  {% elif user and user.role == 'pembeli' %}{% set profile_url = url_for('dashboard_buyer') %}
+  {% elif user and user.role == 'admin' %}{% set profile_url = url_for('dashboard_admin') %}
+  {% else %}{% set profile_url = url_for('login') %}{% endif %}
+  <a class="mobile-nav-item {{ 'is-active' if request.endpoint in ('dashboard', 'dashboard_seller', 'dashboard_buyer', 'dashboard_admin') }}" href="{{ profile_url }}">
+    <i class="bi bi-person-circle" aria-hidden="true"></i><span>Saya</span>
+  </a>
+</nav>
+
+<div class="modal fade mobile-add-modal" id="mobileAddModal" tabindex="-1" aria-labelledby="mobileAddTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header">
+      <div><h5 class="modal-title fw-bold" id="mobileAddTitle">{% if not user %}Mulai di AGR.ID{% elif user.role == 'penjual' %}Kelola Produk{% elif user.role == 'pembeli' %}Tambah ke Rencana Belanja{% else %}Akses Cepat{% endif %}</h5>
+        <p class="small text-muted mb-0">{% if not user %}Masuk atau buat akun untuk melanjutkan.{% elif user.role == 'pembeli' %}Cari produk untuk dipesan atau susun kebutuhan belanja.{% elif user.role == 'penjual' %}Tambahkan produk yang akan Anda jual.{% else %}Pilih bagian yang ingin dibuka.{% endif %}</p></div>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+    </div>
+    <div class="modal-body d-grid gap-2">
+      {% if not user %}
+      <button type="button" class="mobile-action-link" onclick="openSknj('login')"><i class="bi bi-box-arrow-in-right"></i><span><b>Login</b><small>Lanjutkan ke akun Anda</small></span><i class="bi bi-chevron-right ms-auto"></i></button>
+      <button type="button" class="mobile-action-link" onclick="openSknj('register?role=pembeli')"><i class="bi bi-person-plus"></i><span><b>Daftar sebagai Pembeli</b><small>Pesan produk dan kelola kebutuhan</small></span><i class="bi bi-chevron-right ms-auto"></i></button>
+      <button type="button" class="mobile-action-link" onclick="openSknj('register?role=penjual')"><i class="bi bi-shop"></i><span><b>Daftar sebagai Penjual</b><small>Jual produk pertanian dan perikanan</small></span><i class="bi bi-chevron-right ms-auto"></i></button>
+      {% elif user.role == 'pembeli' %}
+      <a class="mobile-action-link" href="{{ url_for('marketplace') }}"><i class="bi bi-search"></i><span><b>Cari & Pesan Produk</b><small>Jelajahi produk dan ajukan penawaran</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
+      <a class="mobile-action-link" href="{{ url_for('dashboard_buyer') }}#tOff"><i class="bi bi-receipt"></i><span><b>Daftar Pesanan</b><small>Lihat penawaran dan transaksi Anda</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
+      <a class="mobile-action-link" href="{{ url_for('dashboard_buyer') }}#tNeeds"><i class="bi bi-basket"></i><span><b>Manajemen Kebutuhan</b><small>Tambah item dan hitung estimasi biaya</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
+      {% elif user.role == 'penjual' %}
+      <a class="mobile-action-link" href="{{ url_for('create_product') }}"><i class="bi bi-plus-square"></i><span><b>Tambah Produk Jualan</b><small>Buat listing baru di marketplace</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
+      <a class="mobile-action-link" href="{{ url_for('dashboard_seller') }}"><i class="bi bi-box-seam"></i><span><b>Produk Saya</b><small>Kelola listing dan penawaran masuk</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
+      {% else %}
+      <a class="mobile-action-link" href="{{ url_for('marketplace') }}"><i class="bi bi-search"></i><span><b>Cari Produk</b><small>Buka katalog marketplace</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
+      <a class="mobile-action-link" href="{{ url_for('dashboard_admin') }}"><i class="bi bi-speedometer2"></i><span><b>Admin Panel</b><small>Kelola platform</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
+      {% endif %}
+    </div>
+  </div></div>
+</div>
 
 <!-- ================= FLOATING WINDOW: SYARAT & KETENTUAN ================= -->
 <div class="modal fade" id="skkjModal" data-bs-backdrop="static" tabindex="-1">
