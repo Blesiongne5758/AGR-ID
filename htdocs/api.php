@@ -138,6 +138,20 @@ function sb(string $table, string $method, array $query = [], ?array $data = nul
     return is_array($j) ? $j : [];
 }
 
+/* Privileged feature operations use scoped PostgreSQL RPCs. The database
+   validates the app session token again and keeps chat tables private from anon. */
+function sb_rpc(string $function, array $data) {
+    global $CFG;
+    if ($CFG['supabase_url'] === '' || $CFG['supabase_key'] === '') err('Supabase belum dikonfigurasi', 503);
+    [$code, $res] = http_req('POST', rtrim($CFG['supabase_url'], '/') . '/rest/v1/rpc/' . rawurlencode($function),
+        ['apikey: ' . $CFG['supabase_key'], 'Authorization: Bearer ' . $CFG['supabase_key'], 'Content-Type: application/json'],
+        json_encode($data, JSON_UNESCAPED_UNICODE));
+    $result = json_decode($res, true);
+    if ($code >= 400) err(is_array($result) ? ($result['message'] ?? $result['details'] ?? 'Operasi database gagal') : 'Operasi database gagal', $code === 401 || $code === 403 ? $code : 400);
+    if ($result === null && trim($res) !== 'null') err('Respons database tidak valid', 502);
+    return $result;
+}
+
 /* ---------- Cloudinary signature ---------- */
 function cloudinary_signature(array $params): array {
     global $CFG;
@@ -528,6 +542,31 @@ switch ($action) {
     case 'favorites': {
         $u = require_session($token, 'pembeli');
         out(sb('favorites', 'GET', ['buyer_id=eq.' . $u['id'], 'select=*']));
+    }
+
+    /* ---- PESAN PRODUK: percakapan buyer dengan pemilik listing ---- */
+    case 'chat-start': {
+        require_session($token, 'pembeli');
+        $b = body_json(); $productId = (int)($b['product_id'] ?? 0);
+        if (!$productId) err('Produk tidak valid');
+        out(sb_rpc('agr_product_chat_start', ['p_token' => $token, 'p_product_id' => $productId]), 201);
+    }
+    case 'chats': {
+        require_session($token);
+        out(sb_rpc('agr_product_chat_list', ['p_token' => $token]));
+    }
+    case 'chat-messages': {
+        require_session($token);
+        $id = (int)($_GET['id'] ?? 0); if (!$id) err('Percakapan tidak valid');
+        out(sb_rpc('agr_product_chat_messages', ['p_token' => $token, 'p_conversation_id' => $id]));
+    }
+    case 'chat-send': {
+        require_session($token);
+        $b = body_json(); $id = (int)($b['conversation_id'] ?? 0);
+        if (!$id) err('Percakapan tidak valid');
+        out(['ok' => true, 'message' => sb_rpc('agr_product_chat_send', [
+            'p_token' => $token, 'p_conversation_id' => $id, 'p_body' => (string)($b['body'] ?? ''),
+        ])], 201);
     }
 
     /* ---- CHAT AI bridge (butuh backend Flask) ---- */

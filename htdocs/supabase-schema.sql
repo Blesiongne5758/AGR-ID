@@ -70,6 +70,30 @@ create table if not exists products (
 create index if not exists idx_products_kategori on products(kategori, sub_kategori);
 create index if not exists idx_products_seller   on products(user_id);
 
+-- PESAN PRODUK (buyer ↔ seller pemilik listing). Akses aplikasi melalui RPC
+-- terautentikasi di migration 0006_product_chat.sql; tabel tetap privat dari anon.
+create table if not exists product_conversations (
+  id bigint generated always as identity primary key,
+  product_id bigint not null references products(id) on delete cascade,
+  buyer_id bigint not null references users(id) on delete cascade,
+  seller_id bigint not null references users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (product_id, buyer_id),
+  check (buyer_id <> seller_id)
+);
+create index if not exists idx_product_conversations_buyer on product_conversations(buyer_id, updated_at desc);
+create index if not exists idx_product_conversations_seller on product_conversations(seller_id, updated_at desc);
+create table if not exists product_chat_messages (
+  id bigint generated always as identity primary key,
+  conversation_id bigint not null references product_conversations(id) on delete cascade,
+  sender_id bigint references users(id) on delete set null,
+  body text not null check (char_length(body) between 1 and 2000),
+  is_system boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_product_chat_messages_conversation on product_chat_messages(conversation_id, created_at, id);
+
 -- OFFERS (penawaran harga buyer -> seller)
 create table if not exists offers (
   id           bigint generated always as identity primary key,
@@ -193,6 +217,8 @@ alter table eviden       enable row level security;
 alter table ratings      enable row level security;
 alter table favorites    enable row level security;
 alter table pengaturan   enable row level security;
+alter table product_conversations enable row level security;
+alter table product_chat_messages enable row level security;
 
 -- Publik boleh membaca listing produk & master produk (untuk autocomplete)
 create policy "products_public_read"  on products      for select using (status = 'aktif');
@@ -207,5 +233,7 @@ create policy "users_public_profile"  on users         for select using (role in
 -- yang menembus RLS). Revoke grant menambah lapisan pengaman.
 alter table schema_migrations enable row level security;
 revoke all on schema_migrations from anon, authenticated;
+revoke all on product_conversations, product_chat_messages from public, anon, authenticated;
 
 select 'AGR.ID skema supabase siap' as status;
+

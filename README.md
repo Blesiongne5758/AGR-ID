@@ -19,6 +19,7 @@ Dibangun dengan **Python Flask + SQLAlchemy** untuk aplikasi lokal/server dan fr
 - **Label ⚠️ NON HALAL** otomatis pada sub kategori **Babi** (badge di listing, detail produk, form posting) + toggle filter "sembunyikan Non Halal" di marketplace.
 - **Ticker harga market** berjalan (animated marquee) berisi ±75 komoditas dengan harga & persentase naik/turun harian.
 - **Database Produk auto-update**: saat penjual mengetik nama produk baru di form, autocomplete memanggil `/api/produk-master`; nama yang belum ada **otomatis disimpan ke tabel `produk_master`** (flag `auto_added`).
+- **Pesan langsung produk**: pembeli dapat menghubungi pemilik listing dari halaman produk; penjual membalas lewat menu **Pesan**. Setiap percakapan diawali pengingat privasi AGR.ID dan hanya dapat dibaca oleh kedua pihak.
 
 ### Lelang Terbuka
 - Penjual membuat event lelang untuk satu paket yang terdiri dari beberapa listing dan seluruh stok yang dipilih, misalnya hasil panen, buah di pohon, atau ternak.
@@ -35,6 +36,7 @@ Dibangun dengan **Python Flask + SQLAlchemy** untuk aplikasi lokal/server dan fr
 - Satu akun dapat memiliki mode **Penjual** dan **Pembeli**. Mode Penjual diaktifkan dari Pengaturan Pengguna setelah nama lengkap/usaha, nomor telepon, alamat, kota, provinsi, koordinat GPS, tipe penjual, dan NPWP/NIB untuk badan/organisasi dilengkapi.
 - Tipe badan usaha disimpan terpisah untuk masing-masing mode agar pilihan Penjual dan Pembeli tetap sesuai.
 - Migrasi `0004_multi_role_accounts.sql` dan `0005_registration_profile_activation.sql` menyiapkan mode multi-peran, mode aktif per sesi, dan nama pengguna unik. Migrasi memberi akun lama dukungan mode yang sudah ada; pendaftaran baru hanya memberi peran Pembeli sampai aktivasi penjual selesai.
+- Migrasi `0006_product_chat.sql` menyiapkan percakapan per produk dan fungsi database terautentikasi; tabel pesan tidak dapat dibaca langsung oleh klien publik.
 - **Tipe Penjual**: Perorangan / Kelompok-Paguyuban / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
 - **Tipe Pembeli**: Perorangan / Yayasan / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
 - Alamat lengkap + **koordinat GPS** (tombol deteksi lokasi).

@@ -85,13 +85,13 @@ jobs:
             "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
             -H "Authorization: Bearer ${MGMT_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d '{"query":"SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema='\''public'\'' AND table_name IN ('\''users'\'','\''products'\'','\''transaksi'\'');"}') || RESP='{"n":0}'
+            -d '{"query":"SELECT ((SELECT count(*) FROM information_schema.tables WHERE table_schema='\''public'\'' AND table_name IN ('\''users'\'','\''products'\'','\''transaksi'\'','\''product_conversations'\'','\''product_chat_messages'\'')) + (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='\''public'\'' AND p.proname IN ('\''agr_product_chat_start'\'','\''agr_product_chat_list'\'','\''agr_product_chat_messages'\'','\''agr_product_chat_send'\'')))::int AS n;"}') || RESP='{"n":0}'
           N=$(echo "$RESP" | grep -o '"n":[0-9]*' | cut -d: -f2)
-          echo "Tabel inti ditemukan: ${N:-0}/3"
+          echo "Tabel inti dan objek chat ditemukan: ${N:-0}/9"
           echo "tables_found=${N:-0}" >> "$GITHUB_OUTPUT"
-          if [ "${N:-0}" -ge 3 ] && [ "${{ inputs.force }}" != "true" ]; then
+          if [ "${N:-0}" -ge 9 ] && [ "${{ inputs.force }}" != "true" ]; then
             echo "SKIP=true" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Guard::Schema sudah terpasang — lewati migrasi (pakai input force=true untuk memaksa)."
+            echo "::notice title=Guard::Schema dan objek chat sudah terpasang — lewati migrasi (pakai input force=true untuk memaksa)."
           else
             echo "SKIP=false" >> "$GITHUB_OUTPUT"
           fi
@@ -240,6 +240,31 @@ jobs:
           print("Migration 0005 registration and seller activation berhasil diterapkan.")
           PY
 
+      - name: Apply migration 0006 product chat
+        run: |
+          python3 - "supabase/migrations/0006_product_chat.sql" <<'PY'
+          import json, os, subprocess, sys
+          path = sys.argv[1]
+          sql = open(path, encoding="utf-8").read()
+          r = subprocess.run([
+              "curl", "-sS", "--fail-with-body", "--max-time", "120", "--retry", "3", "--retry-delay", "5",
+              f"https://api.supabase.com/v1/projects/{os.environ['PROJECT_REF']}/database/query",
+              "-H", f"Authorization: Bearer {os.environ['MGMT_TOKEN']}",
+              "-H", "Content-Type: application/json",
+              "-d", json.dumps({"query": sql}),
+          ], capture_output=True, text=True)
+          if r.returncode:
+              sys.exit(f"Migration 0006 gagal ({r.returncode}): {r.stderr[:500]} {r.stdout[:500]}")
+          out = r.stdout.strip()
+          try:
+              result = json.loads(out) if out else None
+              if isinstance(result, dict) and result.get("error"):
+                  sys.exit(f"Migration 0006 gagal: {result['error']}")
+          except json.JSONDecodeError:
+              sys.exit(f"Respons migration 0006 bukan JSON: {out[:500]}")
+          print("Migration 0006 product chat berhasil diterapkan.")
+          PY
+
       # ---------- Verifikasi hasil ----------
       # Query tunggal sederhana yang sudah terbukti sukses dari sandbox:
       # daftar nama tabel publik via information_schema.
@@ -289,3 +314,4 @@ jobs:
             echo ""
             echo "_Deploy frontend InfinityFree tetap terpisah → workflow \`deploy.yml\`._"
           } >> "$GITHUB_STEP_SUMMARY"
+

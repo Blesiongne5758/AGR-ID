@@ -113,3 +113,22 @@ footer h4{color:#fff}footer a{color:#bcd8bc}footer a:hover{color:#fff}
 .pwd-eye{position:absolute;right:8px;top:26px;z-index:2;padding:2px 8px;font-size:14px;line-height:1.4}
 .card-form input.input[type=password],.card-form input.input[name=password]{padding-right:44px}
 .auth input.input,.card-form input.input{-webkit-text-fill-color:initial;color-scheme:light}
+
+/* Pesan langsung terkait listing produk */
+.pc-wrap{max-width:900px;margin:24px auto;padding:0 4px}
+.pc-title{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:14px 0}
+.pc-title h2{margin:0 0 4px}.pc-title p{margin:0}
+.pc-notice{padding:13px 15px;margin:14px 0;border:1px solid #f3d28c;background:#fff8e8;color:#614d21;border-radius:10px;font-size:.86rem;line-height:1.5}
+.pc-list{display:grid;gap:8px}
+.pc-thread{display:flex;align-items:center;gap:12px;padding:14px;background:#fff;border:1px solid var(--line);border-radius:12px;color:var(--ink);text-decoration:none}
+.pc-thread:hover{border-color:var(--green2);box-shadow:0 4px 14px #1232}
+.pc-avatar{display:grid;place-items:center;flex:0 0 42px;height:42px;border-radius:50%;background:#e8f4eb;color:var(--green);font-weight:800}
+.pc-thread-main{display:grid;min-width:0;flex:1;gap:3px}.pc-thread-main small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.pc-empty{padding:32px 16px;text-align:center;background:#fff;border:1px dashed var(--line);border-radius:12px;color:var(--muted)}
+.pc-messages{height:min(52vh,520px);min-height:260px;overflow:auto;padding:14px;background:#fff;border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;gap:10px}
+.pc-system{align-self:center;max-width:92%;padding:12px 14px;border:1px solid #f3d28c;background:#fff8e8;color:#614d21;border-radius:12px;font-size:.84rem;line-height:1.5}
+.pc-bubble{align-self:flex-start;max-width:82%;padding:10px 13px;border:1px solid var(--line);background:#f6f7f6;border-radius:14px;overflow-wrap:anywhere;line-height:1.45}
+.pc-bubble.mine{align-self:flex-end;background:#e8f4eb;border-color:#c6e3cc}.pc-bubble small{display:block;text-align:right;margin-top:5px;color:var(--muted)}
+.pc-compose{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px;align-items:end}.pc-compose small{grid-column:1/-1}
+@media(max-width:600px){.pc-wrap{margin:16px auto}.pc-title{align-items:flex-start}.pc-title-chat{margin-top:18px}.pc-thread{padding:11px}.pc-thread>small{display:none}.pc-bubble{max-width:90%}.pc-system{max-width:100%}}
+

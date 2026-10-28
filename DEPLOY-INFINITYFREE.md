@@ -13,7 +13,7 @@ semua akses Supabase & Cloudinary dimediasi `htdocs/api.php` (server-side cURL).
 1. Buat project di https://supabase.com → Project Settings → API: salin **URL** & **anon public key**.
    Gateway PHP memakai anon key dan kebijakan RLS; jangan gunakan service-role key di hosting atau workflow.
 2. SQL Editor → Run isi `htdocs/supabase-schema.sql` (membuat 12 tabel + RLS).
-3. Jalankan migration `supabase/migrations/0004_multi_role_accounts.sql` dan `0005_registration_profile_activation.sql` untuk mengisi mode akun, username lama, dan peran sesi. Workflow database dapat menjalankannya otomatis bila `SUPABASE_PROJECT_REF` dan `SUPABASE_MANAGEMENT_TOKEN` valid.
+3. Jalankan migration `0004_multi_role_accounts.sql`, `0005_registration_profile_activation.sql`, dan `0006_product_chat.sql` untuk mode akun, aktivasi penjual, serta pesan produk. Workflow database menerapkan migration tersebut otomatis bila `SUPABASE_PROJECT_REF` dan `SUPABASE_MANAGEMENT_TOKEN` valid.
 4. Jalankan `htdocs/seed-supabase.sql` bila ingin memasukkan akun dan katalog demo.
 5. Authentication → Sign In / Up → matikan "Confirm email" agar registrasi via gateway jalan.
 

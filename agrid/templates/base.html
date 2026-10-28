@@ -29,6 +29,7 @@
       <ul class="navbar-nav me-auto">
         <li class="nav-item"><a class="nav-link" href="{{ url_for('marketplace') }}"><i class="bi bi-shop"></i> Marketplace</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('auction_list') }}"><i class="bi bi-hammer"></i> Lelang Terbuka</a></li>
+        {% if user and user.active_role in ('penjual', 'pembeli') %}<li class="nav-item"><a class="nav-link" href="{{ url_for('product_chats') }}"><i class="bi bi-chat-dots"></i> Pesan</a></li>{% endif %}
         {% if user %}<li class="nav-item"><a class="nav-link" href="{{ url_for('calendar_page') }}"><i class="bi bi-calendar3"></i> Kalender</a></li>{% endif %}
         {% if user %}{% if user.active_role=='penjual' %}
         <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard_seller') }}"><i class="bi bi-speedometer2"></i> Dashboard Penjual</a></li>
@@ -135,7 +136,8 @@
   <button class="mobile-nav-item mobile-nav-add" type="button" data-bs-toggle="modal" data-bs-target="#mobileAddModal" aria-label="Tambah produk atau kebutuhan">
     <span class="mobile-nav-add-icon"><i class="bi bi-plus-lg" aria-hidden="true"></i></span><span>Tambah</span>
   </button>
-  <a class="mobile-nav-item {{ 'is-active' if request.endpoint == 'chat_page' }}" href="{{ url_for('chat_page') }}" {% if request.endpoint == 'chat_page' %}aria-current="page"{% endif %}>
+  {% set messages_url = url_for('product_chats') if user and user.active_role in ('pembeli', 'penjual') else url_for('login') %}
+  <a class="mobile-nav-item {{ 'is-active' if request.endpoint in ('product_chats', 'product_chat_detail') }}" href="{{ messages_url }}" {% if request.endpoint in ('product_chats', 'product_chat_detail') %}aria-current="page"{% endif %}>
     <i class="bi bi-chat-dots" aria-hidden="true"></i><span>Pesan</span>
   </a>
   {% if user and user.active_role == 'penjual' %}{% set profile_url = url_for('dashboard_seller') %}
@@ -296,3 +298,4 @@ document.querySelectorAll('img.agr-media[data-ref]').forEach(el => renderMedia(e
 {% block scripts %}{% endblock %}
 </body>
 </html>
+

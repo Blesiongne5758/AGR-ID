@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Pesan Produk — AGR.ID{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:900px">
+  <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+    <div><h2 class="fw-bold mb-1"><i class="bi bi-chat-dots text-success"></i> Pesan Produk</h2>
+      <p class="text-muted mb-0">Percakapan langsung antara pembeli dan pemilik produk.</p></div>
+    <a class="btn btn-outline-success" href="{{ url_for('marketplace') }}">Cari Produk</a>
+  </div>
+  <div class="alert alert-warning small"><b>Pengingat privasi:</b> {{ privacy_notice if privacy_notice is defined else "Harap lindungi informasi pribadi saat berkomunikasi di AGR.ID." }}</div>
+  <div class="list-group shadow-sm">
+    {% for chat in chats %}
+    {% set last = chat.messages[-1] if chat.messages else none %}
+    <a class="list-group-item list-group-item-action py-3" href="{{ url_for('product_chat_detail', chat_id=chat.id) }}">
+      <div class="d-flex justify-content-between gap-3"><div class="min-w-0">
+        <div class="fw-bold">{{ chat.product.nama_produk }}</div>
+        <div class="small text-muted">{{ chat.seller.nama if user.active_role=='pembeli' else chat.buyer.nama }}</div>
+        <div class="small text-truncate mt-1">{{ (last.body if last else 'Percakapan dimulai')[:180] }}</div>
+      </div><small class="text-muted text-nowrap">{{ chat.updated_at|dt }}</small></div>
+    </a>
+    {% else %}
+    <div class="list-group-item text-center py-5 text-muted">Belum ada pesan produk. Buka listing produk dan pilih <b>Tanya Pemilik Produk</b>.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+

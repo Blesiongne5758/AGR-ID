@@ -63,6 +63,13 @@
         {% if p.lat %}· <a target="_blank" href="https://www.google.com/maps?q={{ p.lat }},{{ p.lng }}">🗺️ Lihat di Peta</a>{% endif %}
       </div></div>
 
+      {% if user and user.active_role=='pembeli' and user.id != p.seller_id %}
+      <form method="post" action="{{ url_for('start_product_chat', pid=p.id) }}" class="mb-3">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="btn btn-outline-success w-100 fw-semibold"><i class="bi bi-chat-dots"></i> Tanya Pemilik Produk</button>
+      </form>
+      {% endif %}
+
       {% if evidences %}
       <div class="card mb-3"><div class="card-body py-2">
         <b><i class="bi bi-shield-check text-success"></i> Bukti Eviden Ketelusuran (contoh)</b>
@@ -131,3 +138,4 @@ document.getElementById('ulasanModal')?.addEventListener('shown.bs.modal', async
 </script>
 
 {% endblock %}
+

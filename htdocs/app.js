@@ -39,17 +39,20 @@ const toast = m => { const t=el('div','agr-toast',esc(m)); $('#toasts').appendCh
 const STATUS_LBL = { dp_pending:'Menunggu DP', dp_paid:'DP Dibayar', menunggu_approval:'Menunggu Approval Penjual', lunas:'Lunas', dikirim:'Dikirim', completed:'Selesai', dibatalkan:'Dibatalkan', menunggu:'Menunggu', diterima:'Diterima', ditolak:'Ditolak' };
 const badge = st => `<span class="badge b-${st||'menunggu'}">${esc(STATUS_LBL[st]||st)}</span>`;
 
-const routes = { '#/beranda':'home', '#/marketplace':'market', '#/login':'login', '#/daftar':'register', '#/chat':'chat', '#/akun':'akun',
+const routes = { '#/beranda':'home', '#/marketplace':'market', '#/login':'login', '#/daftar':'register', '#/chat':'chat', '#/pesan':'productChats', '#/akun':'akun',
   '#/dashboard':'dash', '#/dashboard/penjual':'dashPenjual', '#/dashboard/pembeli':'dashPembeli', '#/dashboard/admin':'dashAdmin',
   '#/produk-baru':'formProduk' };
 function resolve(){
+  if(window._productChatTimer){ clearInterval(window._productChatTimer); window._productChatTimer=null; }
   const raw = location.hash.split('?')[0];
+  const chatMatch = raw.match(/^#\/pesan\/(\d+)$/);
+  if(chatMatch){ if(!S.token){location.hash='#/login';return;} renderers.productChat(+chatMatch[1]); return; }
   const md = raw.match(/^#\/produk\/(\d+)$/);
   if(md){ tampilDetail(md[1]); return; }
   const key = Object.keys(routes).sort((a,b)=>b.length-a.length).find(k => raw.startsWith(k)) ?? '';
   const view = key ? routes[key] : 'home';
   const qs = new URLSearchParams(location.hash.split('?')[1]||'');
-  const prot = ['dash','dashPenjual','dashPembeli','dashAdmin','formProduk'];
+  const prot = ['dash','dashPenjual','dashPembeli','dashAdmin','formProduk','productChats'];
   if(prot.includes(view) && !S.token){ location.hash='#/login'; return; }
   (renderers[view]||renderers.home)(qs);
 }
@@ -152,11 +155,13 @@ async function tampilDetail(id){
         <p class="muted">📍 ${esc(p.alamat_lahan||(p.seller&&p.seller.alamat)||'-')} ${p.lat?`· <a target="_blank" rel="noopener" href="https://maps.google.com/?q=${p.lat},${p.lng}">lihat peta</a>`:''}</p></div>
       <div class="d-act">
         ${S.user&&S.user.role==='pembeli'?`<button class="btn btn-primary" id="btnTawar">Buat Penawaran</button>
-          <button class="btn btn-outline" id="btnFav">${fav?'★':'☆'} Favorit</button>`:!S.user?`<a class="btn btn-primary" href="#/login">Masuk untuk Menawar</a>`:'<span class="muted">Hanya pembeli yang dapat membuat penawaran.</span>'}
+          <button class="btn btn-outline" id="btnFav">${fav?'★':'☆'} Favorit</button>
+          ${+S.user.id!==+p.user_id?'<button class="btn btn-outline" id="btnProductChat">Tanya Penjual</button>':''}`:!S.user?`<a class="btn btn-primary" href="#/login">Masuk untuk Menawar atau Bertanya</a>`:'<span class="muted">Hanya pembeli yang dapat menawar dan memulai chat produk.</span>'}
       </div>
       <div id="offerBox"></div>
     </div></div>`;
   const bf=$('#btnFav'); if(bf) bf.onclick=async()=>{ try{ const r=await api('favorite-toggle',{method:'POST',body:{target_type:'produk',target_id:+id}}); bf.innerHTML=(r.favorit?'★':'☆')+' Favorit'; toast(r.favorit?'Ditambahkan ke favorit':'Dihapus dari favorit'); }catch(e){toast(e.message);} };
+  const bc=$('#btnProductChat'); if(bc) bc.onclick=async()=>{try{const c=await api('chat-start',{method:'POST',body:{product_id:+id}});location.hash='#/pesan/'+c.id;}catch(e){toast(e.message);}};
   const bt=$('#btnTawar'); if(bt) bt.onclick=()=>{
     $('#offerBox').innerHTML = `<div class="panel"><h4>Buat Penawaran Harga</h4>
       <label>Harga tawar per ${esc(p.satuan)} (Rp)<input id="oHarga" class="input" type="number" value="${Math.round(p.harga*0.95)}"></label>
@@ -279,6 +284,29 @@ renderers.chat = () => {
   const send=()=>{ const v=$('#cin').value.trim(); if(!v)return; msg(v,'me'); $('#cin').value=''; botJawab(v); };
   $('#csnd').onclick=send; $('#cin').onkeydown=e=>e.key==='Enter'&&send();
 };
+
+renderers.productChats = async () => {
+  if(!S.token){location.hash='#/login';return;}
+  let chats=[]; try{chats=await api('chats');}catch(e){$('#app').innerHTML=`<div class="panel"><h2>Pesan Produk</h2><p>${esc(e.message)}</p></div>`;return;}
+  $('#app').innerHTML=`<section class="pc-wrap"><div class="pc-title"><div><h2>Pesan Produk</h2><p class="muted">Percakapan dengan pembeli atau pemilik listing.</p></div><a class="btn btn-outline" href="#/marketplace">Cari Produk</a></div>
+    <div class="pc-notice"><b>Pengingat privasi</b><br>Para pengguna harap waspada dan hati-hati dalam menukar informasi yang bersifat Privasi agar tidak saling bertukar nomor kontak,alamat dan email atau informasi pibadi dan sensitif lainnya dan segala resiko yang disebebkan kelalaian para pengguna  diluar dari portal Agrid bukan menjadi tanggung jawab Portal Agrid. Terima Kasih</div>
+    <div class="pc-list">${chats.map(c=>`<a class="pc-thread" href="#/pesan/${c.id}"><span class="pc-avatar">${esc((c.other_name||'?').slice(0,1).toUpperCase())}</span><span class="pc-thread-main"><b>${esc(c.product_name)}</b><small>${esc(c.other_name)} · ${esc(c.last_message||'Percakapan dimulai')}</small></span><small class="muted">${esc((c.updated_at||'').slice(0,16).replace('T',' '))}</small></a>`).join('')||'<div class="pc-empty">Belum ada percakapan. Buka listing produk dan pilih “Tanya Penjual”.</div>'}</div></section>`;
+};
+
+renderers.productChat = async (id) => {
+  if(window._productChatTimer){clearInterval(window._productChatTimer);window._productChatTimer=null;}
+  if(!S.token){location.hash='#/login';return;}
+  let data;
+  try{data=await api('chat-messages',{qs:'id='+id});}
+  catch(e){$('#app').innerHTML=`<section class="pc-wrap"><a href="#/pesan">← Semua pesan</a><div class="panel"><p>${esc(e.message)}</p></div></section>`;return;}
+  const c=data.conversation, other=+S.user.id===+c.buyer_id?(c.seller_name||'Penjual'):(c.buyer_name||'Pembeli');
+  $('#app').innerHTML=`<section class="pc-wrap"><a href="#/pesan">← Semua pesan</a><div class="pc-title pc-title-chat"><div><h2>${esc(c.product_name)}</h2><p class="muted">${esc(other)} · ${rp(c.product_harga)}/${esc(c.product_satuan)}</p></div><a href="#/produk/${c.product_id}" class="btn btn-outline">Lihat Produk</a></div>
+    <div class="pc-messages" id="pcMessages"></div><form class="pc-compose" id="pcCompose"><textarea id="pcBody" class="input" rows="2" maxlength="2000" placeholder="Tanyakan detail produk…" required></textarea><button class="btn btn-primary" type="submit">Kirim</button><small class="muted">Maksimal 2.000 karakter. Hindari membagikan informasi pribadi atau kontak.</small></form></section>`;
+  const draw=async()=>{try{const fresh=await api('chat-messages',{qs:'id='+id});data=fresh;$('#pcMessages').innerHTML=(fresh.messages||[]).map(m=>m.is_system?`<div class="pc-system"><b>${esc(m.sender_name||'AGR.ID')}</b><br>${esc(m.body)}</div>`:`<div class="pc-bubble ${+m.sender_id===+S.user.id?'mine':''}"><b>${+m.sender_id===+S.user.id?'Anda':esc(m.sender_name)}</b><div>${esc(m.body).replace(/\n/g,'<br>')}</div><small>${esc((m.created_at||'').slice(0,16).replace('T',' '))}</small></div>`).join('');$('#pcMessages').scrollTop=$('#pcMessages').scrollHeight;}catch(e){toast(e.message);}};
+  $('#pcCompose').onsubmit=async e=>{e.preventDefault();const body=$('#pcBody').value.trim();if(!body)return;const submit=$('#pcCompose button');submit.disabled=true;try{await api('chat-send',{method:'POST',body:{conversation_id:+id,body}});$('#pcBody').value='';await draw();}catch(err){toast(err.message);}finally{submit.disabled=false;}};
+  await draw(); window._productChatTimer=setInterval(()=>{if(location.hash.startsWith('#/pesan/'))draw();},7000);
+};
+
 function msg(t,who){ const d=el('div','m'+(who==='me'?' me':''),esc(t).replace(/\n/g,'<br>')); $('#msgs').appendChild(d); $('#msgs').scrollTop=1e9; }
 function botJawab(t){
   const s=t.toLowerCase(); let r='';
