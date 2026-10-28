@@ -25,8 +25,9 @@ semua akses Supabase & Cloudinary dimediasi `htdocs/api.php` (server-side cURL).
 ## Langkah 3 — Secrets deploy
 1. Di GitHub → Settings → Secrets and variables → Actions, isi secrets wajib:
    `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`, `SUPABASE_ANON_KEY`, dan `AGR_ID_SESSION_SECRET`.
-2. `AGR_ID_SESSION_SECRET` harus acak dan minimal 64 karakter. Opsional: isi
-   `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, dan `AGR_ID_API_URL`.
+2. `AGR_ID_SESSION_SECRET` harus acak dan minimal 64 karakter. Untuk upload foto,
+   isi `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, dan `CLOUDINARY_API_SECRET`
+   dari Cloudinary Dashboard → Settings → Access Keys. `AGR_ID_API_URL` opsional.
 3. Workflow membuat `htdocs/config.php` saat build dan mengirimnya lewat FTP; file itu tetap diabaikan Git.
    Push ke `main` pada folder `htdocs/` menjalankan deploy otomatis.
 
@@ -47,6 +48,11 @@ lihat bagian bawah file ini.
 - Bila service-role key pernah tersimpan di file atau riwayat GitHub publik, rotasi key itu di Supabase sebelum deploy berikutnya.
 - Dokumen KYC privat: folder `agrid/private/<user_id>` di Cloudinary, diakses
   hanya via `api.php?action=media-private-url` (signed URL 5 menit, cek status DP).
+- Foto produk: frontend meminta signature sementara ke `api.php?action=media-signature`,
+  lalu mengunggah langsung ke Cloudinary `image/upload`. API Secret hanya berada di
+  server. Upload produk hanya diberikan kepada sesi dengan mode penjual aktif;
+  format JPG/PNG/WebP, maksimal 8 MB. Pastikan endpoint `api.php?action=health`
+  menampilkan `cloudinary: true` setelah deploy.
 - Rate limit InfinityFree ± 40k hit/hari; ticker harga sebaiknya di-cache
   sisi klien (localStorage 10 menit) agar hemat request.
 
@@ -60,3 +66,4 @@ insert into users(email,username,nama,password_hash,role,tipe,alamat,no_hp) valu
  ('admin@agr.id','admin_agrid','Admin AGR',      '<bcrypt-admin123>','admin','Perorangan','','');
 ```
 Buat hash bcrypt via `php -r "echo password_hash('penjual123', PASSWORD_BCRYPT);"`.
+

@@ -155,7 +155,7 @@ Buka **http://127.0.0.1:5000**. Server bind ke `0.0.0.0` sehingga juga bisa diak
    - `SUPABASE_PROJECT_REF` dan `SUPABASE_MANAGEMENT_TOKEN` untuk migrasi database.
    - `SUPABASE_ANON_KEY`, `AGR_ID_SESSION_SECRET`, `FTP_SERVER`, `FTP_USERNAME`, dan `FTP_PASSWORD` untuk deploy website.
    - `AGR_ID_SESSION_SECRET` harus berupa string acak minimal 64 karakter. Jangan commit nilai secret ke repo.
-3. Opsional: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, dan `AGR_ID_API_URL`.
+3. Opsional: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, dan `AGR_ID_API_URL`. Kredensial Cloudinary mengaktifkan endpoint tanda tangan sementara `api.php?action=media-signature`; frontend mengunggah foto langsung ke Cloudinary tanpa mengekspos API Secret. Foto produk dibatasi ke JPG/PNG/WebP, 8 MB, dan folder publik khusus produk.
 4. Push perubahan pada `htdocs/` ke branch `main` untuk menjalankan **Deploy to InfinityFree**. Workflow memvalidasi sintaks PHP, membuat `htdocs/config.php` dari secrets, lalu mengirim file melalui FTP. File konfigurasi tidak disimpan di Git.
 5. Untuk konfigurasi lengkap dan langkah pemulihan, lihat [DEPLOY-INFINITYFREE.md](DEPLOY-INFINITYFREE.md).
 
@@ -181,3 +181,4 @@ Buka **http://127.0.0.1:5000**. Server bind ke `0.0.0.0` sehingga juga bisa diak
 
 ## 📄 Lisensi
 Dibuat untuk petani, nelayan & peternak Indonesia 🇮🇩 — silakan kembangkan sesuai kebutuhan.
+

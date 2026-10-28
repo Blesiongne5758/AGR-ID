@@ -141,12 +141,14 @@ function sb(string $table, string $method, array $query = [], ?array $data = nul
 /* ---------- Cloudinary signature ---------- */
 function cloudinary_signature(array $params): array {
     global $CFG;
-    if ($CFG['cloudinary_cloud'] === '') err('Cloudinary belum dikonfigurasi', 503);
+    if ($CFG['cloudinary_cloud'] === '' || $CFG['cloudinary_key'] === '' || $CFG['cloudinary_secret'] === '') {
+        err('Cloudinary belum dikonfigurasi. Isi cloudinary_cloud, cloudinary_key, dan cloudinary_secret di config.php atau GitHub Secrets.', 503);
+    }
     ksort($params);
     $toSign = implode('&', array_map(fn($k, $v) => "$k=$v", array_keys($params), array_values($params)));
     $sig = sha1($toSign . $CFG['cloudinary_secret']);
     return ['signature' => $sig, 'api_key' => $CFG['cloudinary_key'], 'cloud_name' => $CFG['cloudinary_cloud'],
-            'timestamp' => $params['timestamp'], 'folder' => $params['folder'] ?? 'agrid'];
+            'timestamp' => $params['timestamp'], 'folder' => $params['folder'] ?? 'agrid', 'upload_params' => $params];
 }
 
 /* ==================== ROUTER ==================== */
@@ -157,8 +159,9 @@ switch ($action) {
 
     /* ---- health & bootstrap ---- */
     case 'health':
+        $cloudinaryReady = $CFG['cloudinary_cloud'] !== '' && $CFG['cloudinary_key'] !== '' && $CFG['cloudinary_secret'] !== '';
         out(['ok' => true, 'service' => 'AGR.ID gateway (htdocs)', 'php' => PHP_VERSION,
-             'supabase' => $CFG['supabase_url'] !== '', 'cloudinary' => $CFG['cloudinary_cloud'] !== '',
+             'supabase' => $CFG['supabase_url'] !== '', 'cloudinary' => $cloudinaryReady,
              'flask_bridge' => $CFG['flask_url'] !== '', 'time' => date('c')]);
 
     /* ---- AUTH ---- */
@@ -547,15 +550,30 @@ switch ($action) {
     case 'media-signature': {
         $u = require_session($token);
         $b = body_json();
-        $folder = 'agrid/public';
-        if (($b['visibility'] ?? 'public') === 'private') {
-            if (!in_array($b['purpose'] ?? '', ['kyc', 'chat'])) err('Purpose privat tidak valid');
-            $folder = 'agrid/private/' . $u['id'];
+        $visibility = $b['visibility'] ?? 'public';
+        $purpose = $b['purpose'] ?? '';
+        if ($visibility === 'public') {
+            // Product photos are only issued to an active seller. Other public
+            // evidence uploads must declare a known purpose explicitly.
+            if ($purpose === 'product' || $purpose === '') {
+                if ($u['role'] !== 'penjual') err('Hanya penjual yang dapat mengunggah foto produk publik', 403);
+                $purpose = 'product';
+            } elseif (!in_array($purpose, ['eviden', 'auction'], true)) {
+                err('Purpose upload publik tidak valid');
+            }
+            $folder = 'agrid/public/' . $purpose;
+        } elseif ($visibility === 'private') {
+            if (!in_array($purpose, ['kyc', 'chat'], true)) err('Purpose privat tidak valid');
+            $folder = 'agrid/private/' . $u['id'] . '/' . $purpose;
+        } else {
+            err('Visibility upload tidak valid');
         }
+        $allowedFormats = $visibility === 'private' && $purpose === 'kyc'
+            ? 'jpg,jpeg,png,webp,pdf' : 'jpg,jpeg,png,webp';
         $params = ['timestamp' => time(), 'folder' => $folder, 'tags' => 'agrid',
-            'eager' => 'w_400,h_400,c_limit,quality_auto,f_auto|w_100,h_100,c_thumb,q_auto,f_webp'];
+            'allowed_formats' => $allowedFormats, 'eager' => 'w_400,h_400,c_limit,quality_auto,f_auto|w_100,h_100,c_thumb,q_auto,f_webp'];
         out(['ok' => true] + cloudinary_signature($params)
-            + ['endpoint' => 'https://api.cloudinary.com/v1_1/' . $CFG['cloudinary_cloud'] . '/auto/upload']);
+            + ['endpoint' => 'https://api.cloudinary.com/v1_1/' . $CFG['cloudinary_cloud'] . ($visibility === 'private' ? '/auto/upload' : '/image/upload')]);
     }
     case 'media-private-url': {
         // pre-signed GET pendek utk dokumen privat — hanya pemilik / setelah DP dibayar
@@ -643,3 +661,4 @@ function require_admin(string $token): array {
     if ($u['role'] !== 'admin') err('Akses khusus admin', 403);
     return $u;
 }
+

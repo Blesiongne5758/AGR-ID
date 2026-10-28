@@ -410,7 +410,7 @@ renderers.formProduk = async () => {
   $('#psave').onclick=async()=>{
     if(!$('#pn').value||!$('#ph').value){ toast('Nama produk & harga wajib diisi'); return; }
     let foto=''; const f=$('#pf').files[0];
-    if(f){ try{ foto=await uploadCloud(f,'public'); }catch(e){ toast('Foto gagal diupload: '+e.message); return; } }
+    if(f){ try{ foto=await uploadCloud(f,'public','product'); }catch(e){ toast('Foto gagal diupload: '+e.message); return; } }
     try{ await api('product-create',{method:'POST',body:{nama_product:$('#pn').value,jenis:$('#pj').value,kategori:$('#pk').value,sub_kategori:$('#ps').value,deskripsi:$('#pd').value,harga:+$('#ph').value,satuan:$('#pu').value,stok:+$('#pst').value,foto,lat:window._plat??null,lng:window._plng??null}});
       toast('Produk tayang! Nama baru otomatis masuk master DB.'); location.hash='#/dashboard/penjual'; }catch(e){toast(e.message);} };
 };
@@ -464,15 +464,23 @@ renderers.dashAdmin = async () => {
 /* ---- upload langsung browser -> Cloudinary (bucket publik/privat) ---- */
 async function uploadCloud(file, visibility='public', purpose=''){
   if(file.size>8*1024*1024) throw new Error('Maksimal 8 MB');
+  const allowed = visibility === 'private' && purpose === 'kyc'
+    ? ['image/jpeg','image/png','image/webp','application/pdf']
+    : ['image/jpeg','image/png','image/webp'];
+  if(!allowed.includes(file.type)) throw new Error('Format file harus JPG, PNG, atau WebP'+(visibility === 'private' && purpose === 'kyc' ? ', atau PDF' : ''));
   const sig = await api('media-signature',{method:'POST',body:{visibility,purpose}});
   const fd = new FormData();
-  fd.append('file',file); fd.append('api_key',sig.api_key); fd.append('timestamp',sig.timestamp);
-  fd.append('signature',sig.signature); fd.append('folder',sig.folder); fd.append('tags','agrid');
+  fd.append('file',file); fd.append('api_key',sig.api_key); fd.append('signature',sig.signature);
+  Object.entries(sig.upload_params||{timestamp:sig.timestamp,folder:sig.folder,tags:'agrid'}).forEach(([key,value])=>fd.append(key,String(value)));
   const r = await fetch(sig.endpoint,{method:'POST',body:fd});
-  const j = await r.json(); if(!j.public_id) throw new Error((j.error&&j.error.message)||'Upload ditolak');
-  return j.public_id;
+  let j; try{j=await r.json();}catch(_){throw new Error('Respons Cloudinary tidak valid');}
+  if(!r.ok||!j.public_id) throw new Error((j.error&&j.error.message)||'Upload ditolak');
+  // Public photos use Cloudinary's CDN URL directly. Private KYC keeps only
+  // its public_id so access still goes through the signed private URL route.
+  return visibility === 'private' ? j.public_id : (j.secure_url || j.public_id);
 }
 
 /* ---- helper tabel ---- */
 function tbl(heads,rows){ if(!rows||!rows.length) return null;
   return `<div class="tw"><table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c??''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`; }
+

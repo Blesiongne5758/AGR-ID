@@ -17,7 +17,11 @@ return [
     // diletakkan di hosting publik/htdocs; hanya untuk backend privat (Flask).
     'supabase_key'    => 'eyJhbGciOi...jwt-key',
 
-    // ---- Cloudinary (Dashboard -> Keys) ----
+    // ---- Cloudinary (Dashboard -> Settings -> Access Keys) ----
+    // API Secret hanya digunakan oleh api.php untuk membuat tanda tangan
+    // upload sementara. Jangan pernah mengirim atau menaruhnya di JavaScript.
+    // Upload foto publik memakai image/upload bertanda tangan; dokumen KYC
+    // privat memakai auto/upload dalam folder per pengguna.
     'cloudinary_cloud'   => 'nama-cloud-anda',
     'cloudinary_key'     => '123456789012345',
     'cloudinary_secret'  => 'secret-16-karakter',
@@ -29,3 +33,4 @@ return [
     // ---- Secret untuk menandatangani token sesi (ganti string acak panjang) ----
     'session_secret'  => 'ganti-dengan-string-acak-64-karakter',
 ];
+
