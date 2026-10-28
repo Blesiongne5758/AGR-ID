@@ -1,7 +1,7 @@
 <?php
 /**
  * ============================================================
- *  AGR.ID — Gateway API untuk InfinityFree (docroot: htdocs)
+ *  AGR.BIZ.ID — Gateway API untuk InfinityFree (docroot: htdocs)
  * ============================================================
  *  InfinityFree TIDAK mengizinkan koneksi langsung ke database
  *  eksternal (termasuk Supabase Postgres port 5432). Maka seluruh
@@ -174,7 +174,7 @@ switch ($action) {
     /* ---- health & bootstrap ---- */
     case 'health':
         $cloudinaryReady = $CFG['cloudinary_cloud'] !== '' && $CFG['cloudinary_key'] !== '' && $CFG['cloudinary_secret'] !== '';
-        out(['ok' => true, 'service' => 'AGR.ID gateway (htdocs)', 'php' => PHP_VERSION,
+        out(['ok' => true, 'service' => 'AGR.BIZ.ID gateway (htdocs)', 'php' => PHP_VERSION,
              'supabase' => $CFG['supabase_url'] !== '', 'cloudinary' => $cloudinaryReady,
              'flask_bridge' => $CFG['flask_url'] !== '', 'time' => date('c')]);
 
