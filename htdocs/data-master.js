@@ -1,4 +1,4 @@
-/* AGR.ID — Master katalog produk (dihasilkan dari masterdata Flask), ticker demo,
+/* AGR.BIZ.ID — Master katalog produk (dihasilkan dari masterdata Flask), ticker demo,
 dan konfigurasi publik Cloudinary yang diisi saat setup dari panel Admin.
 Diisi oleh generator; CLOUD_NAME diganti lewat script setup atau dibiarkan kosong. */
 window.CLOUD_NAME = window.CLOUD_NAME || '';
