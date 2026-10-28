@@ -1,5 +1,5 @@
 /* =====================================================================
-   AGR.ID — Frontend SPA statis (InfinityFree htdocs)
+   AGR.BIZ.ID — Frontend SPA statis (InfinityFree htdocs)
    Backend : api.php (gateway) -> Supabase PostgREST + Cloudinary
    Token sesi disimpan localStorage, dikirim via header X-Agr-Token.
    Katalog master (MASTER/SUBS/NONHALAL/TICKER) dimuat dari data-master.js.
@@ -98,7 +98,7 @@ renderers.home = async () => {
   let prods=[]; try{ prods = await api('products',{qs:'limit=8'}); }catch(e){}
   $('#app').innerHTML = `
   <section class="hero">
-    <h1>Marketplace Pertanian, Perkebunan, Perikanan &amp; Peternakan</h1>
+    <h1>AGR.BIZ.ID</h1><p class="brand-tagline">Agrikultur Bisnis Indonesia</p><h2>Marketplace Pertanian, Perkebunan, Perikanan &amp; Peternakan</h2>
     <p>Langsung dari petani dan peternak — penawaran harga, booking dengan DP pengikat, pengiriman terjadwal, dan ketelusuran berbasis bukti foto + GPS. Didukung AI assistant.</p>
     <div class="hero-actions"><a class="btn btn-primary btn-lg" href="#/marketplace">Jelajahi Produk</a><a class="btn btn-outline btn-lg" href="#/daftar">Jadi Penjual</a></div>
   </section>
@@ -173,7 +173,7 @@ async function tampilDetail(id){
 }
 
 renderers.login = () => {
-  $('#app').innerHTML = `<div class="auth card-form"><h2>Masuk ke AGR.ID</h2>
+  $('#app').innerHTML = `<div class="auth card-form"><h2>Masuk ke AGR.BIZ.ID</h2>
     <label>Email / Username<input id="le" class="input" type="text" autocomplete="username" placeholder="nama@email.com"></label>
     <label>Password<input id="lp" class="input" type="password" autocomplete="current-password" placeholder="••••••••"></label>
     <button class="btn btn-primary wide" id="lgo">Masuk</button>
@@ -195,7 +195,7 @@ async function doLogin(){
 }
 
 renderers.register = () => {
-  $('#app').innerHTML = `<div class="auth card-form"><h2>Pendaftaran AGR.ID</h2><p class="muted small">Daftar sebagai pembeli dengan tiga data dasar. Lengkapi profil pengguna dan usaha di Pengaturan Pengguna jika ingin mengaktifkan mode Penjual.</p>
+  $('#app').innerHTML = `<div class="auth card-form"><h2>Pendaftaran AGR.BIZ.ID</h2><p class="muted small">Daftar sebagai pembeli dengan tiga data dasar. Lengkapi profil pengguna dan usaha di Pengaturan Pengguna jika ingin mengaktifkan mode Penjual.</p>
     <label>Email<input id="re" class="input" type="email" autocomplete="email"></label>
     <label>Nama Pengguna<input id="run" class="input" type="text" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_.-]{3,32}" autocomplete="username" placeholder="contoh: tani_makmur"></label>
     <div class="rel"><label>Kata Sandi (min. 8 karakter)<input id="rpw" class="input" type="password" name="password" autocomplete="new-password"></label>
@@ -277,10 +277,10 @@ renderers.akun = () => {
 };
 
 renderers.chat = () => {
-  $('#app').innerHTML = `<div class="chatbox card"><h2>🤖 AI Assistant AGR.ID</h2><div id="msgs" class="msgs"></div>
+  $('#app').innerHTML = `<div class="chatbox card"><h2>🤖 AI Assistant AGR.BIZ.ID</h2><div id="msgs" class="msgs"></div>
     <div class="chat-in"><input id="cin" class="input" placeholder="Tanya: cara posting cabai merah, cari produk ikan air tawar…"><button class="btn btn-primary" id="csnd">Kirim</button></div>
     <p class="muted small">Mode aturan lokal aktif. Untuk jawaban LLM penuh, hubungkan backend Flask via config.php (AGR_ID_API_URL).</p></div>`;
-  msg('Halo! Saya asisten AGR.ID. Saya bisa membantu mengisi informasi produk atau mencari produk yang Anda butuhkan. Coba: “cara jual cabai” atau “cari ikan nila”.');
+  msg('Halo! Saya asisten AGR.BIZ.ID. Saya bisa membantu mengisi informasi produk atau mencari produk yang Anda butuhkan. Coba: “cara jual cabai” atau “cari ikan nila”.');
   const send=()=>{ const v=$('#cin').value.trim(); if(!v)return; msg(v,'me'); $('#cin').value=''; botJawab(v); };
   $('#csnd').onclick=send; $('#cin').onkeydown=e=>e.key==='Enter'&&send();
 };
@@ -302,7 +302,7 @@ renderers.productChat = async (id) => {
   const c=data.conversation, other=+S.user.id===+c.buyer_id?(c.seller_name||'Penjual'):(c.buyer_name||'Pembeli');
   $('#app').innerHTML=`<section class="pc-wrap"><a href="#/pesan">← Semua pesan</a><div class="pc-title pc-title-chat"><div><h2>${esc(c.product_name)}</h2><p class="muted">${esc(other)} · ${rp(c.product_harga)}/${esc(c.product_satuan)}</p></div><a href="#/produk/${c.product_id}" class="btn btn-outline">Lihat Produk</a></div>
     <div class="pc-messages" id="pcMessages"></div><form class="pc-compose" id="pcCompose"><textarea id="pcBody" class="input" rows="2" maxlength="2000" placeholder="Tanyakan detail produk…" required></textarea><button class="btn btn-primary" type="submit">Kirim</button><small class="muted">Maksimal 2.000 karakter. Hindari membagikan informasi pribadi atau kontak.</small></form></section>`;
-  const draw=async()=>{try{const fresh=await api('chat-messages',{qs:'id='+id});data=fresh;$('#pcMessages').innerHTML=(fresh.messages||[]).map(m=>m.is_system?`<div class="pc-system"><b>${esc(m.sender_name||'AGR.ID')}</b><br>${esc(m.body)}</div>`:`<div class="pc-bubble ${+m.sender_id===+S.user.id?'mine':''}"><b>${+m.sender_id===+S.user.id?'Anda':esc(m.sender_name)}</b><div>${esc(m.body).replace(/\n/g,'<br>')}</div><small>${esc((m.created_at||'').slice(0,16).replace('T',' '))}</small></div>`).join('');$('#pcMessages').scrollTop=$('#pcMessages').scrollHeight;}catch(e){toast(e.message);}};
+  const draw=async()=>{try{const fresh=await api('chat-messages',{qs:'id='+id});data=fresh;$('#pcMessages').innerHTML=(fresh.messages||[]).map(m=>m.is_system?`<div class="pc-system"><b>${esc(m.sender_name||'AGR.BIZ.ID')}</b><br>${esc(m.body)}</div>`:`<div class="pc-bubble ${+m.sender_id===+S.user.id?'mine':''}"><b>${+m.sender_id===+S.user.id?'Anda':esc(m.sender_name)}</b><div>${esc(m.body).replace(/\n/g,'<br>')}</div><small>${esc((m.created_at||'').slice(0,16).replace('T',' '))}</small></div>`).join('');$('#pcMessages').scrollTop=$('#pcMessages').scrollHeight;}catch(e){toast(e.message);}};
   $('#pcCompose').onsubmit=async e=>{e.preventDefault();const body=$('#pcBody').value.trim();if(!body)return;const submit=$('#pcCompose button');submit.disabled=true;try{await api('chat-send',{method:'POST',body:{conversation_id:+id,body}});$('#pcBody').value='';await draw();}catch(err){toast(err.message);}finally{submit.disabled=false;}};
   await draw(); window._productChatTimer=setInterval(()=>{if(location.hash.startsWith('#/pesan/'))draw();},7000);
 };
