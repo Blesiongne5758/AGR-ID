@@ -1,5 +1,5 @@
 /* ============================================================
-   AGR.ID — shadcn/ui Theme Layer v3 (update template shadcn)
+   AGR.BIZ.ID — shadcn/ui Theme Layer v3 (update template shadcn)
    Mengikuti gaya shadcn "new-york" terbaru: radius lg (0.625rem),
    ring 3px, shadow-xs/sm/md, font Inter variable, Lucide icons,
    token warna selaras skema shadcn default (green brand variant).
@@ -16,38 +16,38 @@
 
 :root{
   /* ---- shadcn design tokens (light) — new-york, palet hijau "brand" ---- */
-  --radius: .625rem;                 /* rounded-lg, default shadcn baru */
+  --radius: .85rem;                 /* rounded-lg, default shadcn baru */
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --tracking-tight: -0.015em;        /* tracking-tight khas shadcn */
-  --background: 120 12% 98%;
-  --foreground: 144 25% 9%;
+  --background: 60 24% 96%;
+  --foreground: 155 13% 18%;
   --card: 0 0% 100%;
   --card-foreground: 144 25% 9%;
   --popover: 0 0% 100%;
   --popover-foreground: 144 25% 9%;
-  --primary: 143 64% 24%;            /* hijau AGR #15803d */
-  --primary-foreground: 120 60% 97%;
-  --secondary: 120 8% 94%;
-  --secondary-foreground: 144 14% 22%;
-  --muted: 120 8% 94%;
-  --muted-foreground: 140 6% 42%;
-  --accent: 141 40% 93%;
-  --accent-foreground: 144 20% 14%;
+  --primary: 157 21% 34%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 60 14% 92%;
+  --secondary-foreground: 155 14% 22%;
+  --muted: 60 18% 94%;
+  --muted-foreground: 150 8% 40%;
+  --accent: 40 57% 91%;
+  --accent-foreground: 36 34% 24%;
   --destructive: 0 72% 45%;
   --destructive-foreground: 0 0% 98%;
-  --success: 142 66% 30%;
-  --warning: 38 92% 50%;
-  --warning-foreground: 40 60% 18%;
-  --info: 188 80% 38%;
-  --border: 130 12% 88%;
-  --input: 130 12% 88%;
-  --ring: 143 60% 32%;
-  --chart-1:#15803d; --chart-2:#65a30d; --chart-3:#0d9488; --chart-4:#ca8a04; --chart-5:#dc2626;
+  --success: 157 21% 34%;
+  --warning: 38 57% 62%;
+  --warning-foreground: 36 34% 24%;
+  --info: 157 21% 34%;
+  --border: 83 13% 87%;
+  --input: 83 13% 87%;
+  --ring: 157 21% 34%;
+  --chart-1:#45695b; --chart-2:#d6ad68; --chart-3:#789386; --chart-4:#b99151; --chart-5:#b84d4d;
   /* skala shadow halus ala shadcn baru (shadow-xs / sm / md / lg) */
-  --shadow-xs: 0 1px 2px rgba(16,44,25,.05);
-  --shadow-sm: 0 1px 3px rgba(16,44,25,.08), 0 1px 2px rgba(16,44,25,.05);
-  --shadow-md: 0 4px 14px -4px rgba(16,44,25,.14);
-  --shadow-lg: 0 18px 40px -14px rgba(16,44,25,.28);
+  --shadow-xs: 0 1px 2px rgba(39,51,46,.04);
+  --shadow-sm: 0 2px 6px rgba(39,51,46,.06);
+  --shadow-md: 0 8px 24px -6px rgba(39,51,46,.12);
+  --shadow-lg: 0 18px 40px -14px rgba(39,51,46,.18);
   --focus-ring: 0 0 0 3px hsl(var(--ring)/.35); /* ring-[3px] ring-ring/30 */
 }
 
@@ -118,7 +118,7 @@ a{ color:inherit; }
 .btn-danger:hover,.btn-destructive:hover{ background:hsl(var(--destructive)/.88); color:hsl(var(--destructive-foreground)); box-shadow:var(--shadow-sm); }
 /* warning → pakai accent amber khas shadcn */
 .btn-warning{ background:hsl(var(--warning)); color:hsl(var(--warning-foreground)); font-weight:600; }
-.btn-warning:hover{ background:#d97706; color:hsl(var(--warning-foreground)); }
+.btn-warning:hover{ background:hsl(var(--warning)/.88); color:hsl(var(--warning-foreground)); }
 /* sizes */
 .btn-sm{ padding:.35rem .75rem; font-size:.8rem; border-radius:calc(var(--radius) - 3px); }
 .btn-lg{ padding:.7rem 1.4rem; font-size:1rem; border-radius:var(--radius); }
@@ -210,7 +210,7 @@ textarea.form-control{ min-height:80px; }
 .alert{ border:1px solid hsl(var(--border)); border-radius:var(--radius); background:hsl(var(--card)); color:hsl(var(--foreground)); font-size:.875rem; padding:.85rem 1.05rem; box-shadow:var(--shadow-xs); display:flex; align-items:flex-start; gap:.6rem; }
 .alert-success{ border-color:hsl(var(--primary)/.35); background:hsl(var(--primary)/.07); color:hsl(var(--primary)); }
 .alert-danger{ border-color:hsl(var(--destructive)/.35); background:hsl(var(--destructive)/.07); color:hsl(var(--destructive)); }
-.alert-warning{ border-color:hsl(var(--warning)/.4); background:hsl(var(--warning)/.09); color:#92400e; }
+.alert-warning{ border-color:hsl(var(--warning)/.4); background:hsl(var(--warning)/.09); color:hsl(var(--warning-foreground)); }
 .alert-info{ border-color:hsl(var(--info)/.35); background:hsl(var(--info)/.07); color:hsl(var(--info)); }
 .alert .btn-close{ opacity:.5; }
 
@@ -257,22 +257,22 @@ textarea.form-control{ min-height:80px; }
 .navbar-agrid .btn-outline-light:hover{ background:hsl(var(--accent)); color:hsl(var(--foreground)); }
 
 /* ===================== TICKER ===================== */
-.ticker-wrap{ overflow:hidden; background:#0c1f12; color:#e7f6e7; position:relative; border-bottom:1px solid #1c3a24; }
+.ticker-wrap{ overflow:hidden; background:#354d43; color:#f0f1eb; position:relative; border-bottom:1px solid #52695d; }
 .ticker{ display:flex; gap:2rem; white-space:nowrap; padding:.5rem 0; width:max-content; animation:ticker 60s linear infinite; font-size:.85rem; }
 .ticker:hover{ animation-play-state:paused; }
 @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-.tk-up{color:#4ade80}.tk-down{color:#f87171}
+.tk-up{color:#d6ad68}.tk-down{color:#f87171}
 
 /* ===================== HERO & FOOTER ===================== */
-.hero{ background:linear-gradient(rgba(8,26,14,.8),rgba(8,26,14,.85)),url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1600&q=60') center/cover; color:#fff; }
+.hero{ background:linear-gradient(rgba(39,51,46,.80),rgba(39,51,46,.86)),url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1600&q=60') center/cover; color:#fff; }
 .hero h1{ font-size:clamp(1.8rem,4vw,3rem); font-weight:800; letter-spacing:-.04em; }
-.footer{ background:#0c1f12; color:#bcdcc0; }
+.footer{ background:#354d43; color:#e3e8e0; }
 .footer b,.footer h5{ color:#fff; }
-.footer a{ color:#e7f6e7; }
-.footer a:hover{ color:#4ade80; }
+.footer a{ color:#f0f1eb; }
+.footer a:hover{ color:#d6ad68; }
 
 /* ===================== CHAT FLOATING ===================== */
-.chat-fab{ position:fixed; bottom:22px; right:22px; z-index:1040; width:56px; height:56px; border-radius:9999px; background:hsl(var(--primary)); color:#fff; font-size:1.4rem; border:0; box-shadow:0 12px 28px -8px rgba(21,128,61,.55); transition:transform .15s; }
+.chat-fab{ position:fixed; bottom:22px; right:22px; z-index:1040; width:56px; height:56px; border-radius:9999px; background:hsl(var(--primary)); color:#fff; font-size:1.4rem; border:0; box-shadow:0 12px 28px -8px rgba(69,105,91,.3); transition:transform .15s; }
 .chat-fab:hover{ transform:scale(1.06); }
 .chat-box{ position:fixed; bottom:88px; right:22px; width:min(380px,92vw); height:460px; z-index:1040; display:none; flex-direction:column; border-radius:var(--radius); overflow:hidden; border:1px solid hsl(var(--border)); box-shadow:0 24px 60px -16px rgba(0,0,0,.4); background:hsl(var(--card)); }
 .chat-head{ background:hsl(var(--primary)); color:hsl(var(--primary-foreground)); padding:.75rem 1rem; }
@@ -353,31 +353,31 @@ code,kbd,.font-mono{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; fo
 
 /* ===================== DARK MODE (html.dark — token set shadcn dark) ===================== */
 html.dark{
-  --background: 144 20% 6%;
-  --foreground: 120 10% 92%;
-  --card: 144 18% 9%;
-  --card-foreground: 120 10% 92%;
+  --background: 155 13% 9%;
+  --foreground: 60 18% 94%;
+  --card: 155 12% 12%;
+  --card-foreground: 60 18% 94%;
   --shadow-xs: 0 1px 2px rgba(0,0,0,.35);
   --shadow-sm: 0 1px 3px rgba(0,0,0,.4);
-  --popover: 144 18% 9%;
-  --popover-foreground: 120 10% 92%;
-  --primary: 142 69% 45%;
-  --primary-foreground: 144 57% 11%;
-  --secondary: 144 12% 16%;
-  --secondary-foreground: 120 10% 92%;
-  --muted: 144 12% 16%;
-  --muted-foreground: 120 8% 62%;
-  --accent: 144 14% 18%;
-  --accent-foreground: 120 10% 95%;
+  --popover: 155 12% 12%;
+  --popover-foreground: 60 18% 94%;
+  --primary: 151 21% 58%;
+  --primary-foreground: 155 20% 9%;
+  --secondary: 154 10% 17%;
+  --secondary-foreground: 60 18% 94%;
+  --muted: 154 10% 17%;
+  --muted-foreground: 60 8% 65%;
+  --accent: 38 32% 19%;
+  --accent-foreground: 40 45% 88%;
   --destructive: 0 62% 45%;
   --destructive-foreground: 0 0% 98%;
-  --success: 142 60% 42%;
-  --warning: 38 92% 55%;
-  --warning-foreground: 40 60% 96%;
-  --info: 188 70% 55%;
+  --success: 151 21% 58%;
+  --warning: 39 68% 62%;
+  --warning-foreground: 39 45% 15%;
+  --info: 151 21% 58%;
   --border: 144 12% 20%;
   --input: 144 12% 24%;
-  --ring: 142 60% 45%;
+  --ring: 151 21% 58%;
   --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
   --shadow-md: 0 4px 14px -4px rgba(0,0,0,.5);
   --shadow-lg: 0 18px 40px -14px rgba(0,0,0,.65);
@@ -398,3 +398,14 @@ html.dark ::placeholder{ color:hsl(var(--muted-foreground)); }
 ::-webkit-scrollbar-track{ background:transparent; }
 /* transisi halus saat ganti tema */
 body,.card,.modal-content,.dropdown-menu,.form-control,.form-select,.table thead th{ transition:background-color .2s,color .2s,border-color .2s; }
+
+/* AGR.BIZ.ID refinement: clear rhythm, readable controls, calm surfaces */
+body{line-height:1.6;letter-spacing:0;-webkit-font-smoothing:antialiased}
+.container{--bs-gutter-x:1.5rem}
+.card,.shadcn-card{border-radius:1rem}
+.card-body,.card-content{padding:1.15rem 1.4rem 1.35rem}
+.btn{min-height:2.65rem;border-radius:.75rem;font-weight:600}
+.form-control,.form-select{min-height:2.8rem;border-radius:.75rem;font-size:.92rem}
+:focus-visible{outline:3px solid hsl(var(--ring)/.32);outline-offset:2px}
+.navbar-agrid{background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border-bottom:1px solid hsl(var(--border))}
+@media(max-width:575.98px){.container{--bs-gutter-x:1.15rem}.card-body,.card-content{padding:1rem}.hero{border-radius:0}}
