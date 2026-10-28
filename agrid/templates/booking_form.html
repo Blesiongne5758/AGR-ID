@@ -5,7 +5,8 @@
   <div class="card card-prod shadow-sm border-success">
     <div class="card-header border-bottom"><h5 class="mb-0"><i class="bi bi-lock"></i> Booking Penawaran — DP sebagai Pengikat</h5></div>
     <div class="card-body">
-      <div class="alert alert-info py-2 small">Penawaran Anda untuk <b>{{ o.product.nama_produk }}</b> ({{ o.qty|rp }} {{ o.product.satuan }} × Rp{{ o.harga_penawaran|rp }}) telah <b>diterima penjual</b>. Kunci kesepakatan dengan membayar DP.</div>
+      <div class="alert alert-info py-2 small">Kesepakatan <b>{{ o.product.nama_produk }}</b>: {{ o.qty|rp }} {{ o.product.satuan }} × Rp{{ (o.harga_disepakati or o.harga_terkini or o.harga_penawaran)|rp }}. Harga telah disetujui kedua pihak.</div>
+      <div class="alert alert-warning py-2 small"><i class="bi bi-clock"></i> Penjual menetapkan batas pembayaran DP: <b>{{ o.batas_pembayaran|wib }}</b>. Selesaikan pembayaran sebelum waktu tersebut.</div>
       <table class="table table-borderless">
         <tr><td>Total Kesepakatan</td><td class="text-end fw-bold">Rp{{ o.total|rp }}</td></tr>
         <tr><td>DP Booking ({{ dp_persen|int }}%) — pengikat</td><td class="text-end text-success fw-bold">Rp{{ dp_amount|rp }}</td></tr>

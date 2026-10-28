@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Buat Event Lelang — AGR.ID{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width:980px">
+  <a class="small text-decoration-none" href="{{ url_for('dashboard_seller') }}">← Kembali ke Dashboard Penjual</a>
+  <div class="card card-prod shadow-sm mt-2"><div class="card-header border-bottom"><h4 class="fw-bold mb-1"><i class="bi bi-hammer text-success"></i> Buat Event Lelang Terbuka</h4><p class="small text-muted mb-0">Pilih stok produk aktif untuk dilelang sebagai satu paket. Pembeli terdaftar dapat menawar total paket.</p></div>
+    <div class="card-body">
+      <form method="post" id="auctionForm" class="row g-3">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <div class="col-12"><label class="form-label fw-bold">Nama Event <span class="text-danger">*</span></label><input class="form-control" name="judul" maxlength="160" required placeholder="Contoh: Lelang panen padi sawah Blok A"></div>
+        <div class="col-12"><label class="form-label fw-bold">Informasi lengkap paket lelang <span class="text-danger">*</span></label><textarea class="form-control" name="deskripsi" rows="4" required placeholder="Jelaskan jenis/varietas, kualitas, perkiraan hasil, kondisi panen/ternak, akses pengambilan, syarat angkut, dan informasi penting lain."></textarea><div class="form-text">Tuliskan rincian yang membantu peserta menilai paket sebelum menawar.</div></div>
+
+        <div class="col-12"><label class="form-label fw-bold">Daftar produk dan stok yang dilelang <span class="text-danger">*</span></label>
+          {% if products %}<div class="row g-2" id="auctionProducts">
+            {% for p in products %}<div class="col-md-6"><label class="auction-product-option w-100">
+              <input class="form-check-input auction-product-check me-2" type="checkbox" name="product_ids" value="{{ p.id }}" data-total="{{ (p.harga * p.stok)|int }}">
+              {% if p.foto %}{% if p.foto.startswith('object://') or p.foto.startswith('cloud://') %}<img class="auction-option-thumb agr-media" data-ref="{{ p.foto }}" alt="">{% else %}<img class="auction-option-thumb" src="{{ p.foto }}" alt="">{% endif %}{% endif %}
+              <span><b>{{ p.nama_produk }}</b><small>{{ p.kategori }} › {{ p.subkategori }} · tersedia {{ p.stok|rp }} {{ p.satuan }} · harga listing Rp{{ p.harga|rp }}/{{ p.satuan }}</small></span>
+            </label></div>{% endfor %}
+          </div>{% else %}<div class="alert alert-warning">Anda belum memiliki produk aktif dengan stok. Posting produk terlebih dahulu sebelum membuat lelang.</div>{% endif %}
+          <div class="form-text">Stok setiap produk dicatat sebagai snapshot paket saat event dibuat.</div>
+        </div>
+
+        <div class="col-md-6"><label class="form-label fw-bold">Harga pembukaan paket (Rp) <span class="text-danger">*</span></label><input class="form-control" type="number" name="harga_awal" id="auctionStartPrice" min="1" step="1" required placeholder="Total harga pembukaan untuk semua produk"><div class="form-text">Harga tawaran pembeli berlaku untuk keseluruhan paket, bukan per produk.</div></div>
+        <div class="col-md-6"><label class="form-label fw-bold">Foto pendukung paket <span class="text-danger">*</span></label><input type="hidden" name="foto" id="auctionPhoto"><input class="form-control" type="file" id="auctionPhotoFile" accept="image/jpeg,image/png,image/webp"><div id="auctionPhotoStatus" class="small mt-1"></div><div id="auctionPhotoPreview" class="mt-2"></div><div class="form-text">Foto hasil panen, buah, ternak, atau keseluruhan paket. Maksimal 5 MB.</div></div>
+
+        <div class="col-md-6"><label class="form-label fw-bold">Mulai lelang (WIB) <span class="text-danger">*</span></label><input class="form-control" type="datetime-local" id="auctionStart" name="mulai" min="{{ minimum_start }}" required></div>
+        <div class="col-md-6"><label class="form-label fw-bold">Tutup lelang (WIB) <span class="text-danger">*</span></label><input class="form-control" type="datetime-local" id="auctionEnd" name="selesai" min="{{ minimum_start }}" required></div>
+
+        <div class="col-12"><label class="form-label fw-bold">Alamat lokasi pelelangan/pengambilan <span class="text-danger">*</span></label><input class="form-control" name="alamat_lokasi" maxlength="255" required placeholder="Dusun/desa, kecamatan, kabupaten, provinsi"></div>
+        <div class="col-md-4"><label class="form-label fw-bold">Latitude GPS <span class="text-danger">*</span></label><div class="input-group"><input class="form-control" type="number" name="lat" id="auctionLat" min="-90" max="90" step="0.000001" required><button class="btn btn-outline-success" type="button" id="auctionLocate" title="Gunakan lokasi perangkat"><i class="bi bi-crosshair"></i></button></div></div>
+        <div class="col-md-4"><label class="form-label fw-bold">Longitude GPS <span class="text-danger">*</span></label><input class="form-control" type="number" name="lng" id="auctionLng" min="-180" max="180" step="0.000001" required></div>
+        <div class="col-md-4 d-flex align-items-end"><a id="auctionMap" class="small" href="https://maps.google.com" target="_blank" rel="noopener">🗺️ Periksa titik lokasi di peta</a></div>
+        <div class="col-12"><div id="auctionFormError" class="small text-danger" role="alert"></div><button class="btn btn-agrid btn-lg fw-bold w-100" {% if not products %}disabled{% endif %}><i class="bi bi-megaphone"></i> Publikasikan Event Lelang</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+const auctionPhotoFile = document.getElementById('auctionPhotoFile');
+document.addEventListener('DOMContentLoaded', () => bindAgrUploader(auctionPhotoFile, {category:'product', hiddenId:'auctionPhoto', previewEl:document.getElementById('auctionPhotoPreview'), statusEl:document.getElementById('auctionPhotoStatus')}));
+const startPrice = document.getElementById('auctionStartPrice');
+let priceTouched = false;
+startPrice.addEventListener('input', () => { priceTouched = true; });
+document.querySelectorAll('.auction-product-check').forEach(el => el.addEventListener('change', () => {
+  if (!priceTouched) {
+    const sum = [...document.querySelectorAll('.auction-product-check:checked')].reduce((n, x) => n + Number(x.dataset.total || 0), 0);
+    startPrice.value = sum ? Math.round(sum) : '';
+  }
+}));
+const startAt = document.getElementById('auctionStart'), endAt = document.getElementById('auctionEnd');
+startAt.addEventListener('change', () => { endAt.min = startAt.value; if (startAt.value && (!endAt.value || endAt.value <= startAt.value)) { const d = new Date(startAt.value); d.setHours(d.getHours()+2); endAt.value = new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16); } });
+const latEl=document.getElementById('auctionLat'), lngEl=document.getElementById('auctionLng'), mapEl=document.getElementById('auctionMap');
+function updateAuctionMap(){ if(latEl.value && lngEl.value) mapEl.href='https://maps.google.com/?q='+encodeURIComponent(latEl.value+','+lngEl.value); }
+latEl.addEventListener('input',updateAuctionMap); lngEl.addEventListener('input',updateAuctionMap);
+document.getElementById('auctionLocate').addEventListener('click', () => {
+  if (!navigator.geolocation) { alert('Browser ini tidak mendukung GPS.'); return; }
+  navigator.geolocation.getCurrentPosition(pos => { latEl.value=pos.coords.latitude.toFixed(6); lngEl.value=pos.coords.longitude.toFixed(6); updateAuctionMap(); }, () => alert('Lokasi tidak dapat diakses. Periksa izin GPS perangkat.'));
+});
+document.getElementById('auctionForm').addEventListener('submit', event => {
+  const error=document.getElementById('auctionFormError');
+  if (!document.getElementById('auctionPhoto').value) { event.preventDefault(); error.textContent='Unggah foto pendukung sebelum mempublikasikan event.'; }
+  else if (!document.querySelector('.auction-product-check:checked')) { event.preventDefault(); error.textContent='Pilih minimal satu produk ke dalam paket lelang.'; }
+});
+</script>
+{% endblock %}

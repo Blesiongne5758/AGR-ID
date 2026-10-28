@@ -72,7 +72,7 @@
       </div></div>
       {% endif %}
 
-      {% if user and user.role=='pembeli' %}
+      {% if user and user.role=='pembeli' and p.status=='aktif' %}
       <div class="card border-success-subtle mb-3"><div class="card-body py-3">
         <form method="post" action="{{ url_for('tambah_produk_ke_kebutuhan', pid=p.id) }}" class="row g-2 align-items-end">
           <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
@@ -93,9 +93,11 @@
             <input class="form-control" type="number" min="1" name="harga_penawaran" required value="{{ (p.harga*0.95)|round(-2)|int }}"></div>
           <div class="col-12"><label class="small">Pesan untuk penjual</label>
             <textarea class="form-control" name="pesan" rows="2" placeholder="mis: butuh rutin mingguan, kirim ke gudang Bandung…"></textarea></div>
-          <div class="col-12"><button class="btn btn-agrid w-100 fw-bold"><i class="bi bi-send"></i> Kirim Penawaran → Booking DP setelah diterima</button></div>
+          <div class="col-12"><button class="btn btn-agrid w-100 fw-bold"><i class="bi bi-send"></i> Kirim Penawaran Harga</button><div class="small text-muted mt-1">Penjual dapat menyetujui, menolak, atau mengajukan harga balik. Booking DP tersedia setelah harga dan tenggat disepakati.</div></div>
         </form>
       </div></div>
+      {% elif user and user.role=='pembeli' and p.status=='lelang' and lelang_event %}
+      <div class="alert alert-info"><i class="bi bi-hammer"></i> Stok produk ini sedang dicadangkan dalam event <b>{{ lelang_event.judul }}</b> dan tidak menerima penawaran biasa.<br><a class="btn btn-sm btn-agrid mt-2" href="{{ url_for('auction_detail', event_id=lelang_event.id) }}">Lihat / Ikuti Event Lelang</a></div>
       {% elif not user %}
       <div class="alert alert-info">🔑 <b>Login sebagai pembeli</b> untuk mengajukan penawaran harga.
         <button class="btn btn-sm btn-warning" onclick="openSknj('login')">Login</button>

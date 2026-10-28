@@ -13,7 +13,7 @@
 
   <div class="row g-3 mb-4">
     <div class="col-md-4"><div class="card stat-card"><div class="card-body py-3">
-      <div class="small text-muted">Penawaran Aktif</div><h3 class="mb-0">{{ offers|selectattr('status','in',['menunggu','diterima','booking'])|list|length }}</h3></div></div></div>
+      <div class="small text-muted">Penawaran Aktif</div><h3 class="mb-0">{{ offers|selectattr('status','in',['menunggu','balasan_pembeli','balasan_penjual','menunggu_konfirmasi','diterima','booking'])|list|length }}</h3></div></div></div>
     <div class="col-md-4"><div class="card stat-card"><div class="card-body py-3">
       <div class="small text-muted">Total Transaksi Pembelian</div><h3 class="mb-0">{{ pembelian|length }}</h3></div></div></div>
     <div class="col-md-4"><div class="card stat-card"><div class="card-body py-3">
@@ -22,6 +22,7 @@
 
   <ul class="nav nav-tabs mb-3">
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tNeeds">🧮 Manajemen Kebutuhan</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tAuction">🔨 Lelang Diikuti ({{ lelang_diikuti|length }})</button></li>
     <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tOff">💬 Penawaran Saya ({{ offers|length }})</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tLap">🧾 Laporan Transaksi Pembelian</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tFav">❤️ Favorit Saya ({{ favs|length }})</button></li>
@@ -52,6 +53,21 @@
         </table></div></div></div>
       </div>
     </div>
+    <div class="tab-pane fade" id="tAuction">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <p class="small text-muted mb-0">Event lelang yang keikutsertaannya sudah Anda konfirmasi.</p>
+        <a class="btn btn-sm btn-agrid" href="{{ url_for('auction_list') }}">Jelajahi Lelang Terbuka</a>
+      </div>
+      <div class="row g-3">
+        {% for event in lelang_diikuti %}{% set high = event.tawaran_tertinggi %}
+        <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-body">
+          <div class="d-flex justify-content-between gap-2"><div><h6 class="fw-bold mb-1">{{ event.judul }}</h6><span class="badge {{ {'terjadwal':'bg-info text-dark','berlangsung':'bg-success','selesai':'bg-secondary','dibatalkan':'bg-danger'}.get(event.status,'bg-secondary') }}">{{ event.status|capitalize }}</span></div><a class="btn btn-sm btn-outline-success align-self-start" href="{{ url_for('auction_detail', event_id=event.id) }}">Lihat event</a></div>
+          <div class="small text-muted mt-2">{{ event.mulai|wib }} – {{ event.selesai|wib }}</div>
+          <div class="small mt-2">Harga pembukaan Rp{{ event.harga_awal|rp }}{% if high %} · Tawaran tertinggi Rp{{ high.nominal|rp }}{% endif %}</div>
+        </div></div></div>
+        {% else %}<div class="col-12"><div class="empty-state border rounded bg-white"><span class="empty-icon">🔨</span><h5>Belum mengikuti lelang</h5><p>Daftar sebagai peserta untuk mengikuti lelang hasil panen, buah, ternak, dan produk lainnya.</p><a class="btn btn-sm btn-agrid mt-2" href="{{ url_for('auction_list') }}">Lihat Lelang Terbuka</a></div></div>{% endfor %}
+      </div>
+    </div>
     <div class="tab-pane fade show active" id="tOff">
       <div class="table-responsive bg-white rounded shadow-sm">
       <table class="table table-dashboard mb-0">
@@ -61,17 +77,33 @@
           <tr>
             <td class="small">{{ o.created_at|dt }}</td>
             <td><b>{{ o.product.nama_produk }}</b><br><small class="text-muted">Penjual: {{ o.product.seller.nama }} · GPS {{ '%.3f'|format(o.product.lat or 0) }},{{ '%.3f'|format(o.product.lng or 0) }}</small></td>
-            <td>{{ o.qty|rp }} {{ o.product.satuan }} × Rp{{ o.harga_penawaran|rp }}</td>
+            <td>{{ o.qty|rp }} {{ o.product.satuan }} × Rp{{ (o.harga_terkini or o.harga_penawaran)|rp }}{% if o.harga_terkini and o.harga_terkini != o.harga_penawaran %}<div class="small text-muted">Harga awal: Rp{{ o.harga_penawaran|rp }}/{{ o.product.satuan }}</div>{% endif %}</td>
             <td class="fw-bold">Rp{{ o.total|rp }}</td>
-            <td><span class="badge {{ {'menunggu':'bg-warning text-dark','diterima':'bg-info text-dark','booking':'bg-primary','selesai':'bg-success','ditolak':'bg-danger'}.get(o.status,'bg-secondary') }}">{{ o.status }}</span></td>
+            <td><span class="badge {{ {'menunggu':'bg-warning text-dark','balasan_pembeli':'bg-info text-dark','balasan_penjual':'bg-warning text-dark','menunggu_konfirmasi':'bg-info text-dark','diterima':'bg-success','booking':'bg-primary','selesai':'bg-success','ditolak':'bg-danger','kedaluwarsa':'bg-secondary'}.get(o.status,'bg-secondary') }}">{{ {'menunggu':'Menunggu penjual','balasan_pembeli':'Harga balik dari penjual','balasan_penjual':'Menunggu balasan Anda','menunggu_konfirmasi':'Menunggu tenggat DP','diterima':'Disepakati','ditolak':'Ditutup','kedaluwarsa':'Kedaluwarsa'}.get(o.status,o.status) }}</span></td>
             <td>
               {% if o.status=='diterima' %}
-                <a class="btn btn-sm btn-agrid fw-bold" href="{{ url_for('show_booking_form', oid=o.id) }}">🔒 Booking dengan DP</a>
+                <div class="small text-muted mb-1">Bayar DP sebelum {{ o.batas_pembayaran|wib }}</div><a class="btn btn-sm btn-agrid fw-bold" href="{{ url_for('show_booking_form', oid=o.id) }}">🔒 Booking & Bayar DP</a>
+              {% elif o.status=='balasan_pembeli' %}
+                <div class="small mb-1">Penjual menawarkan <b>Rp{{ (o.harga_terkini or o.harga_penawaran)|rp }}/{{ o.product.satuan }}</b> · total Rp{{ o.total|rp }}</div>
+                <form method="post" action="{{ url_for('buyer_respond_offer', oid=o.id) }}" class="d-flex flex-wrap gap-1 mb-1">
+                  <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn btn-sm btn-agrid" name="act" value="terima">Setuju</button>
+                  <input class="form-control form-control-sm" style="max-width:140px" type="number" min="1" step="1" name="harga_baru" value="{{ (o.harga_terkini or o.harga_penawaran)|int }}" aria-label="Harga balasan per unit">
+                  <button class="btn btn-sm btn-outline-primary" name="act" value="tawar">Ajukan harga lain</button>
+                </form>
+                <form method="post" action="{{ url_for('buyer_respond_offer', oid=o.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn btn-sm btn-link text-danger p-0" name="act" value="tolak">Tolak & tutup penawaran</button></form>
+              {% elif o.status=='balasan_penjual' %}
+                <span class="small text-muted">Harga Anda Rp{{ (o.harga_terkini or o.harga_penawaran)|rp }}/{{ o.product.satuan }} — menunggu balasan penjual.</span>
+              {% elif o.status=='menunggu_konfirmasi' %}
+                <span class="small text-muted">Harga disetujui. Penjual sedang menetapkan batas waktu pembayaran DP.</span>
               {% elif o.status=='booking' %}
                 {% set bk = o.bookings|sort(attribute='id')|last %}
                 {% if bk and bk.status=='dp_pending' %}
-                  <a class="btn btn-sm btn-warning" href="{{ url_for('pay_booking', bid=bk.id) }}">💳 Bayar DP Sekarang</a>
+                  <div class="small text-muted mb-1">Tenggat DP: {{ o.batas_pembayaran|wib }}</div><a class="btn btn-sm btn-warning" href="{{ url_for('pay_booking', bid=bk.id) }}">💳 Bayar DP Sekarang</a>
                 {% else %}<span class="small text-success">DP lunas ✔ ({{ bk.metode_dp if bk else '' }})</span>{% endif %}
+              {% elif o.status=='kedaluwarsa' %}
+                <span class="small text-muted">Pembayaran tidak selesai sebelum tenggat; penawaran gagal otomatis.</span>
+              {% elif o.status=='ditolak' %}
+                <span class="small text-muted">Penjual atau Anda menutup negosiasi ini.</span>
               {% endif %}
             </td>
           </tr>

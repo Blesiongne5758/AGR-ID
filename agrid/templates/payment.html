@@ -5,6 +5,7 @@
   <div class="card card-prod shadow-sm">
     <div class="card-header border-bottom"><h5 class="mb-0"><i class="bi bi-credit-card-2-front"></i> Payment Gateway — Bayar DP Booking</h5></div>
     <div class="card-body">
+      <div class="alert alert-warning py-2 small"><i class="bi bi-clock"></i> Selesaikan pembayaran DP sebelum <b>{{ o.batas_pembayaran|wib }}</b>. Jika tenggat lewat, penawaran dan booking ini otomatis kedaluwarsa.</div>
       <div class="row justify-content-center mb-3">
         <div class="col-8 text-center border rounded p-3 bg-light">
           <div class="small text-muted">Order ID: <code>{{ ref }}</code></div>

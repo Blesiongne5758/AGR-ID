@@ -13,6 +13,7 @@
       Tooltip/Skeleton/Switch/Avatar/Progress) mengalahkan Bootstrap -->
 <link href="{{ url_for('static', filename='shadcn.css') }}?v=3" rel="stylesheet">
 <link href="{{ url_for('static', filename='mobile-nav.css') }}?v=1" rel="stylesheet">
+<link href="{{ url_for('static', filename='auction.css') }}?v=1" rel="stylesheet">
 <script>/* anti-FOUC dark mode: pasang class sebelum render */
 (function(){try{var t=localStorage.getItem('agrid-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
 </head>
@@ -27,6 +28,7 @@
     <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav me-auto">
         <li class="nav-item"><a class="nav-link" href="{{ url_for('marketplace') }}"><i class="bi bi-shop"></i> Marketplace</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('auction_list') }}"><i class="bi bi-hammer"></i> Lelang Terbuka</a></li>
         {% if user %}{% if user.role=='penjual' %}
         <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard_seller') }}"><i class="bi bi-speedometer2"></i> Dashboard Penjual</a></li>
         {% elif user.role=='pembeli' %}
@@ -150,8 +152,10 @@
       <a class="mobile-action-link" href="{{ url_for('marketplace') }}"><i class="bi bi-search"></i><span><b>Cari & Pesan Produk</b><small>Jelajahi produk dan ajukan penawaran</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
       <a class="mobile-action-link" href="{{ url_for('dashboard_buyer') }}#tOff"><i class="bi bi-receipt"></i><span><b>Daftar Pesanan</b><small>Lihat penawaran dan transaksi Anda</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
       <a class="mobile-action-link" href="{{ url_for('dashboard_buyer') }}#tNeeds"><i class="bi bi-basket"></i><span><b>Manajemen Kebutuhan</b><small>Tambah item dan hitung estimasi biaya</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
+      <a class="mobile-action-link" href="{{ url_for('auction_list') }}"><i class="bi bi-hammer"></i><span><b>Ikut Lelang Terbuka</b><small>Daftar sebagai peserta dan ajukan tawaran</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
       {% elif user.role == 'penjual' %}
       <a class="mobile-action-link" href="{{ url_for('create_product') }}"><i class="bi bi-plus-square"></i><span><b>Tambah Produk Jualan</b><small>Buat listing baru di marketplace</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
+      <a class="mobile-action-link" href="{{ url_for('create_auction_event') }}"><i class="bi bi-hammer"></i><span><b>Buat Event Lelang</b><small>Lelang hasil panen, buah, ternak, atau stok produk</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
       <a class="mobile-action-link" href="{{ url_for('dashboard_seller') }}"><i class="bi bi-box-seam"></i><span><b>Produk Saya</b><small>Kelola listing dan penawaran masuk</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
       {% else %}
       <a class="mobile-action-link" href="{{ url_for('marketplace') }}"><i class="bi bi-search"></i><span><b>Cari Produk</b><small>Buka katalog marketplace</small></span><i class="bi bi-chevron-right ms-auto"></i></a>

@@ -20,6 +20,13 @@ Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system *
 - **Ticker harga market** berjalan (animated marquee) berisi ±75 komoditas dengan harga & persentase naik/turun harian.
 - **Database Produk auto-update**: saat penjual mengetik nama produk baru di form, autocomplete memanggil `/api/produk-master`; nama yang belum ada **otomatis disimpan ke tabel `produk_master`** (flag `auto_added`).
 
+### Lelang Terbuka
+- Penjual membuat event lelang untuk satu paket yang terdiri dari beberapa listing dan seluruh stok yang dipilih, misalnya hasil panen, buah di pohon, atau ternak.
+- Event mencatat deskripsi paket, foto pendukung, jadwal mulai/tutup, alamat, dan koordinat GPS lokasi lelang/pengambilan.
+- Pembeli wajib mengonfirmasi keikutsertaan sebelum dapat menawar. Tawaran berlaku untuk total paket dan harus melampaui harga pembukaan atau tawaran tertinggi saat ini.
+- Event menutup otomatis sesuai jadwal; tawaran tertinggi ditampilkan sebagai pemenang. Stok paket dicadangkan dari marketplace selama lelang dan dikembalikan bila event selesai tanpa tawaran atau dibatalkan sebelum mulai.
+- Penjual dan pemenang mengatur penyerahan paket setelah event ditutup; alur pembayaran event lelang belum terhubung ke booking/payment gateway produk tunggal.
+
 ### Akun, Pendaftaran & Login
 - Tombol **Login** dan **Daftar** di navbar; halaman pendaftaran terpisah peran.
 - **Tipe Penjual**: Perorangan / Koperasi / Kelompok Tani (Paguyuban) — badan usaha mengisi NPWP & NIB.
@@ -84,6 +91,10 @@ Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system *
 | `eviden` | Timeline ketelusuran: foto bukti + koordinat GPS per tahap |
 | `favorites` | Penyimpanan penjual/produk favorit oleh pembeli |
 | `kebutuhan_pembeli` | Rencana belanja pembeli per kategori, jumlah, satuan, harga estimasi, dan total yang dihitung otomatis |
+| `lelang_events` | Event lelang terbuka, waktu, lokasi GPS, foto, harga pembukaan, dan status |
+| `lelang_items` | Snapshot produk dan stok yang digabung menjadi paket lelang |
+| `lelang_participants` | Konfirmasi keikutsertaan pembeli di event |
+| `lelang_bids` | Riwayat tawaran peserta dan nominal paket |
 | `ratings` | Skor kepuasan dua arah + aspek (JSON) + komentar |
 | `payment_gateway_api` | Konfigurasi API payment gateway dari admin |
 | `ekspedisi` | Konfigurasi API & tarif jasa ekspedisi |
