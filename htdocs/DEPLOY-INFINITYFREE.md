@@ -1,4 +1,4 @@
-# 🚀 Deploy AGR.ID ke InfinityFree + Supabase + Cloudinary
+# 🚀 Deploy AGR.BIZ.ID ke InfinityFree + Supabase + Cloudinary
 
 ## Langkah 1 — Buat project Supabase & jalankan skema
 1. Buka https://supabase.com → **New project** (region Singapore, set password DB).
