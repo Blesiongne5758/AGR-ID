@@ -1,5 +1,5 @@
 -- =====================================================================
--- AGR.ID — Skema database Supabase (PostgreSQL)
+-- AGR.BIZ.ID — Skema database Supabase (PostgreSQL)
 -- Jalankan di: Supabase Dashboard -> SQL Editor -> New query -> Run
 -- =====================================================================
 
@@ -235,5 +235,5 @@ alter table schema_migrations enable row level security;
 revoke all on schema_migrations from anon, authenticated;
 revoke all on product_conversations, product_chat_messages from public, anon, authenticated;
 
-select 'AGR.ID skema supabase siap' as status;
+select 'AGR.BIZ.ID skema supabase siap' as status;
 
