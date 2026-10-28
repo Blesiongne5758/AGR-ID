@@ -178,7 +178,9 @@ switch ($action) {
         $user = [
             'email' => strtolower($b['email']), 'nama' => $b['nama'],
             'password_hash' => password_hash($b['password'], PASSWORD_BCRYPT),
-            'role' => $b['role'], 'tipe' => $tipe,
+            'role' => $b['role'], 'roles' => ['penjual','pembeli'], 'tipe' => $tipe,
+            'tipe_penjual' => $b['role'] === 'penjual' ? $tipe : 'Perorangan',
+            'tipe_pembeli' => $b['role'] === 'pembeli' ? $tipe : 'Perorangan',
             'alamat' => $b['alamat'] ?? '', 'lat' => $b['lat'] ?? null, 'lng' => $b['lng'] ?? null,
             'no_hp' => $b['no_hp'] ?? '', 'npwp' => $b['npwp'] ?? '', 'nib' => $b['nib'] ?? '',
             'created_at' => date('c'),
@@ -197,7 +199,8 @@ switch ($action) {
         $u = $rows[0] ?? null;
         if (!$u || !password_verify($b['password'] ?? '', $u['password_hash'] ?? '')) err('Email/password salah', 401);
         $tok = make_token((int)$u['id']);
-        sb('sessions', 'POST', [], ['user_id' => $u['id'], 'token' => $tok, 'expires_at' => date('c', time() + 604800)]);
+        sb('sessions', 'POST', [], ['user_id' => $u['id'], 'token' => $tok,
+            'active_role' => $u['role'], 'expires_at' => date('c', time() + 604800)]);
         out(['ok' => true, 'token' => $tok, 'user' => public_user($u)]);
     }
 
@@ -207,6 +210,20 @@ switch ($action) {
 
     case 'me':
         out(['ok' => true, 'user' => public_user(require_session($token))]);
+
+    case 'switch-role': {
+        $u = require_session($token);
+        if (($u['role'] ?? '') === 'admin') err('Mode admin tidak dapat diganti', 403);
+        $b = body_json();
+        $target = $b['role'] ?? '';
+        $roles = $u['roles'] ?? [];
+        if (is_string($roles)) $roles = json_decode($roles, true) ?: [];
+        if (!in_array($target, ['penjual','pembeli'], true) || !in_array($target, $roles, true))
+            err('Mode akun yang dipilih tidak tersedia', 422);
+        sb('sessions', 'PATCH', ['token=eq.' . urlencode($token)], ['active_role' => $target]);
+        $u['role'] = $target;
+        out(['ok' => true, 'user' => public_user($u)]);
+    }
 
     /* ---- GANTI PASSWORD (semua role: penjual/pembeli/admin) ---- */
     case 'change-password': {
@@ -241,7 +258,8 @@ switch ($action) {
         $id = (int)($_GET['id'] ?? 0); if (!$id) err('id wajib');
         $rows = sb('products', 'GET', ['id=eq.' . $id]);
         if (!$rows) err('Produk tidak ditemukan', 404);
-        $seller = sb('users', 'GET', ['id=eq.' . $rows[0]['user_id'], 'select=id,nama,tipe,alamat,lat,lng']);
+        $seller = sb('users', 'GET', ['id=eq.' . $rows[0]['user_id'], 'select=id,nama,tipe,tipe_penjual,alamat,lat,lng']);
+        if ($seller) $seller[0]['tipe'] = $seller[0]['tipe_penjual'] ?: $seller[0]['tipe'];
         $rows[0]['seller'] = $seller[0] ?? null;
         out($rows[0]);
     }
@@ -539,14 +557,28 @@ function get_pengaturan(?string $key = null): array {
     $q = $key ? ['key=eq.' . urlencode($key), 'select=value'] : ['select=*'];
     try { return sb('pengaturan', 'GET', $q); } catch (Throwable $e) { return []; }
 }
-function public_user(array $u): array { unset($u['password_hash']); return $u; }
+function public_user(array $u): array {
+    unset($u['password_hash']);
+    $roles = $u['roles'] ?? [];
+    if (is_string($roles)) $roles = json_decode($roles, true) ?: [];
+    $u['roles'] = is_array($roles) ? $roles : [];
+    if (($u['role'] ?? '') === 'penjual' && !empty($u['tipe_penjual'])) $u['tipe'] = $u['tipe_penjual'];
+    if (($u['role'] ?? '') === 'pembeli' && !empty($u['tipe_pembeli'])) $u['tipe'] = $u['tipe_pembeli'];
+    return $u;
+}
 function require_session(string $token, ?string $role = null): array {
     if ($token === '') err('Login diperlukan (sertakan header X-Agr-Token)', 401);
-    $s = sb('sessions', 'GET', ['token=eq.' . $token, 'select=user_id,expires_at']);
+    $s = sb('sessions', 'GET', ['token=eq.' . $token, 'select=user_id,expires_at,active_role']);
     if (!$s) err('Token tidak valid', 401);
     if (strtotime((string)$s[0]['expires_at']) < time()) { sb('sessions', 'DELETE', ['token=eq.' . $token]); err('Sesi kedaluwarsa', 401); }
     $u = sb('users', 'GET', ['id=eq.' . $s[0]['user_id'], 'select=*'])[0] ?? null;
     if (!$u) err('User tidak ditemukan', 401);
+    $roles = $u['roles'] ?? [];
+    if (is_string($roles)) $roles = json_decode($roles, true) ?: [];
+    $active = $s[0]['active_role'] ?? $u['role'];
+    if (!is_array($roles) || !in_array($active, $roles, true)) $active = $u['role'];
+    $u['role'] = $active;
+    $u['roles'] = is_array($roles) ? $roles : [$u['role']];
     if ($role && $u['role'] !== $role) err("Hanya untuk role: $role", 403);
     return $u;
 }

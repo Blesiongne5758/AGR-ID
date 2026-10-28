@@ -32,6 +32,8 @@ Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system *
 
 ### Akun, Pendaftaran & Login
 - Tombol **Login** dan **Daftar** di navbar; halaman pendaftaran terpisah peran.
+- Satu akun dapat memiliki mode **Penjual** dan **Pembeli** sekaligus. Pengguna memilih mode awal saat mendaftar lalu dapat beralih dari navbar tanpa membuat akun baru; peran aktif disimpan per sesi.
+- Tipe badan usaha disimpan terpisah untuk masing-masing mode agar pilihan Penjual dan Pembeli tetap sesuai.
 - **Tipe Penjual**: Perorangan / Kelompok-Paguyuban / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
 - **Tipe Pembeli**: Perorangan / Yayasan / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
 - Alamat lengkap + **koordinat GPS** (tombol deteksi lokasi).

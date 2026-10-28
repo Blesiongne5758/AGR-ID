@@ -30,9 +30,9 @@
         <li class="nav-item"><a class="nav-link" href="{{ url_for('marketplace') }}"><i class="bi bi-shop"></i> Marketplace</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('auction_list') }}"><i class="bi bi-hammer"></i> Lelang Terbuka</a></li>
         {% if user %}<li class="nav-item"><a class="nav-link" href="{{ url_for('calendar_page') }}"><i class="bi bi-calendar3"></i> Kalender</a></li>{% endif %}
-        {% if user %}{% if user.role=='penjual' %}
+        {% if user %}{% if user.active_role=='penjual' %}
         <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard_seller') }}"><i class="bi bi-speedometer2"></i> Dashboard Penjual</a></li>
-        {% elif user.role=='pembeli' %}
+        {% elif user.active_role=='pembeli' %}
         <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard_buyer') }}"><i class="bi bi-speedometer2"></i> Dashboard Pembeli</a></li>
         {% else %}
         <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard_admin') }}"><i class="bi bi-gear"></i> Admin Panel</a></li>
@@ -40,7 +40,14 @@
       </ul>
       <button class="btn btn-ghost btn-sm btn-icon me-1" id="themeToggle" title="Mode gelap/terang" onclick="toggleTheme()">🌙</button>
       {% if user %}
-      <span class="navbar-text me-3 small d-flex align-items-center gap-2"><span class="avatar">{{ user.nama[0]|upper }}</span> {{ user.nama }} <span class="badge bg-secondary">{{ user.role }}</span></span>
+      <span class="navbar-text me-3 small d-flex align-items-center gap-2"><span class="avatar">{{ user.nama[0]|upper }}</span> {{ user.nama }} <span class="badge bg-secondary">{{ user.active_role }}</span> <span class="text-muted">{{ user.active_tipe }}</span></span>
+      {% if user.active_role in ('penjual', 'pembeli') %}
+      <form method="post" action="{{ url_for('switch_account_mode') }}" class="d-inline me-2">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <input type="hidden" name="role" value="{{ 'pembeli' if user.active_role == 'penjual' else 'penjual' }}">
+        <button class="btn btn-outline-success btn-sm"><i class="bi bi-arrow-left-right"></i> Mode {{ 'Pembeli' if user.active_role == 'penjual' else 'Penjual' }}</button>
+      </form>
+      {% endif %}
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Keluar</a>
       {% else %}
       <button class="btn btn-outline-secondary btn-sm me-2" onclick="openSknj('login')"><i class="bi bi-box-arrow-in-right"></i> Login</button>
@@ -128,9 +135,9 @@
   <a class="mobile-nav-item {{ 'is-active' if request.endpoint == 'chat_page' }}" href="{{ url_for('chat_page') }}" {% if request.endpoint == 'chat_page' %}aria-current="page"{% endif %}>
     <i class="bi bi-chat-dots" aria-hidden="true"></i><span>Pesan</span>
   </a>
-  {% if user and user.role == 'penjual' %}{% set profile_url = url_for('dashboard_seller') %}
-  {% elif user and user.role == 'pembeli' %}{% set profile_url = url_for('dashboard_buyer') %}
-  {% elif user and user.role == 'admin' %}{% set profile_url = url_for('dashboard_admin') %}
+  {% if user and user.active_role == 'penjual' %}{% set profile_url = url_for('dashboard_seller') %}
+  {% elif user and user.active_role == 'pembeli' %}{% set profile_url = url_for('dashboard_buyer') %}
+  {% elif user and user.active_role == 'admin' %}{% set profile_url = url_for('dashboard_admin') %}
   {% else %}{% set profile_url = url_for('login') %}{% endif %}
   <a class="mobile-nav-item {{ 'is-active' if request.endpoint in ('dashboard', 'dashboard_seller', 'dashboard_buyer', 'dashboard_admin') }}" href="{{ profile_url }}">
     <i class="bi bi-person-circle" aria-hidden="true"></i><span>Saya</span>
@@ -140,21 +147,28 @@
 <div class="modal fade mobile-add-modal" id="mobileAddModal" tabindex="-1" aria-labelledby="mobileAddTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header">
-      <div><h5 class="modal-title fw-bold" id="mobileAddTitle">{% if not user %}Mulai di AGR.ID{% elif user.role == 'penjual' %}Kelola Produk{% elif user.role == 'pembeli' %}Tambah ke Rencana Belanja{% else %}Akses Cepat{% endif %}</h5>
-        <p class="small text-muted mb-0">{% if not user %}Masuk atau buat akun untuk melanjutkan.{% elif user.role == 'pembeli' %}Cari produk untuk dipesan atau susun kebutuhan belanja.{% elif user.role == 'penjual' %}Tambahkan produk yang akan Anda jual.{% else %}Pilih bagian yang ingin dibuka.{% endif %}</p></div>
+      <div><h5 class="modal-title fw-bold" id="mobileAddTitle">{% if not user %}Mulai di AGR.ID{% elif user.active_role == 'penjual' %}Kelola Produk{% elif user.active_role == 'pembeli' %}Tambah ke Rencana Belanja{% else %}Akses Cepat{% endif %}</h5>
+        <p class="small text-muted mb-0">{% if not user %}Masuk atau buat akun untuk melanjutkan.{% elif user.active_role == 'pembeli' %}Cari produk untuk dipesan atau susun kebutuhan belanja.{% elif user.active_role == 'penjual' %}Tambahkan produk yang akan Anda jual.{% else %}Pilih bagian yang ingin dibuka.{% endif %}</p></div>
       <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
     </div>
     <div class="modal-body d-grid gap-2">
+      {% if user and user.active_role in ('penjual', 'pembeli') %}
+      <form method="post" action="{{ url_for('switch_account_mode') }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <input type="hidden" name="role" value="{{ 'pembeli' if user.active_role == 'penjual' else 'penjual' }}">
+        <button class="mobile-action-link w-100 text-start"><i class="bi bi-arrow-left-right"></i><span><b>Beralih ke Mode {{ 'Pembeli' if user.active_role == 'penjual' else 'Penjual' }}</b><small>Gunakan akun yang sama untuk transaksi sebagai pembeli atau penjual</small></span><i class="bi bi-chevron-right ms-auto"></i></button>
+      </form>
+      {% endif %}
       {% if not user %}
       <button type="button" class="mobile-action-link" onclick="openSknj('login')"><i class="bi bi-box-arrow-in-right"></i><span><b>Login</b><small>Lanjutkan ke akun Anda</small></span><i class="bi bi-chevron-right ms-auto"></i></button>
       <button type="button" class="mobile-action-link" onclick="openSknj('register?role=pembeli')"><i class="bi bi-person-plus"></i><span><b>Daftar sebagai Pembeli</b><small>Pesan produk dan kelola kebutuhan</small></span><i class="bi bi-chevron-right ms-auto"></i></button>
       <button type="button" class="mobile-action-link" onclick="openSknj('register?role=penjual')"><i class="bi bi-shop"></i><span><b>Daftar sebagai Penjual</b><small>Jual produk pertanian dan perikanan</small></span><i class="bi bi-chevron-right ms-auto"></i></button>
-      {% elif user.role == 'pembeli' %}
+      {% elif user.active_role == 'pembeli' %}
       <a class="mobile-action-link" href="{{ url_for('marketplace') }}"><i class="bi bi-search"></i><span><b>Cari & Pesan Produk</b><small>Jelajahi produk dan ajukan penawaran</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
       <a class="mobile-action-link" href="{{ url_for('dashboard_buyer') }}#tOff"><i class="bi bi-receipt"></i><span><b>Daftar Pesanan</b><small>Lihat penawaran dan transaksi Anda</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
       <a class="mobile-action-link" href="{{ url_for('dashboard_buyer') }}#tNeeds"><i class="bi bi-basket"></i><span><b>Manajemen Kebutuhan</b><small>Tambah item dan hitung estimasi biaya</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
       <a class="mobile-action-link" href="{{ url_for('auction_list') }}"><i class="bi bi-hammer"></i><span><b>Ikut Lelang Terbuka</b><small>Daftar sebagai peserta dan ajukan tawaran</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
-      {% elif user.role == 'penjual' %}
+      {% elif user.active_role == 'penjual' %}
       <a class="mobile-action-link" href="{{ url_for('create_product') }}"><i class="bi bi-plus-square"></i><span><b>Tambah Produk Jualan</b><small>Buat listing baru di marketplace</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
       <a class="mobile-action-link" href="{{ url_for('create_auction_event') }}"><i class="bi bi-hammer"></i><span><b>Buat Event Lelang</b><small>Lelang hasil panen, buah, ternak, atau stok produk</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
       <a class="mobile-action-link" href="{{ url_for('dashboard_seller') }}"><i class="bi bi-box-seam"></i><span><b>Produk Saya</b><small>Kelola listing dan penawaran masuk</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
@@ -236,7 +250,7 @@ function acceptSknj(){
 function closeSknj(){ skkjModal.hide(); }
 </script>
 
-{% if user and user.role!='admin' %}
+{% if user and user.active_role!='admin' %}
 <!-- ================= AI CHAT AGENT FLOATING ================= -->
 <button class="chat-fab" onclick="toggleChat()" title="Tanya AGR Assistant 🤖">🤖</button>
 <div class="chat-box shadow-lg" id="chatBox">

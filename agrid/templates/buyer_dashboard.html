@@ -157,7 +157,7 @@
               {% set ns = namespace(myrat=None) %}{% for rr in (rat_out or []) %}{% if rr.transaksi_id==t.id %}{% set ns.myrat = rr %}{% endif %}{% endfor %}
               {% if t.status=='completed' %}
                 {% if ns.myrat %}<span class="small text-success fw-bold">⭐ {{ ns.myrat.score }}/5 — dinilai oleh Anda</span>
-                {% elif user.role=='pembeli' %}<a class="btn btn-sm btn-warning fw-bold" href="{{ url_for('rate_transaction', tid=t.id) }}">⭐ Nilai Penjual</a>
+                {% elif user.active_role=='pembeli' %}<a class="btn btn-sm btn-warning fw-bold" href="{{ url_for('rate_transaction', tid=t.id) }}">⭐ Nilai Penjual</a>
                 {% endif %}
               {% endif %}
             </td>
@@ -177,7 +177,7 @@
             {% for f in seller_favs %}
               <div class="list-group-item d-flex justify-content-between align-items-center">
                 <div>
-                  <b>{{ f.seller.nama }}</b> <span class="badge bg-light text-dark border">{{ f.seller.tipe }}</span>
+                  <b>{{ f.seller.nama }}</b> <span class="badge bg-light text-dark border">{{ f.seller.tipe_penjual or f.seller.tipe }}</span>
                   {{ '✅' if f.seller.verified }}
                   <div class="small text-muted"><i class="bi bi-geo-alt"></i> {{ f.seller.kota }}, {{ f.seller.provinsi }} · {{ f.created_at|dt }}</div>
                 </div>

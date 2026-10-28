@@ -50,20 +50,29 @@ jobs:
           grep -q "api.php" app.js && echo "✅ Frontend menunjuk gateway api.php"
           echo "📦 Ukuran paket deploy:" && du -sh .
 
-      - name: Siapkan config.php untuk InfinityFree
+      - name: Siapkan config.php dari GitHub Secrets
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          AGR_ID_SESSION_SECRET: ${{ secrets.AGR_ID_SESSION_SECRET }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          AGR_ID_API_URL: ${{ secrets.AGR_ID_API_URL }}
         run: |
-          cat << 'EOF' > htdocs/config.php
-          <?php
-          return [
-              'supabase_url'    => 'https://sxcahpbmderuwfvoxkix.supabase.co',
-              'supabase_key'    => 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4Y2FocGJtZGVydXdmdm94a2l4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjUyMzAyNSwiZXhwIjoyMTA4MDk5MDI1fQ.pmLbLWTz_0NC8K_zUT9LqSRArhcoguXIoPi1NNVDUl4',
-              'cloudinary_cloud'   => '',
-              'cloudinary_key'     => '',
-              'cloudinary_secret'  => '',
-              'flask_url'       => '',
-              'session_secret'  => 'Jsu6Ye-9l2AQLPO94eSUtQ-znCOWJioxfogPXU-4ac7f87d-aca4-48e0-8fde-b9b7c55d66e2',
+          test -n "$SUPABASE_ANON_KEY" || { echo "SUPABASE_ANON_KEY belum diset di GitHub Secrets"; exit 1; }
+          test "${#AGR_ID_SESSION_SECRET}" -ge 64 || { echo "AGR_ID_SESSION_SECRET harus berisi minimal 64 karakter di GitHub Secrets"; exit 1; }
+          php -r '
+          $config = [
+            "supabase_url" => "https://sxcahpbmderuwfvoxkix.supabase.co",
+            "supabase_key" => getenv("SUPABASE_ANON_KEY"),
+            "cloudinary_cloud" => getenv("CLOUDINARY_CLOUD_NAME") ?: "",
+            "cloudinary_key" => getenv("CLOUDINARY_API_KEY") ?: "",
+            "cloudinary_secret" => getenv("CLOUDINARY_API_SECRET") ?: "",
+            "flask_url" => getenv("AGR_ID_API_URL") ?: "",
+            "session_secret" => getenv("AGR_ID_SESSION_SECRET"),
           ];
-          EOF
+          file_put_contents("htdocs/config.php", "<?php\nreturn " . var_export($config, true) . ";\n");
+          '
 
       - name: Sync file ke InfinityFree via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0

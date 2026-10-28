@@ -7,7 +7,7 @@
     <div class="card-body">
       <div class="small text-muted mb-3">Nilai Rp{{ t.nilai|rp }} · DP Rp{{ t.dp_dibayar|rp }} · Status <b>{{ t.status }}</b> · Ref bayar <code>{{ t.ref_payment }}</code></div>
 
-      {% if user.role=='penjual' and t.status in ('processing','paid') %}
+      {% if user.active_role=='penjual' and t.status in ('processing','paid') %}
       <form method="post" class="row g-2 border-bottom pb-3 mb-3">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
         <div class="col-md-3"><label class="small fw-bold">Tahap</label>
@@ -25,7 +25,7 @@
         <div class="col-12"><button class="btn btn-sm btn-agrid">📸 Unggah Eviden</button></div>
       </form>
       {% endif %}
-      {% if user.role=='pembeli' and t.status in ('shipped','delivered') %}
+      {% if user.active_role=='pembeli' and t.status in ('shipped','delivered') %}
       <form method="post" class="row g-2 border-bottom pb-3 mb-3">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
         <div class="col-md-4"><label class="small fw-bold">Tahap</label>
@@ -54,7 +54,7 @@
         {% else %}<p class="text-muted">Belum ada eviden untuk transaksi ini.</p>{% endfor %}
       </div>
 
-      {% if user.role=='penjual' or user.role=='admin' %}
+      {% if user.active_role=='penjual' or user.active_role=='admin' %}
       <hr>
       <form method="post" action="{{ url_for('update_status', tid=t.id) }}" class="row g-2 align-items-end">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">

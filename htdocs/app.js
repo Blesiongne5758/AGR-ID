@@ -78,8 +78,9 @@ async function loadFooter(){
 function updateNav(){
   const u=S.user;
   $('#navAuth').innerHTML = u
-    ? `<a class="btn btn-ghost" href="#/dashboard/${u.role}">Dashboard</a><a class="btn btn-ghost" href="#/akun" title="Ganti password">⚙️ Akun</a><button class="btn btn-outline" id="btnLogout">Keluar</button>`
+    ? `<a class="btn btn-ghost" href="#/dashboard/${u.role}">Dashboard</a>${u.role==='admin'?'':`<button class="btn btn-outline" id="btnSwitchRole" data-role="${u.role==='penjual'?'pembeli':'penjual'}">Mode ${u.role==='penjual'?'Pembeli':'Penjual'}</button>`}<a class="btn btn-ghost" href="#/akun" title="Ganti password">⚙️ Akun</a><button class="btn btn-outline" id="btnLogout">Keluar</button>`
     : `<a class="btn btn-ghost" href="#/login">Masuk</a><a class="btn btn-primary" href="#/daftar">Daftar</a>`;
+  const bs=$('#btnSwitchRole'); if(bs) bs.onclick=async()=>{try{const r=await api('switch-role',{method:'POST',body:{role:bs.dataset.role}});S.user=r.user;updateNav();toast('Mode akun beralih ke '+r.user.role+'.');location.hash='#/dashboard/'+r.user.role;}catch(e){toast(e.message);} };
   const bl=$('#btnLogout'); if(bl) bl.onclick=async()=>{ try{await api('logout',{method:'POST'})}catch(e){} S.token='';S.user=null;updateNav();location.hash='#/beranda'; };
 }
 
@@ -185,7 +186,7 @@ async function doLogin(){
 }
 
 renderers.register = () => {
-  $('#app').innerHTML = `<div class="auth card-form"><h2>Pendaftaran AGR.ID</h2>
+  $('#app').innerHTML = `<div class="auth card-form"><h2>Pendaftaran AGR.ID</h2><p class="muted small">Satu akun dapat digunakan dalam mode penjual dan pembeli. Pilih mode awal; Anda bisa beralih kapan saja.</p>
     <div class="seg" id="segRole"><button class="on" data-r="penjual">Saya Penjual</button><button data-r="pembeli">Saya Pembeli</button></div>
     <label>Nama / Nama Usaha<input id="rn" class="input" autocomplete="name"></label>
     <label>Email<input id="re" class="input" type="email" autocomplete="email"></label>

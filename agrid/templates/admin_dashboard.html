@@ -100,7 +100,7 @@
         <tbody>{% for t in penjualan_rows %}<tr>
           <td class="small">#{{ t.id }}</td><td class="small">{{ t.created_at|dt }}</td>
           <td>{{ t.product_name }}</td><td>{{ t.qty|rp }}</td>
-          <td class="small">{{ t.seller.nama }} <span class="badge bg-light text-dark border">{{ t.seller.tipe }}</span></td>
+          <td class="small">{{ t.seller.nama }} <span class="badge bg-light text-dark border">{{ t.seller.tipe_penjual or t.seller.tipe }}</span></td>
           <td class="small">{{ t.buyer.nama }} <span class="badge bg-light text-dark border">{{ t.buyer.tipe }}</span></td>
           <td class="fw-bold">Rp{{ t.nilai|rp }}</td><td>Rp{{ t.dp_dibayar|rp }}</td>
           <td>{% if t.pelunasan %}Rp{{ t.pelunasan|rp }}{% else %}—{% endif %}</td>

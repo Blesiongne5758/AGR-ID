@@ -4,7 +4,7 @@
 <div class="container my-4">
   <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-4">
     <div><div class="small text-success fw-semibold text-uppercase">Hasil panen · Buah di pohon · Ternak</div><h3 class="fw-bold mb-1"><i class="bi bi-hammer text-success"></i> Lelang Terbuka</h3><p class="text-muted mb-0">Konfirmasi sebagai peserta, lalu ajukan harga untuk satu paket produk yang dilelang.</p></div>
-    {% if user and user.role=='penjual' %}<a class="btn btn-agrid" href="{{ url_for('create_auction_event') }}"><i class="bi bi-plus-lg"></i> Buat Event Lelang</a>{% endif %}
+    {% if user and user.active_role=='penjual' %}<a class="btn btn-agrid" href="{{ url_for('create_auction_event') }}"><i class="bi bi-plus-lg"></i> Buat Event Lelang</a>{% endif %}
   </div>
   <div class="row g-3">
     {% for event in events %}{% set high = event.tawaran_tertinggi %}

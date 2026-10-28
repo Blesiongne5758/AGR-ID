@@ -10,8 +10,8 @@ InfinityFree tidak mengizinkan koneksi DB langsung (port 5432 diblokir), sehingg
 semua akses Supabase & Cloudinary dimediasi `htdocs/api.php` (server-side cURL).
 
 ## Langkah 1 — Supabase
-1. Buat project di https://supabase.com → Project Settings → API: salin **URL** & **anon key**.
-   Simpan **service_role key** hanya untuk gateway (jangan diekspos ke browser).
+1. Buat project di https://supabase.com → Project Settings → API: salin **URL** & **anon public key**.
+   Gateway PHP memakai anon key dan kebijakan RLS; jangan gunakan service-role key di hosting atau workflow.
 2. SQL Editor → Run isi `htdocs/supabase-schema.sql` (membuat 12 tabel + RLS).
 3. Authentication → Sign In / Up → matikan "Confirm email" agar registrasi via gateway jalan.
 
@@ -20,12 +20,13 @@ semua akses Supabase & Cloudinary dimediasi `htdocs/api.php` (server-side cURL).
 2. Settings → Upload → tambahkan folder prefix `agrid/`.
 3. Catat: Cloud name, API Key, API Secret (dipakai api.php menandatangani upload).
 
-## Langkah 3 — Gateway (htdocs/api.php)
-1. Salin `config.example.php` → `config.php`, isi kredensial Supabase + Cloudinary.
-2. `flask_url` kosongkan dulu; isi URL backend Flask bila ingin payment gateway,
-   blockchain AGR Coin, dan AI chat agent aktif (Render free tier cocok).
-3. Upload seluruh isi folder `htdocs/` ke docroot InfinityFree bernama **htdocs**
-   (via Online File Manager atau FTP akun *.epizy/rf.gd — root folder = `htdocs`).
+## Langkah 3 — Secrets deploy
+1. Di GitHub → Settings → Secrets and variables → Actions, isi secrets wajib:
+   `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`, `SUPABASE_ANON_KEY`, dan `AGR_ID_SESSION_SECRET`.
+2. `AGR_ID_SESSION_SECRET` harus acak dan minimal 64 karakter. Opsional: isi
+   `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, dan `AGR_ID_API_URL`.
+3. Workflow membuat `htdocs/config.php` saat build dan mengirimnya lewat FTP; file itu tetap diabaikan Git.
+   Push ke `main` pada folder `htdocs/` menjalankan deploy otomatis.
 
 ## Langkah 4 — Frontend statis
 1. Export halaman Flask menjadi HTML statis, taruh di `htdocs/agrid-web/`:
@@ -38,9 +39,10 @@ Jalankan sekali di SQL Editor Supabase (password penjual123 sudah di-bcrypt):
 lihat bagian bawah file ini.
 
 ## Catatan Keamanan
-- `config.php` TIDAK di-commit (.gitignore) — upload manual via File Manager.
+- `config.php` TIDAK di-commit (.gitignore); workflow membuatnya dari GitHub Secrets.
 - Anon key boleh di browser karena RLS menolak INSERT/UPDATE/DELETE langsung;
   penulisan data hanya lewat api.php yang memverifikasi token sesi + role.
+- Bila service-role key pernah tersimpan di file atau riwayat GitHub publik, rotasi key itu di Supabase sebelum deploy berikutnya.
 - Dokumen KYC privat: folder `agrid/private/<user_id>` di Cloudinary, diakses
   hanya via `api.php?action=media-private-url` (signed URL 5 menit, cek status DP).
 - Rate limit InfinityFree ± 40k hit/hari; ticker harga sebaiknya di-cache

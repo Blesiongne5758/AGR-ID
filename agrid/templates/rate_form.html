@@ -5,14 +5,14 @@
   <div class="card shadow-sm border-0">
     <div class="card-header">
       ⭐ Penilaian Tingkat Kepuasan Transaksi #{{ t.id }}
-      <span class="badge bg-light text-dark ms-2">{{ '🧑‍🌾 Menilai Penjual' if user.role=='pembeli' else '🛒 Menilai Pembeli' }}</span>
+      <span class="badge bg-light text-dark ms-2">{{ '🧑‍🌾 Menilai Penjual' if user.active_role=='pembeli' else '🛒 Menilai Pembeli' }}</span>
     </div>
     <div class="card-body">
       <div class="row g-2 mb-3 small">
         <div class="col-md-6"><b>Produk:</b> {{ t.product_name }} ({{ t.qty|rp }})</div>
         <div class="col-md-6"><b>Nilai transaksi:</b> Rp{{ t.nilai|rp }}</div>
-        <div class="col-md-6"><b>{{ 'Penjual' if user.role=='pembeli' else 'Pembeli' }}:</b>
-          {{ t.seller.nama if user.role=='pembeli' else t.buyer.nama }} · {{ t.seller.tipe if user.role=='pembeli' else t.buyer.tipe }}</div>
+        <div class="col-md-6"><b>{{ 'Penjual' if user.active_role=='pembeli' else 'Pembeli' }}:</b>
+          {{ t.seller.nama if user.active_role=='pembeli' else t.buyer.nama }} · {{ (t.seller.tipe_penjual or t.seller.tipe) if user.active_role=='pembeli' else (t.buyer.tipe_pembeli or t.buyer.tipe) }}</div>
         <div class="col-md-6"><b>Status:</b> <span class="badge bg-success">{{ t.status }}</span> · Selesai {{ t.completed_at|dt }}</div>
       </div>
 

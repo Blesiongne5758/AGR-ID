@@ -70,6 +70,9 @@ class User(db.Model):
     phone = db.Column(db.String(30))
     role = db.Column(db.String(20), nullable=False)          # penjual / pembeli / admin
     tipe = db.Column(db.String(40))                          # Tipe akun sesuai peran penjual atau pembeli
+    roles = db.Column(db.JSON, nullable=False, default=list) # Peran yang dapat dipakai akun ini
+    tipe_penjual = db.Column(db.String(40))
+    tipe_pembeli = db.Column(db.String(40))
     alamat = db.Column(db.Text)
     kota = db.Column(db.String(80))
     provinsi = db.Column(db.String(80))
@@ -86,6 +89,31 @@ class User(db.Model):
     crypto_address = db.Column(db.String(64))
 
     products = db.relationship("Product", backref="seller", lazy=True)
+
+    @property
+    def role_list(self):
+        roles = self.roles or []
+        if isinstance(roles, str):
+            try:
+                roles = json.loads(roles)
+            except (TypeError, ValueError):
+                roles = []
+        if self.role == "admin":
+            return ["admin"]
+        return [role for role in roles if role in ("penjual", "pembeli")] or [self.role]
+
+    @property
+    def active_role(self):
+        selected = session.get("active_role") if session.get("uid") == self.id else None
+        return selected if selected in self.role_list else self.role
+
+    @property
+    def active_tipe(self):
+        if self.active_role == "penjual":
+            return self.tipe_penjual or self.tipe or TIPE_PENJUAL[0]
+        if self.active_role == "pembeli":
+            return self.tipe_pembeli or self.tipe or TIPE_PEMBELI[0]
+        return self.tipe or "Admin"
 
 
 class ProdukMaster(db.Model):
@@ -600,7 +628,7 @@ def get_biaya_settings():
 
 def fav_state(buyer, seller_id=None, product_id=None):
     """Status favorit pembeli utk penjual/produk tertentu (untuk tombol ♥)."""
-    if not buyer or buyer.role != "pembeli":
+    if not buyer or "pembeli" not in buyer.role_list:
         return {"seller": False, "product": False}
     q = Favorite.query.filter_by(buyer_id=buyer.id)
     s = q.filter(Favorite.product_id.is_(None), Favorite.seller_id == seller_id).first() if seller_id else None
@@ -893,7 +921,7 @@ def login_required(*roles):
             if not u:
                 flash("Silakan login terlebih dahulu.", "warning")
                 return redirect(url_for("login"))
-            if roles and u.role not in roles:
+            if roles and u.active_role not in roles:
                 flash("Akses ditolak untuk role Anda.", "danger")
                 return redirect(url_for("login"))
             return fn(*a, **kw)
@@ -948,7 +976,7 @@ def marketplace():
     cu = current_user()
     fav_seller_ids = set()
     fav_prod_ids = set()
-    if cu and cu.role == "pembeli":
+    if cu and cu.active_role == "pembeli":
         for f in Favorite.query.filter_by(buyer_id=cu.id).all():
             if f.product_id is None:
                 fav_seller_ids.add(f.seller_id)
@@ -968,7 +996,7 @@ def auction_list():
         LelangEvent.mulai.desc(), LelangEvent.created_at.desc()).all()
     cu = current_user()
     joined_ids = set()
-    if cu and cu.role == "pembeli":
+    if cu and cu.active_role == "pembeli":
         joined_ids = {r.event_id for r in LelangParticipant.query.filter_by(buyer_id=cu.id).all()}
     return render_template("auction_list.html", events=events, joined_ids=joined_ids,
                            user=cu, ticker=ticker_data())
@@ -1096,20 +1124,20 @@ def auction_detail(event_id):
     event = LelangEvent.query.get_or_404(event_id)
     cu = current_user()
     if event.status in ("diajukan", "ditolak", "menunggu_biaya_penjual") and not (
-        cu and (cu.id == event.seller_id or cu.role == "admin")
+        cu and (cu.id == event.seller_id or cu.active_role == "admin")
     ):
         abort(404)
-    participant = LelangParticipant.query.filter_by(event_id=event.id, buyer_id=cu.id).first() if cu and cu.role == "pembeli" else None
-    seller_view = bool(cu and cu.role == "penjual" and cu.id == event.seller_id)
+    participant = LelangParticipant.query.filter_by(event_id=event.id, buyer_id=cu.id).first() if cu and cu.active_role == "pembeli" else None
+    seller_view = bool(cu and cu.active_role == "penjual" and cu.id == event.seller_id)
     highest = event.tawaran_tertinggi
     winner = event.pemenang or (highest.buyer if highest and event.status == "selesai" else None)
-    is_winner = bool(winner and cu and cu.role == "pembeli" and winner.id == cu.id and
+    is_winner = bool(winner and cu and cu.active_role == "pembeli" and winner.id == cu.id and
                      event.status in ("menunggu_pembayaran_pemenang", "tenggat_pemenang_lewat", "selesai"))
     winner_price = event.harga_pemenang or (highest.nominal if highest else 0)
     next_bidder_candidates = [bid for bid in event.peringkat_tawaran if bid.buyer_id != event.pemenang_id]
     return render_template("auction_detail.html", event=event, user=cu, participant=participant,
                            highest=highest, winner=winner, seller_view=seller_view, is_winner=is_winner,
-                           admin_view=bool(cu and cu.role == "admin"),
+                           admin_view=bool(cu and cu.active_role == "admin"),
                            next_bidder_candidates=next_bidder_candidates,
                            default_next_payment_deadline=(datetime.now(WIB) + timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M"),
                            winner_price=winner_price,
@@ -1123,7 +1151,7 @@ def auction_results(event_id):
     event = LelangEvent.query.get_or_404(event_id)
     cu = current_user()
     if event.status in ("diajukan", "ditolak", "menunggu_biaya_penjual") and not (
-        cu and (cu.id == event.seller_id or cu.role == "admin")
+        cu and (cu.id == event.seller_id or cu.active_role == "admin")
     ):
         abort(404)
     bids = sorted(event.bids, key=lambda bid: (bid.nominal, -bid.id), reverse=True)
@@ -1216,7 +1244,7 @@ def pay_auction_participant_fee(event_id):
 def calendar_page():
     u = current_user()
     entries = []
-    dashboard_endpoint = {"penjual": "dashboard_seller", "pembeli": "dashboard_buyer"}.get(u.role, "dashboard_admin")
+    dashboard_endpoint = {"penjual": "dashboard_seller", "pembeli": "dashboard_buyer"}.get(u.active_role, "dashboard_admin")
     dashboard_url = url_for(dashboard_endpoint)
 
     def add_entry(when, kind, title, description="", location="", event_url=None):
@@ -1224,11 +1252,11 @@ def calendar_page():
             entries.append({"when": when, "kind": kind, "title": title,
                             "description": description, "location": location, "url": event_url})
 
-    participant_rows = LelangParticipant.query.filter_by(buyer_id=u.id).all() if u.role == "pembeli" else []
+    participant_rows = LelangParticipant.query.filter_by(buyer_id=u.id).all() if u.active_role == "pembeli" else []
     joined_event_ids = {row.event_id for row in participant_rows}
-    if u.role == "penjual":
+    if u.active_role == "penjual":
         auctions = LelangEvent.query.filter_by(seller_id=u.id).all()
-    elif u.role == "pembeli":
+    elif u.active_role == "pembeli":
         auctions = LelangEvent.query.filter(LelangEvent.id.in_(joined_event_ids or [-1])).all()
     else:
         auctions = LelangEvent.query.all()
@@ -1243,7 +1271,7 @@ def calendar_page():
             add_entry(event.jadwal_pengambilan, "Pengambilan", f"Pengambilan paket lelang: {event.judul}",
                       "Jadwal pengambilan yang ditetapkan penjual", event.alamat_lokasi, event_url)
         for award in event.awards:
-            if u.role == "admin" or u.id in (event.seller_id, award.buyer_id):
+            if u.active_role == "admin" or u.id in (event.seller_id, award.buyer_id):
                 add_entry(award.ditetapkan_pada, "Hasil lelang", f"Pemenang ditetapkan: {event.judul}",
                           f"{award.buyer.nama} · Rp{award.nominal:,.0f}", event.alamat_lokasi, event_url)
                 add_entry(award.batas_bayar, "Tenggat pembayaran", f"Batas pembayaran pemenang: {event.judul}",
@@ -1252,20 +1280,20 @@ def calendar_page():
                     add_entry(award.dibayar_pada, "Pembelian lelang", f"Pembayaran pemenang: {event.judul}",
                               f"{award.buyer.nama} · Rp{award.nominal:,.0f} · lunas", event.alamat_lokasi, event_url)
         for registration in event.participants:
-            if u.role == "admin" or u.id == event.seller_id or registration.buyer_id == u.id:
+            if u.active_role == "admin" or u.id == event.seller_id or registration.buyer_id == u.id:
                 add_entry(registration.created_at, "Pendaftaran lelang", f"Pendaftaran peserta: {event.judul}",
                           f"{registration.buyer.nama} · biaya administrasi {'lunas' if registration.biaya_lunas else 'menunggu pembayaran'}",
                           event.alamat_lokasi, event_url)
         for bid in event.bids:
-            if u.role == "admin" or u.id == event.seller_id or bid.buyer_id == u.id:
+            if u.active_role == "admin" or u.id == event.seller_id or bid.buyer_id == u.id:
                 who = "Anda" if bid.buyer_id == u.id else bid.buyer.nama
                 add_entry(bid.created_at, "Penawaran", f"Penawaran lelang: {event.judul}",
                           f"{who} · Rp{bid.nominal:,.0f}", event.alamat_lokasi, event_url)
 
     bookings_query = Booking.query.join(Offer, Booking.offer_id == Offer.id)
-    if u.role == "pembeli":
+    if u.active_role == "pembeli":
         bookings_query = bookings_query.filter(Offer.buyer_id == u.id)
-    elif u.role == "penjual":
+    elif u.active_role == "penjual":
         bookings_query = bookings_query.join(Product, Offer.product_id == Product.id).filter(Product.seller_id == u.id)
     for booking in bookings_query.all():
         offer = booking.offer
@@ -1281,14 +1309,14 @@ def calendar_page():
                       seller.alamat, dashboard_url)
 
     transactions_query = Transaksi.query
-    if u.role == "pembeli":
+    if u.active_role == "pembeli":
         transactions_query = transactions_query.filter_by(buyer_id=u.id)
-    elif u.role == "penjual":
+    elif u.active_role == "penjual":
         transactions_query = transactions_query.filter_by(seller_id=u.id)
     for transaction in transactions_query.all():
-        other_party = transaction.seller.nama if u.role == "pembeli" else transaction.buyer.nama
+        other_party = transaction.seller.nama if u.active_role == "pembeli" else transaction.buyer.nama
         add_entry(transaction.created_at, "Pembelian", f"Pembelian #{transaction.id}: {transaction.product_name}",
-                  f"{(transaction.qty or 0):g} unit · Rp{transaction.nilai:,.0f} · {transaction.status} · {'pihak terkait: ' + other_party if u.role != 'admin' else ''}",
+                  f"{(transaction.qty or 0):g} unit · Rp{transaction.nilai:,.0f} · {transaction.status} · {'pihak terkait: ' + other_party if u.active_role != 'admin' else ''}",
                   "", dashboard_url)
 
     entries.sort(key=lambda row: row["when"])
@@ -1471,6 +1499,9 @@ def register():
             phone=request.form.get("phone", ""),
             role=role,
             tipe=tipe,
+            roles=["penjual", "pembeli"],
+            tipe_penjual=tipe if role == "penjual" else TIPE_PENJUAL[0],
+            tipe_pembeli=tipe if role == "pembeli" else TIPE_PEMBELI[0],
             alamat=request.form.get("alamat", ""),
             kota=request.form.get("kota", ""),
             provinsi=request.form.get("provinsi", ""),
@@ -1492,6 +1523,7 @@ def register():
                 print("wallet:", e)
         session.clear(); session.permanent = True
         session["uid"] = u.id
+        session["active_role"] = role
         flash(f"Pendaftaran berhasil sebagai {role.title()}! Selamat datang di AGR.ID 🌾", "success")
         return redirect(url_for("dashboard"))
     return render_template("register.html", role=role, tipe_penjual=TIPE_PENJUAL,
@@ -1517,11 +1549,12 @@ def login():
         if u and check_password_hash(u.password, request.form.get("password", "")):
             security.clear_failed_login(u)
             models_api.LoginAttempt(email=email, success=True, ip=ip, ua=request.user_agent.string[:200])
-            models_api.AuditLog.record("login_sukses", actor=email, role=u.role, user_id=u.id, ip=ip)
+            models_api.AuditLog.record("login_sukses", actor=email, role=u.active_role, user_id=u.id, ip=ip)
             db.session.commit()
             session.clear()
             session.permanent = True
             session["uid"] = u.id
+            session["active_role"] = u.active_role
             return redirect(url_for("dashboard"))
         if u:
             security.register_failed_login(u)
@@ -1532,11 +1565,26 @@ def login():
     return render_template("login.html", user=current_user())
 
 
+@app.route("/akun/mode", methods=["POST"])
+@login_required()
+def switch_account_mode():
+    u = current_user()
+    target = request.form.get("role", "").strip()
+    if target not in ("penjual", "pembeli") or target not in u.role_list:
+        flash("Mode akun yang dipilih tidak tersedia.", "warning")
+        return redirect(url_for("dashboard"))
+    session["active_role"] = target
+    session.permanent = True
+    audit_current("mode_akun_diubah", "users", u.id, f"mode aktif: {target}")
+    flash(f"Mode akun beralih ke {target.title()}.", "success")
+    return redirect(url_for("dashboard"))
+
+
 @app.route("/logout")
 def logout():
     u = current_user()
     if u:
-        models_api.AuditLog.record("logout", actor=u.email, role=u.role, user_id=u.id,
+        models_api.AuditLog.record("logout", actor=u.email, role=u.active_role, user_id=u.id,
                                    ip=security.client_ip())
         db.session.commit()
     session.clear()
@@ -1550,9 +1598,9 @@ def logout():
 @login_required("penjual", "pembeli", "admin")
 def dashboard():
     u = current_user()
-    if u.role == "penjual":
+    if u.active_role == "penjual":
         return redirect(url_for("dashboard_seller"))
-    if u.role == "admin":
+    if u.active_role == "admin":
         return redirect(url_for("dashboard_admin"))
     return redirect(url_for("dashboard_buyer"))
 
@@ -1756,10 +1804,11 @@ def dashboard_admin():
     total_nilai_penjualan = sum(t.nilai for t in tx)
     total_nilai_pembelian = total_nilai_penjualan
 
+    accounts = User.query.all()
     stats = {
-        "users": User.query.count(),
-        "penjual": User.query.filter_by(role="penjual").count(),
-        "pembeli": User.query.filter_by(role="pembeli").count(),
+        "users": len(accounts),
+        "penjual": sum("penjual" in account.role_list for account in accounts),
+        "pembeli": sum("pembeli" in account.role_list for account in accounts),
         "produk": Product.query.count(),
         "master": ProdukMaster.query.count(),
         "transaksi": len(tx),
@@ -2217,7 +2266,7 @@ def review_pelunasan(pid):
 def add_eviden(tid):
     t = Transaksi.query.get_or_404(tid)
     u = current_user()
-    if u.role not in ("penjual", "pembeli") or (t.seller_id != u.id and t.buyer_id != u.id):
+    if u.active_role not in ("penjual", "pembeli") or (t.seller_id != u.id and t.buyer_id != u.id):
         flash("Tidak berwenang.", "danger"); audit_current("eviden_ditambah", "transaksi", tid, "bukti ketelusuran baru")
         return redirect(url_for("dashboard"))
     if request.method == "POST":
@@ -2241,7 +2290,7 @@ def update_status(tid):
     u = current_user()
     new = request.form.get("status")
     b = Booking.query.get(t.booking_id) if t.booking_id else None
-    if u.role == "penjual" and t.seller_id != u.id:
+    if u.active_role == "penjual" and t.seller_id != u.id:
         flash("Tidak berwenang.", "danger"); audit_current("status_diubah", "transaksi", tid, "perubahan status transaksi")
         return redirect(url_for("dashboard"))
     if new in ("shipped", "delivered", "completed", "cancelled", "paid"):
@@ -2274,15 +2323,15 @@ def rate_transaction(tid):
         flash("Penilaian hanya dapat diberikan setelah transaksi berstatus selesai.", "warning")
         audit_current("penilaian_dibuat", "transaksi", tid, "rating kepuasan")
         return redirect(url_for("dashboard"))
-    if u.role == "pembeli" and t.buyer_id != u.id:
+    if u.active_role == "pembeli" and t.buyer_id != u.id:
         flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard"))
-    if u.role == "penjual" and t.seller_id != u.id:
+    if u.active_role == "penjual" and t.seller_id != u.id:
         flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard"))
     if my_rating_for(t.id, u.id):
         flash("Anda sudah menilai transaksi ini. Terima kasih! ⭐", "info")
         return redirect(url_for("dashboard"))
-    to_id = t.seller_id if u.role == "pembeli" else t.buyer_id
-    arah = "ke_penjual" if u.role == "pembeli" else "ke_pembeli"
+    to_id = t.seller_id if u.active_role == "pembeli" else t.buyer_id
+    arah = "ke_penjual" if u.active_role == "pembeli" else "ke_pembeli"
     aspek_list = ASPEK_KEPUASAN[arah]
     if request.method == "POST":
         try:
@@ -2304,7 +2353,7 @@ def rate_transaction(tid):
                    komentar=request.form.get("komentar", "").strip())
         db.session.add(r)
         db.session.commit()
-        lawang = "penjual" if u.role == "pembeli" else "pembeli"
+        lawang = "penjual" if u.active_role == "pembeli" else "pembeli"
         flash(f"Penilaian {overall}⭐ untuk {lawang} tersimpan — terima kasih atas feedback Anda! 🌾", "success")
         return redirect(url_for("dashboard"))
     return render_template("rate_form.html", t=t, arah=arah, aspek_list=aspek_list,
@@ -2328,7 +2377,7 @@ def api_user_rating(uid):
                     "arah": r.arah, "dari": r.from_user.nama, "produk": r.transaksi.product_name,
                     "komentar": r.komentar, "tgl": r.created_at.strftime("%d %b %Y"), "aspek": aspek})
     usr = User.query.get(uid)
-    return jsonify(ok=True, nama=usr.nama if usr else "-", role=usr.role if usr else "-",
+    return jsonify(ok=True, nama=usr.nama if usr else "-", role=usr.active_role if usr else "-",
                    **stats, ulasan=ulas)
 
 # ----------------------------------------------------------------------------
@@ -2865,6 +2914,23 @@ def seed():
         # --- migrasi ringan untuk DB lama: tambah kolom/tabel yang hilang ---
         try:
             from sqlalchemy import text
+            from sqlalchemy import inspect as sa_inspect
+            user_columns = {col["name"] for col in sa_inspect(db.engine).get_columns("users")}
+            for column, ddl in [
+                ("roles", "TEXT NOT NULL DEFAULT '[]'"),
+                ("tipe_penjual", "VARCHAR(40)"),
+                ("tipe_pembeli", "VARCHAR(40)"),
+            ]:
+                if column not in user_columns:
+                    db.session.execute(text(f"ALTER TABLE users ADD COLUMN {column} {ddl}"))
+            for account in User.query.all():
+                account.roles = ["admin"] if account.role == "admin" else ["penjual", "pembeli"]
+                if account.role == "penjual":
+                    account.tipe_penjual = account.tipe_penjual or (account.tipe if account.tipe in TIPE_PENJUAL else TIPE_PENJUAL[0])
+                    account.tipe_pembeli = account.tipe_pembeli or TIPE_PEMBELI[0]
+                elif account.role == "pembeli":
+                    account.tipe_pembeli = account.tipe_pembeli or (account.tipe if account.tipe in TIPE_PEMBELI else TIPE_PEMBELI[0])
+                    account.tipe_penjual = account.tipe_penjual or TIPE_PENJUAL[0]
             if is_sqlite:   # PRAGMA hanya ada di SQLite; Postgres punya skema penuh dr create_all
                 insp_cols = {c[1] for c in db.session.execute(text("PRAGMA table_info(bookings)"))}
                 if "metode_dp" not in insp_cols:
@@ -2995,22 +3061,32 @@ def seed():
         if User.query.count() == 0:
             admin = User(nama="Admin AGR.ID", email="admin@agr.id",
                          password=generate_password_hash("admin123"), role="admin",
-                         tipe="Perorangan", verified=True, kota="Jakarta", provinsi="DKI Jakarta")
+                         tipe="Perorangan", roles=["admin"],
+                         tipe_penjual=TIPE_PENJUAL[0], tipe_pembeli=TIPE_PEMBELI[0],
+                         verified=True, kota="Jakarta", provinsi="DKI Jakarta")
             seller = User(nama="Pak Budi Tani", email="penjual@agr.id",
                           password=generate_password_hash("penjual123"), role="penjual",
-                          tipe="Kelompok/Paguyuban", alamat="Desa Cikarang, Kab. Brebes",
+                          tipe="Kelompok/Paguyuban", roles=["penjual", "pembeli"],
+                          tipe_penjual="Kelompok/Paguyuban", tipe_pembeli=TIPE_PEMBELI[0],
+                          alamat="Desa Cikarang, Kab. Brebes",
                           kota="Brebes", provinsi="Jawa Tengah", lat=-6.866, lng=109.055, verified=True)
             seller2 = User(nama="Koperasi Mina Laut", email="koperasi@agr.id",
                            password=generate_password_hash("penjual123"), role="penjual",
-                           tipe="Koperasi", alamat="Pelabuhan Pekalongan", kota="Pekalongan",
+                           tipe="Koperasi", roles=["penjual", "pembeli"],
+                           tipe_penjual="Koperasi", tipe_pembeli="Koperasi",
+                           alamat="Pelabuhan Pekalongan", kota="Pekalongan",
                            provinsi="Jawa Tengah", lat=-6.889, lng=109.675, verified=True)
             buyer = User(nama="Siti Pembeli", email="pembeli@agr.id",
                          password=generate_password_hash("pembeli123"), role="pembeli",
-                         tipe="Perorangan", alamat="Jl. Merdeka 12, Bandung", kota="Bandung",
+                         tipe="Perorangan", roles=["penjual", "pembeli"],
+                         tipe_penjual=TIPE_PENJUAL[0], tipe_pembeli="Perorangan",
+                         alamat="Jl. Merdeka 12, Bandung", kota="Bandung",
                          provinsi="Jawa Barat", lat=-6.914, lng=107.609, verified=True)
             corp = User(nama="PT Segar Food Industry", email="corporate@agr.id",
                         password=generate_password_hash("corporate123"), role="pembeli",
-                        tipe="Perusahaan", alamat="Kawasan Industri GIIC", kota="Tangerang",
+                        tipe="Perusahaan", roles=["penjual", "pembeli"],
+                        tipe_penjual="Perusahaan", tipe_pembeli="Perusahaan",
+                        alamat="Kawasan Industri GIIC", kota="Tangerang",
                         provinsi="Banten", lat=-6.238, lng=106.62, npwp="01.234.567.8-901.000",
                         nib="1234567890123", verified=True)
             db.session.add_all([admin, seller, seller2, buyer, corp])
@@ -3116,7 +3192,7 @@ def audit_current(action, entity=None, entity_id=None, detail=""):
     u = current_user()
     try:
         models_api.AuditLog.record(action, actor=(u.email if u else "anonim"),
-                                   role=(u.role if u else "-"), user_id=(u.id if u else None),
+                                   role=(u.active_role if u else "-"), user_id=(u.id if u else None),
                                    entity=entity, entity_id=entity_id, detail=detail,
                                    ip=security.client_ip())
     except Exception as e:
