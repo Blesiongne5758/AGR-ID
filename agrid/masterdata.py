@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Master data kategori, sub kategori, dan daftar produk AGR.ID"""
+"""Master data kategori, sub kategori, dan daftar produk AGR.BIZ.ID"""
 
 # Kategori utama marketplace
 KATEGORI = ["Pertanian", "Perkebunan", "Perikanan", "Peternakan"]
