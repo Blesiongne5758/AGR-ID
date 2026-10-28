@@ -1,5 +1,5 @@
 -- =====================================================================
--- AGR.ID — Perbaikan RLS & Hak Akses Supabase
+-- AGR.BIZ.ID — Perbaikan RLS & Hak Akses Supabase
 -- Menjamin user & admin dapat login, sesi dapat disimpan,
 -- dan registrasi serta pengaturan dapat diakses.
 -- Idempoten: aman dijalankan berulang kali.
