@@ -1,6 +1,6 @@
 <?php
 /**
- * AGR.ID — contoh konfigurasi.
+ * AGR.BIZ.ID — contoh konfigurasi.
  * Salin file ini menjadi config.php lalu isi kredensial asli.
  * JANGAN commit config.php (sudah di-.gitignore).
  */
