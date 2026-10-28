@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AGR.ID - REST API v1 (penyediaan API untuk integrasi eksternal).
+"""AGR.BIZ.ID - REST API v1 (penyediaan API untuk integrasi eksternal).
 
 Autentikasi: header  Authorization: Bearer <token>  (token dibuat admin di dashboard,
 lihat tabel api_tokens; token disimpan sebagai hash SHA-256).
