@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Dashboard Admin — AGR.ID{% endblock %}
+{% block title %}Dashboard Admin — AGR.BIZ.ID{% endblock %}
 {% block content %}
 <div class="container-fluid my-4 px-4">
-  <h4 class="fw-bold mb-3"><i class="bi bi-gear text-success"></i> Dashboard Admin AGR.ID</h4>
+  <h4 class="fw-bold mb-3"><i class="bi bi-gear text-success"></i> Dashboard Admin AGR.BIZ.ID</h4>
 
   <!-- Statistik & Laporan Transaksi Keuangan -->
   <div class="row g-3 mb-4">
@@ -13,7 +13,7 @@
     {% endfor %}
   </div>
   <div class="row g-3 mb-4">
-    <div class="col-md-6"><div class="card" style="background:linear-gradient(135deg,#14532d,#16a34a);color:#fff;border-color:#14532d"><div class="card-body">
+    <div class="col-md-6"><div class="card" style="background:linear-gradient(135deg,#354d43,#527766);color:#fff;border-color:#45695b"><div class="card-body">
       <div class="small">GMV (Nilai Transaksi Kotor)</div><h3>Rp{{ stats.gmv|rp }}</h3></div></div></div>
     <div class="col-md-6"><div class="card stat-card"><div class="card-body">
       <div class="small">💰 Pendapatan Platform (Biaya Penanganan) — Laporan Transaksi Keuangan</div>
@@ -277,7 +277,7 @@
         <div class="card-body">
           <form method="post" action="{{ url_for('save_footer') }}" class="row g-2">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-            <div class="col-12"><label class="small fw-bold">Tentang AGR.ID</label>
+            <div class="col-12"><label class="small fw-bold">Tentang AGR.BIZ.ID</label>
               <textarea class="form-control" name="footer_tentang" rows="2">{{ settings.get('footer_tentang','') }}</textarea></div>
             <div class="col-6"><label class="small fw-bold">Judul Kolom Kontak</label>
               <input class="form-control" name="footer_kontak" value="{{ settings.get('footer_kontak','Hubungi Kami') }}"></div>
