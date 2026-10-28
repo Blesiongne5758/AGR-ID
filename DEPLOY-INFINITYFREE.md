@@ -1,4 +1,4 @@
-# Panduan Deploy AGR.ID ke InfinityFree (docroot: htdocs)
+# Panduan Deploy AGR.BIZ.ID ke InfinityFree (docroot: htdocs)
 
 ## Arsitektur
 ```
