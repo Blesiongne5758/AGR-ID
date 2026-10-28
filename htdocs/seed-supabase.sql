@@ -1,9 +1,4 @@
--- =====================================================================
--- AGR.ID — Seed data Supabase (jalankan SETELAH supabase-schema.sql)
--- Password demo: penjual123 (semua penjual/pembeli) ; admin123
--- Hash bcrypt dibuat dengan password_hash() PHP => diverifikasi api.php
--- Idempotent: aman dijalankan berulang (on conflict do nothing)
--- =====================================================================
+
 
 insert into users (email,username,nama,role,tipe,alamat,lat,lng,password_hash) values
   ('penjual@agr.id','pak_budi','Pak Budi Tani','penjual','Perorangan','Lahan Cabai, Kec. Malang, Jawa Timur',-7.9536,112.6563,'$2y$10$TxLuNK1cYTtZyOy7B8x7VOavikTqE2LUr1wlMjDx9Q.ogb7PTMhd6'),
