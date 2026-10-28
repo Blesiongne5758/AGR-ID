@@ -283,12 +283,15 @@ class KebutuhanPembeli(db.Model):
     __tablename__ = "kebutuhan_pembeli"
     id = db.Column(db.Integer, primary_key=True)
     buyer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id", ondelete="SET NULL"), nullable=True, index=True)
     kategori = db.Column(db.String(40), nullable=False)
     nama_produk = db.Column(db.String(120), nullable=False)
     jumlah = db.Column(db.Float, nullable=False)
     satuan = db.Column(db.String(20), nullable=False, default="kg")
     estimasi_harga = db.Column(db.Float, nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    product = db.relationship("Product")
 
     @property
     def estimasi_total(self):
@@ -625,6 +628,25 @@ def seller_payment_cfg(u):
             pass
     return cfg
 
+
+def seller_auction_cfg(u):
+    """Preferensi lelang default milik penjual; tarif tetap diatur admin."""
+    import json
+    cfg = {"syarat_ketentuan": "", "durasi_pembayaran_jam": 24, "jadwal_pengambilan_jam": 0}
+    raw = get_setting(f"pengaturan_lelang_penjual_{u.id}")
+    if raw:
+        try:
+            cfg.update(json.loads(raw))
+        except (TypeError, ValueError):
+            pass
+    try:
+        cfg["durasi_pembayaran_jam"] = max(1, min(720, int(cfg.get("durasi_pembayaran_jam", 24))))
+        cfg["jadwal_pengambilan_jam"] = max(0, min(720, int(cfg.get("jadwal_pengambilan_jam", 0))))
+    except (TypeError, ValueError):
+        cfg["durasi_pembayaran_jam"], cfg["jadwal_pengambilan_jam"] = 24, 0
+    cfg["syarat_ketentuan"] = str(cfg.get("syarat_ketentuan", ""))[:5000]
+    return cfg
+
 # ----------------------------------------------------------------------------
 # HARGA PASAR (TICKER)
 # ----------------------------------------------------------------------------
@@ -956,6 +978,7 @@ def auction_list():
 @login_required("penjual")
 def create_auction_event():
     u = current_user()
+    auction_cfg = seller_auction_cfg(u)
     seller_products = Product.query.filter_by(seller_id=u.id, status="aktif").filter(Product.stok > 0).order_by(Product.kategori, Product.nama_produk).all()
     if request.method == "POST":
         judul = request.form.get("judul", "").strip()
@@ -1018,7 +1041,8 @@ def create_auction_event():
                 return redirect(url_for("auction_detail", event_id=event.id))
     return render_template("auction_form.html", products=seller_products, user=u, ticker=ticker_data(),
                            minimum_start=(datetime.now(WIB) + timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M"),
-                           default_payment_deadline=(datetime.now(WIB) + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M"))
+                           default_payment_deadline=(datetime.now(WIB) + timedelta(hours=auction_cfg["durasi_pembayaran_jam"])).strftime("%Y-%m-%dT%H:%M"),
+                           auction_cfg=auction_cfg)
 
 
 @app.route("/admin/lelang/<int:event_id>/setujui", methods=["POST"])
@@ -1554,6 +1578,7 @@ def wallet_ctx(u):
 def dashboard_seller():
     u = current_user()
     my_prods = Product.query.filter_by(seller_id=u.id).order_by(Product.created_at.desc()).all()
+    auction_cfg = seller_auction_cfg(u)
     my_auctions = LelangEvent.query.filter_by(seller_id=u.id).order_by(LelangEvent.created_at.desc()).all()
     my_offers = Offer.query.filter(Offer.product_id.in_([p.id for p in my_prods] or [-1])).order_by(Offer.created_at.desc()).all()
     jualan = Transaksi.query.filter_by(seller_id=u.id).order_by(Transaksi.created_at.desc()).all()
@@ -1565,6 +1590,7 @@ def dashboard_seller():
     return render_template("seller_dashboard.html", u=u, products=my_prods, offers=my_offers,
            penjualan=jualan, omzet=omzet, user=u, ticker=ticker_data(),
            lelang_events=my_auctions,
+           auction_cfg=auction_cfg,
            default_deadline=(datetime.now(WIB) + timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M"),
            minimum_deadline=(datetime.now(WIB) + timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M"),
            categories=MASTER_PRODUK, biaya=get_biaya_settings(),
@@ -1645,11 +1671,48 @@ def tambah_produk_ke_kebutuhan(pid):
     if jumlah <= 0:
         flash("Jumlah kebutuhan harus lebih dari nol.", "danger")
         return redirect(url_for("product_detail", pid=pid))
-    db.session.add(KebutuhanPembeli(buyer_id=current_user().id, kategori=p.kategori,
+    item = KebutuhanPembeli.query.filter_by(buyer_id=current_user().id, product_id=p.id).first()
+    if item:
+        item.jumlah += jumlah
+        item.estimasi_harga = p.harga or 0
+    else:
+        db.session.add(KebutuhanPembeli(buyer_id=current_user().id, product_id=p.id, kategori=p.kategori,
                                     nama_produk=p.nama_produk, jumlah=jumlah,
                                     satuan=p.satuan or "unit", estimasi_harga=p.harga or 0))
     db.session.commit()
-    flash(f"{p.nama_produk} ditambahkan ke Manajemen Kebutuhan dengan harga listing sebagai estimasi.", "success")
+    flash(f"{p.nama_produk} ditambahkan ke Manajemen Kebutuhan dengan harga listing sebagai estimasi." if not item else
+          f"Jumlah rencana {p.nama_produk} diperbarui dan harga estimasinya disegarkan dari listing.", "success")
+    return redirect(url_for("dashboard_buyer") + "#tNeeds")
+
+
+@app.route("/favorit/<int:fqid>/kebutuhan", methods=["POST"])
+@login_required("pembeli")
+def tambah_favorit_ke_kebutuhan(fqid):
+    favorite = Favorite.query.filter_by(id=fqid, buyer_id=current_user().id).first_or_404()
+    product = Product.query.filter_by(id=favorite.product_id, status="aktif").first() if favorite.product_id else None
+    if not product:
+        flash("Listing favorit ini sudah tidak tersedia untuk ditambahkan ke rencana belanja.", "warning")
+        return redirect(url_for("dashboard_buyer") + "#tFav")
+    try:
+        jumlah = float(request.form.get("jumlah", "1"))
+    except (TypeError, ValueError):
+        jumlah = 0
+    if not (0 < jumlah < float("inf")):
+        flash("Jumlah rencana harus lebih dari nol.", "danger")
+        return redirect(url_for("dashboard_buyer") + "#tFav")
+    item = KebutuhanPembeli.query.filter_by(buyer_id=current_user().id, product_id=product.id).first()
+    if item:
+        item.jumlah += jumlah
+        item.estimasi_harga = product.harga or 0
+    else:
+        db.session.add(KebutuhanPembeli(buyer_id=current_user().id, product_id=product.id,
+                                        kategori=product.kategori or KATEGORI[0],
+                                        nama_produk=product.nama_produk, jumlah=jumlah,
+                                        satuan=product.satuan or "unit", estimasi_harga=product.harga or 0))
+    db.session.commit()
+    audit_current("produk_favorit_ditambahkan_ke_kebutuhan", "products", product.id,
+                  f"jumlah rencana +{jumlah:g} {product.satuan or 'unit'}")
+    flash(f"{product.nama_produk} ditambahkan ke Manajemen Kebutuhan menggunakan harga listing terbaru.", "success")
     return redirect(url_for("dashboard_buyer") + "#tNeeds")
 
 
@@ -2380,6 +2443,31 @@ def save_seller_payment():
     return redirect(url_for("dashboard_seller") + "#tSet")
 
 
+@app.route("/penjual/pengaturan-lelang", methods=["POST"])
+@login_required("penjual")
+def save_seller_auction_settings():
+    import json
+    u = current_user()
+    terms = request.form.get("syarat_ketentuan", "").strip()
+    try:
+        payment_hours = int(request.form.get("durasi_pembayaran_jam", "24"))
+        pickup_hours = int(request.form.get("jadwal_pengambilan_jam", "0"))
+    except (TypeError, ValueError):
+        flash("Durasi harus berupa jumlah jam yang valid.", "danger")
+        return redirect(url_for("dashboard_seller") + "#tAuctionSettings")
+    if len(terms) > 5000 or not 1 <= payment_hours <= 720 or not 0 <= pickup_hours <= 720:
+        flash("Syarat maksimal 5.000 karakter; tenggat pembayaran 1–720 jam dan jadwal pengambilan 0–720 jam.", "danger")
+        return redirect(url_for("dashboard_seller") + "#tAuctionSettings")
+    cfg = {"syarat_ketentuan": terms, "durasi_pembayaran_jam": payment_hours,
+           "jadwal_pengambilan_jam": pickup_hours}
+    set_setting(f"pengaturan_lelang_penjual_{u.id}", json.dumps(cfg),
+                f"Pengaturan lelang penjual #{u.id}")
+    audit_current("pengaturan_lelang_penjual", "users", u.id,
+                  f"tenggat pembayaran {payment_hours} jam; jadwal pengambilan default {pickup_hours} jam")
+    flash("Pengaturan lelang berhasil disimpan dan akan menjadi nilai awal event baru.", "success")
+    return redirect(url_for("dashboard_seller") + "#tAuctionSettings")
+
+
 @app.route("/admin/footer", methods=["POST"])
 @login_required("admin")
 def save_footer():
@@ -2812,6 +2900,9 @@ def seed():
                 if col not in offer_columns:
                     db.session.execute(text(f"ALTER TABLE offers ADD COLUMN {col} {ddl}"))
             auction_schema_columns = {
+                "kebutuhan_pembeli": [
+                    ("product_id", "INTEGER"),
+                ],
                 "lelang_events": [
                     ("syarat_ketentuan", "TEXT NOT NULL DEFAULT ''"),
                     ("catatan_admin", "TEXT"), ("biaya_peserta", "FLOAT NOT NULL DEFAULT 0"),

@@ -25,6 +25,7 @@
   <ul class="nav nav-tabs mb-3" role="tablist">
     <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tProd">📦 Produk Saya ({{ products|length }})</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tAuction">🔨 Lelang Saya ({{ lelang_events|length }})</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tAuctionSettings">⚙️ Pengaturan Lelang</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tOffer">💬 Penawaran Pembeli ({{ offers|length }})</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tPel">💵 Approval Pelunasan {% if pending_pelunasan %}<span class="badge bg-danger">{{ pending_pelunasan|length }}</span>{% endif %}</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tLap">🧾 Laporan Transaksi Penjualan</button></li>
@@ -73,6 +74,28 @@
           <div class="small text-muted mt-1">{{ event.alamat_lokasi }} · GPS {{ '%.5f'|format(event.lat) }}, {{ '%.5f'|format(event.lng) }}</div>
         </div></div></div>
         {% else %}<div class="col-12"><div class="empty-state border rounded bg-white"><span class="empty-icon">🔨</span><h5>Belum ada event lelang</h5><p>Buat event untuk melelang satu paket hasil panen, buah, ternak, atau stok produk Anda.</p><a href="{{ url_for('create_auction_event') }}" class="btn btn-sm btn-agrid mt-2">Buat event pertama</a></div></div>{% endfor %}
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="tAuctionSettings">
+      <div class="card shadow-sm" style="max-width:900px">
+        <div class="card-header bg-white fw-bold"><i class="bi bi-hammer text-success"></i> Preferensi Event Lelang</div>
+        <div class="card-body">
+          <p class="small text-muted">Nilai ini menjadi standar awal saat Anda membuat event dan masih dapat diubah di setiap event. Biaya peserta dan biaya lelang penjual tetap ditentukan oleh admin.</p>
+          <form method="post" action="{{ url_for('save_seller_auction_settings') }}" class="row g-3">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <div class="col-12"><label class="form-label fw-bold">Syarat dan ketentuan standar</label>
+              <textarea class="form-control" name="syarat_ketentuan" rows="6" maxlength="5000" placeholder="Contoh: kondisi barang, pengambilan, transportasi, pembayaran, dan pembatalan.">{{ auction_cfg.syarat_ketentuan }}</textarea>
+              <div class="form-text">Akan diisikan ke setiap event baru; Anda tetap dapat menyuntingnya sebelum mengajukan event.</div></div>
+            <div class="col-md-6"><label class="form-label fw-bold">Batas pembayaran pemenang setelah lelang (jam)</label>
+              <input class="form-control" type="number" name="durasi_pembayaran_jam" min="1" max="720" step="1" required value="{{ auction_cfg.durasi_pembayaran_jam }}">
+              <div class="form-text">Contoh 24 jam. Form event akan menghitung tenggat dari waktu penutupan lelang.</div></div>
+            <div class="col-md-6"><label class="form-label fw-bold">Jadwal pengambilan default setelah tutup (jam)</label>
+              <input class="form-control" type="number" name="jadwal_pengambilan_jam" min="0" max="720" step="1" value="{{ auction_cfg.jadwal_pengambilan_jam }}">
+              <div class="form-text">Isi 0 untuk tidak mengisi jadwal pengambilan secara otomatis. Jadwal dapat disesuaikan per event.</div></div>
+            <div class="col-12"><button class="btn btn-agrid fw-bold"><i class="bi bi-save"></i> Simpan Pengaturan Lelang</button></div>
+          </form>
+        </div>
       </div>
     </div>
 
@@ -281,4 +304,12 @@
     </div>
   </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  if (location.hash === '#tAuctionSettings') {
+    const tab = document.querySelector('[data-bs-target="#tAuctionSettings"]');
+    if (tab && window.bootstrap) bootstrap.Tab.getOrCreateInstance(tab).show();
+  }
+});
+</script>
 {% endblock %}

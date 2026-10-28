@@ -48,7 +48,7 @@
           <thead><tr><th>Kebutuhan</th><th>Jumlah</th><th class="text-end">Estimasi total</th><th></th></tr></thead><tbody>
           {% set ns = namespace(total=0) %}
           {% for item in kebutuhan %}{% set ns.total = ns.total + item.estimasi_total %}
-          <tr><td><b>{{ item.nama_produk }}</b><div class="small text-muted">{{ item.kategori }}</div></td><td>{{ item.jumlah|rp }} {{ item.satuan }}<div class="small text-muted">× Rp{{ item.estimasi_harga|rp }}</div></td><td class="text-end fw-bold">Rp{{ item.estimasi_total|rp }}</td><td><form method="post" action="{{ url_for('hapus_kebutuhan', kid=item.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger" title="Hapus">✕</button></form></td></tr>
+          <tr><td><b>{{ item.nama_produk }}</b><div class="small text-muted">{{ item.kategori }}{% if item.product %} · <a href="{{ url_for('product_detail', pid=item.product_id) }}">Dari listing favorit</a>{% endif %}</div></td><td>{{ item.jumlah|rp }} {{ item.satuan }}<div class="small text-muted">× Rp{{ item.estimasi_harga|rp }}</div></td><td class="text-end fw-bold">Rp{{ item.estimasi_total|rp }}</td><td><form method="post" action="{{ url_for('hapus_kebutuhan', kid=item.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger" title="Hapus">✕</button></form></td></tr>
           {% else %}<tr><td colspan="4" class="text-center text-muted py-4">Belum ada kebutuhan. Tambahkan rencana belanja di samping.</td></tr>{% endfor %}
           </tbody><tfoot><tr class="table-light"><th colspan="2">Total estimasi</th><th class="text-end text-success fs-5">Rp{{ ns.total|rp }}</th><th></th></tr></tfoot>
         </table></div></div></div>
@@ -201,8 +201,11 @@
                   <div class="small text-muted">{{ f.product.kategori }} › {{ f.product.subkategori }} · Rp{{ f.product.harga|rp }}/{{ f.product.satuan }} · Penjual: {{ f.seller.nama }} · {{ f.created_at|dt }}</div>
                   {% endif %}
                 </div>
-                <div class="d-flex gap-2">
-                  {% if f.product %}<a class="btn btn-sm btn-agrid" href="{{ url_for('product_detail', pid=f.product_id) }}">Beli / Tawar</a>{% endif %}
+                <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+                  {% if f.product %}<a class="btn btn-sm btn-agrid" href="{{ url_for('product_detail', pid=f.product_id) }}">Beli / Tawar</a>
+                    {% if f.product.status=='aktif' %}<form method="post" action="{{ url_for('tambah_favorit_ke_kebutuhan', fqid=f.id) }}" class="d-flex gap-1 align-items-center"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input class="form-control form-control-sm" type="number" name="jumlah" min="0.01" step="0.01" value="1" style="width:88px" aria-label="Jumlah rencana {{ f.product.nama_produk }}"><button class="btn btn-sm btn-outline-primary" title="Tambahkan ke Manajemen Kebutuhan"><i class="bi bi-calculator"></i> Rencana</button></form>
+                    {% else %}<span class="badge bg-secondary">Listing tidak aktif</span>{% endif %}
+                  {% endif %}
                   <a class="btn btn-sm btn-outline-danger" href="{{ url_for('hapus_favorit', fqid=f.id) }}" title="Hapus favorit">✕</a>
                 </div>
               </div>
