@@ -9,6 +9,7 @@
         <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
         <div class="col-12"><label class="form-label fw-bold">Nama Event <span class="text-danger">*</span></label><input class="form-control" name="judul" maxlength="160" required placeholder="Contoh: Lelang panen padi sawah Blok A"></div>
         <div class="col-12"><label class="form-label fw-bold">Informasi lengkap paket lelang <span class="text-danger">*</span></label><textarea class="form-control" name="deskripsi" rows="4" required placeholder="Jelaskan jenis/varietas, kualitas, perkiraan hasil, kondisi panen/ternak, akses pengambilan, syarat angkut, dan informasi penting lain."></textarea><div class="form-text">Tuliskan rincian yang membantu peserta menilai paket sebelum menawar.</div></div>
+        <div class="col-12"><label class="form-label fw-bold">Syarat dan ketentuan pelelangan <span class="text-danger">*</span></label><textarea class="form-control" name="syarat_ketentuan" rows="4" maxlength="5000" required placeholder="Contoh: ketentuan pemeriksaan barang, pengambilan, transportasi, pembayaran pemenang, pembatalan, dan hal lain yang perlu dipatuhi peserta."></textarea><div class="form-text">Syarat ini ditampilkan kepada calon peserta dan wajib disetujui sebelum mendaftar.</div></div>
 
         <div class="col-12"><label class="form-label fw-bold">Daftar produk dan stok yang dilelang <span class="text-danger">*</span></label>
           {% if products %}<div class="row g-2" id="auctionProducts">
@@ -26,12 +27,14 @@
 
         <div class="col-md-6"><label class="form-label fw-bold">Mulai lelang (WIB) <span class="text-danger">*</span></label><input class="form-control" type="datetime-local" id="auctionStart" name="mulai" min="{{ minimum_start }}" required></div>
         <div class="col-md-6"><label class="form-label fw-bold">Tutup lelang (WIB) <span class="text-danger">*</span></label><input class="form-control" type="datetime-local" id="auctionEnd" name="selesai" min="{{ minimum_start }}" required></div>
+        <div class="col-md-6"><label class="form-label fw-bold">Batas pembayaran pemenang (WIB) <span class="text-danger">*</span></label><input class="form-control" type="datetime-local" id="auctionWinnerDeadline" name="batas_bayar_pemenang" min="{{ minimum_start }}" value="{{ default_payment_deadline }}" required><div class="form-text">Wajib setelah waktu lelang berakhir. Jika terlewat, penjual dapat memilih penawar berikutnya atau membatalkan lelang.</div></div>
+        <div class="col-md-6"><label class="form-label fw-bold">Jadwal pengambilan paket (WIB, opsional)</label><input class="form-control" type="datetime-local" id="auctionPickup" name="jadwal_pengambilan"><div class="form-text">Jadwal ini akan masuk ke kalender penjual dan peserta.</div></div>
 
         <div class="col-12"><label class="form-label fw-bold">Alamat lokasi pelelangan/pengambilan <span class="text-danger">*</span></label><input class="form-control" name="alamat_lokasi" maxlength="255" required placeholder="Dusun/desa, kecamatan, kabupaten, provinsi"></div>
         <div class="col-md-4"><label class="form-label fw-bold">Latitude GPS <span class="text-danger">*</span></label><div class="input-group"><input class="form-control" type="number" name="lat" id="auctionLat" min="-90" max="90" step="0.000001" required><button class="btn btn-outline-success" type="button" id="auctionLocate" title="Gunakan lokasi perangkat"><i class="bi bi-crosshair"></i></button></div></div>
         <div class="col-md-4"><label class="form-label fw-bold">Longitude GPS <span class="text-danger">*</span></label><input class="form-control" type="number" name="lng" id="auctionLng" min="-180" max="180" step="0.000001" required></div>
         <div class="col-md-4 d-flex align-items-end"><a id="auctionMap" class="small" href="https://maps.google.com" target="_blank" rel="noopener">🗺️ Periksa titik lokasi di peta</a></div>
-        <div class="col-12"><div id="auctionFormError" class="small text-danger" role="alert"></div><button class="btn btn-agrid btn-lg fw-bold w-100" {% if not products %}disabled{% endif %}><i class="bi bi-megaphone"></i> Publikasikan Event Lelang</button></div>
+        <div class="col-12"><div id="auctionFormError" class="small text-danger" role="alert"></div><button class="btn btn-agrid btn-lg fw-bold w-100" {% if not products %}disabled{% endif %}><i class="bi bi-send"></i> Ajukan Event untuk Ditinjau Admin</button><div class="small text-muted text-center mt-2">Event baru tayang setelah disetujui admin dan biaya lelang penjual dilunasi.</div></div>
       </form>
     </div>
   </div>
@@ -48,8 +51,9 @@ document.querySelectorAll('.auction-product-check').forEach(el => el.addEventLis
     startPrice.value = sum ? Math.round(sum) : '';
   }
 }));
-const startAt = document.getElementById('auctionStart'), endAt = document.getElementById('auctionEnd');
+const startAt = document.getElementById('auctionStart'), endAt = document.getElementById('auctionEnd'), winnerDeadline=document.getElementById('auctionWinnerDeadline'), pickupAt=document.getElementById('auctionPickup');
 startAt.addEventListener('change', () => { endAt.min = startAt.value; if (startAt.value && (!endAt.value || endAt.value <= startAt.value)) { const d = new Date(startAt.value); d.setHours(d.getHours()+2); endAt.value = new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16); } });
+endAt.addEventListener('change', () => { winnerDeadline.min=endAt.value; pickupAt.min=endAt.value; if(endAt.value && (!winnerDeadline.value || winnerDeadline.value<=endAt.value)){const d=new Date(endAt.value);d.setHours(d.getHours()+24);winnerDeadline.value=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);} if(pickupAt.value && pickupAt.value<=endAt.value) pickupAt.value=''; });
 const latEl=document.getElementById('auctionLat'), lngEl=document.getElementById('auctionLng'), mapEl=document.getElementById('auctionMap');
 function updateAuctionMap(){ if(latEl.value && lngEl.value) mapEl.href='https://maps.google.com/?q='+encodeURIComponent(latEl.value+','+lngEl.value); }
 latEl.addEventListener('input',updateAuctionMap); lngEl.addEventListener('input',updateAuctionMap);

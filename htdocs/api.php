@@ -168,12 +168,17 @@ switch ($action) {
         if (!filter_var($b['email'], FILTER_VALIDATE_EMAIL)) err('Email tidak valid');
         if (strlen($b['password']) < 8) err('Password minimal 8 karakter');
         if (!in_array($b['role'], ['penjual','pembeli'])) err('Role tidak valid');
+        $tipe = $b['tipe'] ?? 'Perorangan';
+        $tipeValid = $b['role'] === 'penjual'
+            ? ['Perorangan','Kelompok/Paguyuban','Koperasi','Perusahaan']
+            : ['Perorangan','Yayasan','Koperasi','Perusahaan'];
+        if (!in_array($tipe, $tipeValid, true)) err('Tipe akun tidak valid untuk peran yang dipilih');
         $exists = sb('users', 'GET', ['email=eq.' . urlencode(strtolower($b['email'])), 'select=id']);
         if ($exists) err('Email sudah terdaftar', 409);
         $user = [
             'email' => strtolower($b['email']), 'nama' => $b['nama'],
             'password_hash' => password_hash($b['password'], PASSWORD_BCRYPT),
-            'role' => $b['role'], 'tipe' => $b['tipe'] ?? 'Perorangan',
+            'role' => $b['role'], 'tipe' => $tipe,
             'alamat' => $b['alamat'] ?? '', 'lat' => $b['lat'] ?? null, 'lng' => $b['lng'] ?? null,
             'no_hp' => $b['no_hp'] ?? '', 'npwp' => $b['npwp'] ?? '', 'nib' => $b['nib'] ?? '',
             'created_at' => date('c'),

@@ -69,14 +69,14 @@ class User(db.Model):
     password = db.Column(db.String(256), nullable=False)
     phone = db.Column(db.String(30))
     role = db.Column(db.String(20), nullable=False)          # penjual / pembeli / admin
-    tipe = db.Column(db.String(40))                          # Perorangan/Koperasi/Paguyuban atau Perorangan/Corporate
+    tipe = db.Column(db.String(40))                          # Tipe akun sesuai peran penjual atau pembeli
     alamat = db.Column(db.Text)
     kota = db.Column(db.String(80))
     provinsi = db.Column(db.String(80))
     lat = db.Column(db.Float)                                # koordinat GPS
     lng = db.Column(db.Float)
-    npwp = db.Column(db.String(30))                          # untuk corporate
-    nib = db.Column(db.String(40))                           # nomor induk berusaha (corporate/koperasi)
+    npwp = db.Column(db.String(30))                          # untuk tipe badan/organisasi
+    nib = db.Column(db.String(40))                           # nomor induk berusaha
     verified = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # keamanan: lockout akun setelah gagal login berulang
@@ -302,24 +302,70 @@ class LelangEvent(db.Model):
     seller_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     judul = db.Column(db.String(160), nullable=False)
     deskripsi = db.Column(db.Text, nullable=False)
+    syarat_ketentuan = db.Column(db.Text, nullable=False, default="")
     foto = db.Column(db.String(500), nullable=False)
     alamat_lokasi = db.Column(db.String(255), nullable=False)
     lat = db.Column(db.Float, nullable=False)
     lng = db.Column(db.Float, nullable=False)
     mulai = db.Column(db.DateTime, nullable=False)
     selesai = db.Column(db.DateTime, nullable=False)
+    batas_bayar_pemenang = db.Column(db.DateTime)
+    jadwal_pengambilan = db.Column(db.DateTime)
     harga_awal = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(20), nullable=False, default="terjadwal")
+    status = db.Column(db.String(32), nullable=False, default="diajukan")
+    catatan_admin = db.Column(db.Text)
+    biaya_peserta = db.Column(db.Float, nullable=False, default=0)
+    biaya_penjual = db.Column(db.Float, nullable=False, default=0)
+    biaya_penjual_lunas = db.Column(db.Boolean, nullable=False, default=False)
+    ref_biaya_penjual = db.Column(db.String(80))
+    disetujui_pada = db.Column(db.DateTime)
+    pemenang_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    harga_pemenang = db.Column(db.Float)
+    pemenang_bayar_lunas = db.Column(db.Boolean, nullable=False, default=False)
+    ref_bayar_pemenang = db.Column(db.String(80))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     seller = db.relationship("User", foreign_keys=[seller_id])
+    pemenang = db.relationship("User", foreign_keys=[pemenang_id])
     items = db.relationship("LelangItem", back_populates="event", cascade="all, delete-orphan", order_by="LelangItem.id")
     participants = db.relationship("LelangParticipant", back_populates="event", cascade="all, delete-orphan")
     bids = db.relationship("LelangBid", back_populates="event", cascade="all, delete-orphan")
+    awards = db.relationship("LelangAward", back_populates="event", cascade="all, delete-orphan", order_by="LelangAward.id")
 
     @property
     def tawaran_tertinggi(self):
         return max(self.bids, key=lambda b: (b.nominal, -b.id)) if self.bids else None
+
+    @property
+    def peringkat_tawaran(self):
+        """Tawaran terbaik tiap peserta, peringkat nominal turun dan tie lebih awal."""
+        terbaik = {}
+        for bid in self.bids:
+            if bid.buyer_id not in terbaik or (bid.nominal, -bid.id) > (
+                    terbaik[bid.buyer_id].nominal, -terbaik[bid.buyer_id].id):
+                terbaik[bid.buyer_id] = bid
+        return sorted(terbaik.values(), key=lambda bid: (-bid.nominal, bid.id))
+
+    @property
+    def penetapan_aktif(self):
+        return self.awards[-1] if self.awards else None
+
+
+class LelangAward(db.Model):
+    """Riwayat penetapan pemenang dan tenggat pembayaran pada satu event."""
+    __tablename__ = "lelang_awards"
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("lelang_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    buyer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    nominal = db.Column(db.Float, nullable=False)
+    batas_bayar = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="menunggu")  # menunggu/lunas/kedaluwarsa/dibatalkan
+    ref_pembayaran = db.Column(db.String(80))
+    ditetapkan_pada = db.Column(db.DateTime, default=datetime.utcnow)
+    dibayar_pada = db.Column(db.DateTime)
+
+    event = db.relationship("LelangEvent", back_populates="awards")
+    buyer = db.relationship("User", foreign_keys=[buyer_id])
 
 
 class LelangItem(db.Model):
@@ -346,6 +392,10 @@ class LelangParticipant(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey("lelang_events.id"), nullable=False, index=True)
     buyer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    biaya_administrasi = db.Column(db.Float, nullable=False, default=0)
+    biaya_lunas = db.Column(db.Boolean, nullable=False, default=False)
+    ref_pembayaran = db.Column(db.String(80))
+    dibayar_pada = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     event = db.relationship("LelangEvent", back_populates="participants")
@@ -531,6 +581,8 @@ BIAYA_LABEL = {
     "biaya_iklan_produk": "Biaya Iklan/Promosi Produk (Rp/produk)",
     "ongkir_persen_asuransi": "Asuransi Pengiriman (% dari nilai barang)",
     "min_transaksi": "Minimum Nilai Transaksi (Rp)",
+    "lelang_biaya_peserta": "Biaya Administrasi Peserta Lelang (Rp/peserta/event)",
+    "lelang_biaya_penjual": "Biaya Lelang Penjual (Rp/event)",
 }
 
 
@@ -539,7 +591,8 @@ def get_biaya_settings():
     return {k: get_setting(k, d) for k, d in {
         "dp_persen": "20", "biaya_penanganan_persen": "2", "biaya_tambahan_flat": "0",
         "biaya_verifikasi": "5000", "biaya_iklan_produk": "0",
-        "ongkir_persen_asuransi": "1", "min_transaksi": "50000"}.items()}
+        "ongkir_persen_asuransi": "1", "min_transaksi": "50000",
+        "lelang_biaya_peserta": "0", "lelang_biaya_penjual": "0"}.items()}
 
 
 def fav_state(buyer, seller_id=None, product_id=None):
@@ -766,16 +819,43 @@ def expire_unpaid_agreements():
 
 @app.before_request
 def refresh_auction_event_statuses():
-    """Sinkronkan status event terjadwal/berlangsung dengan jam server UTC."""
+    """Sinkronkan akhir lelang dan tenggat pembayaran pemenang dengan UTC."""
     now = datetime.utcnow()
-    events = LelangEvent.query.filter(LelangEvent.status.in_(("terjadwal", "berlangsung"))).all()
+    events = LelangEvent.query.filter(LelangEvent.status.in_(
+        ("terjadwal", "berlangsung", "menunggu_pembayaran_pemenang"))).all()
     changed = False
     for event in events:
-        target = "selesai" if event.selesai <= now else ("berlangsung" if event.mulai <= now else "terjadwal")
+        if event.status == "menunggu_pembayaran_pemenang":
+            if event.batas_bayar_pemenang and event.batas_bayar_pemenang <= now:
+                event.status = "tenggat_pemenang_lewat"
+                if event.penetapan_aktif and event.penetapan_aktif.status == "menunggu":
+                    event.penetapan_aktif.status = "kedaluwarsa"
+                changed = True
+            continue
+        target = "berlangsung" if event.mulai <= now else "terjadwal"
+        if event.selesai <= now:
+            if event.peringkat_tawaran:
+                winning_bid = event.peringkat_tawaran[0]
+                event.pemenang_id = winning_bid.buyer_id
+                event.harga_pemenang = winning_bid.nominal
+                event.pemenang_bayar_lunas = False
+                if not event.batas_bayar_pemenang:
+                    event.batas_bayar_pemenang = now + timedelta(hours=24)
+                if not event.penetapan_aktif:
+                    event.awards.append(LelangAward(
+                        buyer_id=winning_bid.buyer_id, nominal=winning_bid.nominal,
+                        batas_bayar=event.batas_bayar_pemenang, status="menunggu"))
+                target = "tenggat_pemenang_lewat" if (
+                    event.batas_bayar_pemenang and event.batas_bayar_pemenang <= now
+                ) else "menunggu_pembayaran_pemenang"
+                if target == "tenggat_pemenang_lewat" and event.penetapan_aktif:
+                    event.penetapan_aktif.status = "kedaluwarsa"
+            else:
+                target = "selesai"
         if event.status != target:
             event.status = target
             changed = True
-            if target == "selesai" and not event.bids:
+            if target == "selesai" and not event.peringkat_tawaran:
                 for item in event.items:
                     if item.product and item.product.status == "lelang":
                         item.product.status = "aktif"
@@ -861,7 +941,8 @@ def marketplace():
 
 @app.route("/lelang")
 def auction_list():
-    events = LelangEvent.query.filter(LelangEvent.status != "dibatalkan").order_by(
+    events = LelangEvent.query.filter(LelangEvent.status.in_(
+        ("terjadwal", "berlangsung", "menunggu_pembayaran_pemenang", "tenggat_pemenang_lewat", "selesai"))).order_by(
         LelangEvent.mulai.desc(), LelangEvent.created_at.desc()).all()
     cu = current_user()
     joined_ids = set()
@@ -879,10 +960,14 @@ def create_auction_event():
     if request.method == "POST":
         judul = request.form.get("judul", "").strip()
         deskripsi = request.form.get("deskripsi", "").strip()
+        syarat_ketentuan = request.form.get("syarat_ketentuan", "").strip()
         foto = request.form.get("foto", "").strip()
         alamat = request.form.get("alamat_lokasi", "").strip()
         mulai = parse_wib_deadline(request.form.get("mulai"))
         selesai = parse_wib_deadline(request.form.get("selesai"))
+        batas_bayar_pemenang = parse_wib_deadline(request.form.get("batas_bayar_pemenang"))
+        jadwal_pengambilan_raw = request.form.get("jadwal_pengambilan", "").strip()
+        jadwal_pengambilan = parse_wib_deadline(jadwal_pengambilan_raw) if jadwal_pengambilan_raw else None
         try:
             lat = float(request.form.get("lat", ""))
             lng = float(request.form.get("lng", ""))
@@ -891,14 +976,18 @@ def create_auction_event():
             lat, lng, ids = None, None, []
         harga_awal = _positive_price(request.form.get("harga_awal"))
         now = datetime.utcnow()
-        if not judul or len(judul) > 160 or not deskripsi or not alamat or len(alamat) > 255:
-            flash("Judul, deskripsi, dan alamat lokasi wajib diisi.", "danger")
+        if (not judul or len(judul) > 160 or not deskripsi or not syarat_ketentuan
+                or len(syarat_ketentuan) > 5000 or not alamat or len(alamat) > 255):
+            flash("Judul, deskripsi, syarat lelang, dan alamat lokasi wajib diisi.", "danger")
         elif not foto or not foto.startswith(("object://", "cloud://", "https://")):
             flash("Unggah foto pendukung event lelang terlebih dahulu.", "danger")
         elif lat is None or lng is None or not (-90 <= lat <= 90 and -180 <= lng <= 180):
             flash("Koordinat GPS harus valid (latitude -90…90, longitude -180…180).", "danger")
-        elif not mulai or not selesai or mulai < now or selesai <= mulai:
-            flash("Jadwal lelang tidak valid. Waktu mulai harus di masa depan dan waktu selesai sesudahnya.", "danger")
+        elif (not mulai or not selesai or not batas_bayar_pemenang or mulai < now
+              or selesai <= mulai or batas_bayar_pemenang <= selesai):
+            flash("Jadwal lelang tidak valid. Tetapkan waktu mulai, waktu selesai, dan tenggat pembayaran pemenang setelah lelang berakhir.", "danger")
+        elif jadwal_pengambilan and jadwal_pengambilan <= selesai:
+            flash("Jadwal pengambilan harus sesudah lelang berakhir.", "danger")
         elif not ids or len(ids) > 100:
             flash("Pilih minimal satu dan maksimal 100 produk untuk paket lelang.", "danger")
         else:
@@ -909,9 +998,12 @@ def create_auction_event():
             elif not harga_awal:
                 flash("Harga pembukaan lelang harus lebih dari nol.", "danger")
             else:
-                event = LelangEvent(seller_id=u.id, judul=judul, deskripsi=deskripsi, foto=foto,
+                event = LelangEvent(seller_id=u.id, judul=judul, deskripsi=deskripsi,
+                                    syarat_ketentuan=syarat_ketentuan, foto=foto,
                                     alamat_lokasi=alamat, lat=lat, lng=lng, mulai=mulai, selesai=selesai,
-                                    harga_awal=harga_awal, status="terjadwal")
+                                    batas_bayar_pemenang=batas_bayar_pemenang,
+                                    jadwal_pengambilan=jadwal_pengambilan,
+                                    harga_awal=harga_awal, status="diajukan")
                 for p in selected:
                     event.items.append(LelangItem(product_id=p.id, nama_produk=p.nama_produk,
                                                   kategori=p.kategori, subkategori=p.subkategori,
@@ -922,26 +1014,103 @@ def create_auction_event():
                 db.session.commit()
                 audit_current("event_lelang_dibuat", "lelang_events", event.id,
                               f"{len(selected)} produk; mulai {mulai.isoformat()} UTC")
-                flash("Event lelang terbuka berhasil dibuat dan dipublikasikan.", "success")
+                flash("Pengajuan event lelang terkirim dan menunggu persetujuan admin.", "success")
                 return redirect(url_for("auction_detail", event_id=event.id))
     return render_template("auction_form.html", products=seller_products, user=u, ticker=ticker_data(),
-                           minimum_start=(datetime.now(WIB) + timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M"))
+                           minimum_start=(datetime.now(WIB) + timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M"),
+                           default_payment_deadline=(datetime.now(WIB) + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M"))
+
+
+@app.route("/admin/lelang/<int:event_id>/setujui", methods=["POST"])
+@login_required("admin")
+def approve_auction_event(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    if event.status != "diajukan":
+        flash("Hanya pengajuan event yang menunggu tinjauan yang dapat disetujui.", "warning")
+    elif event.selesai <= datetime.utcnow():
+        flash("Jadwal lelang sudah lewat. Minta penjual mengajukan event dengan jadwal baru.", "danger")
+    else:
+        biaya_peserta = _nonnegative_amount(get_setting("lelang_biaya_peserta", "0"))
+        biaya_penjual = _nonnegative_amount(get_setting("lelang_biaya_penjual", "0"))
+        if biaya_peserta is None or biaya_penjual is None or biaya_peserta <= 0 or biaya_penjual <= 0:
+            flash("Atur biaya administrasi peserta dan biaya penjual di pengaturan admin dengan nilai lebih dari nol sebelum menyetujui event.", "danger")
+        else:
+            event.biaya_peserta = biaya_peserta
+            event.biaya_penjual = biaya_penjual
+            event.disetujui_pada = datetime.utcnow()
+            event.catatan_admin = request.form.get("catatan_admin", "").strip()[:1000] or None
+            event.status = "menunggu_biaya_penjual" if biaya_penjual > 0 else "terjadwal"
+            event.biaya_penjual_lunas = biaya_penjual <= 0
+            db.session.commit()
+            audit_current("event_lelang_disetujui", "lelang_events", event.id,
+                          f"biaya peserta Rp{biaya_peserta:g}; biaya penjual Rp{biaya_penjual:g}")
+            flash("Pengajuan disetujui. Penjual harus melunasi biaya event sebelum event ditayangkan." if biaya_penjual > 0
+                  else "Pengajuan disetujui dan event ditayangkan.", "success")
+    return redirect(url_for("dashboard_admin") + "#tAuctionAdmin")
+
+
+@app.route("/admin/lelang/<int:event_id>/tolak", methods=["POST"])
+@login_required("admin")
+def reject_auction_event(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    if event.status != "diajukan":
+        flash("Hanya pengajuan event yang menunggu tinjauan yang dapat ditolak.", "warning")
+    else:
+        event.status = "ditolak"
+        event.catatan_admin = request.form.get("catatan_admin", "").strip()[:1000] or "Pengajuan ditolak admin."
+        for item in event.items:
+            if item.product and item.product.status == "lelang":
+                item.product.status = "aktif"
+        db.session.commit()
+        audit_current("event_lelang_ditolak", "lelang_events", event.id, event.catatan_admin)
+        flash("Pengajuan event ditolak dan stok produk dikembalikan ke marketplace.", "info")
+    return redirect(url_for("dashboard_admin") + "#tAuctionAdmin")
 
 
 @app.route("/lelang/<int:event_id>")
 def auction_detail(event_id):
     event = LelangEvent.query.get_or_404(event_id)
     cu = current_user()
+    if event.status in ("diajukan", "ditolak", "menunggu_biaya_penjual") and not (
+        cu and (cu.id == event.seller_id or cu.role == "admin")
+    ):
+        abort(404)
     participant = LelangParticipant.query.filter_by(event_id=event.id, buyer_id=cu.id).first() if cu and cu.role == "pembeli" else None
     seller_view = bool(cu and cu.role == "penjual" and cu.id == event.seller_id)
     highest = event.tawaran_tertinggi
-    winner = highest.buyer if highest and event.status == "selesai" else None
-    is_winner = bool(highest and cu and cu.role == "pembeli" and highest.buyer_id == cu.id and event.status == "selesai")
+    winner = event.pemenang or (highest.buyer if highest and event.status == "selesai" else None)
+    is_winner = bool(winner and cu and cu.role == "pembeli" and winner.id == cu.id and
+                     event.status in ("menunggu_pembayaran_pemenang", "tenggat_pemenang_lewat", "selesai"))
+    winner_price = event.harga_pemenang or (highest.nominal if highest else 0)
+    next_bidder_candidates = [bid for bid in event.peringkat_tawaran if bid.buyer_id != event.pemenang_id]
     return render_template("auction_detail.html", event=event, user=cu, participant=participant,
                            highest=highest, winner=winner, seller_view=seller_view, is_winner=is_winner,
+                           admin_view=bool(cu and cu.role == "admin"),
+                           next_bidder_candidates=next_bidder_candidates,
+                           default_next_payment_deadline=(datetime.now(WIB) + timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M"),
+                           winner_price=winner_price,
                            minimum_bid=int(highest.nominal if highest else event.harga_awal) + 1,
                            bid_history=sorted(event.bids, key=lambda b: (b.nominal, -b.id), reverse=True),
                            ticker=ticker_data())
+
+
+@app.route("/lelang/<int:event_id>/hasil")
+def auction_results(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    cu = current_user()
+    if event.status in ("diajukan", "ditolak", "menunggu_biaya_penjual") and not (
+        cu and (cu.id == event.seller_id or cu.role == "admin")
+    ):
+        abort(404)
+    bids = sorted(event.bids, key=lambda bid: (bid.nominal, -bid.id), reverse=True)
+    highest = event.tawaran_tertinggi
+    return jsonify({
+        "status": event.status,
+        "bids": [{"id": bid.id, "buyer": bid.buyer.nama, "nominal": bid.nominal,
+                  "catatan": bid.catatan or "", "created_at": wibfmt(bid.created_at)} for bid in bids],
+        "highest": {"nominal": highest.nominal, "buyer": highest.buyer.nama} if highest else None,
+        "minimum_bid": int(highest.nominal if highest else event.harga_awal) + 1,
+    })
 
 
 @app.route("/lelang/<int:event_id>/ikut", methods=["POST"])
@@ -951,13 +1120,241 @@ def join_auction(event_id):
     now = datetime.utcnow()
     if event.status not in ("terjadwal", "berlangsung") or event.selesai <= now:
         flash("Pendaftaran peserta untuk event ini sudah ditutup.", "warning")
+    elif not request.form.get("setuju_syarat"):
+        flash("Anda harus menyetujui syarat dan ketentuan event sebelum mendaftar.", "warning")
     elif not LelangParticipant.query.filter_by(event_id=event.id, buyer_id=current_user().id).first():
-        db.session.add(LelangParticipant(event_id=event.id, buyer_id=current_user().id))
+        fee = max(0, event.biaya_peserta or 0)
+        db.session.add(LelangParticipant(event_id=event.id, buyer_id=current_user().id,
+                                         biaya_administrasi=fee, biaya_lunas=fee == 0,
+                                         dibayar_pada=now if fee == 0 else None))
         db.session.commit()
-        audit_current("pembeli_mendaftar_lelang", "lelang_events", event.id, "konfirmasi peserta")
-        flash("Keikutsertaan Anda sudah dikonfirmasi. Anda dapat menawar saat lelang berlangsung.", "success")
+        audit_current("pembeli_mendaftar_lelang", "lelang_events", event.id,
+                      f"setuju syarat; biaya administrasi Rp{fee:g}")
+        flash("Pendaftaran tercatat. Lunasi biaya administrasi sebelum mengajukan tawaran." if fee else
+              "Pendaftaran dan persetujuan syarat berhasil. Anda dapat menawar saat lelang berlangsung.",
+              "warning" if fee else "success")
     else:
         flash("Anda sudah terdaftar sebagai peserta event ini.", "info")
+    return redirect(url_for("auction_detail", event_id=event.id))
+
+
+@app.route("/lelang/<int:event_id>/biaya-penjual", methods=["POST"])
+@login_required("penjual")
+def pay_auction_seller_fee(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    if event.seller_id != current_user().id or event.status != "menunggu_biaya_penjual":
+        flash("Pembayaran biaya event ini tidak tersedia.", "warning")
+    elif event.selesai <= datetime.utcnow():
+        flash("Jadwal event sudah lewat. Hubungi admin untuk mengajukan jadwal baru.", "danger")
+    else:
+        method = request.form.get("metode", "qris").strip().lower()
+        if method not in {"qris", "virtual_account", "ewallet", "bank_transfer"}:
+            method = "qris"
+        ref = "AUC-SELLER-" + datetime.now().strftime("%Y%m%d%H%M%S") + "-" + str(random.randint(1000, 9999))
+        event.biaya_penjual_lunas = True
+        event.ref_biaya_penjual = f"{ref}:{method}"
+        now = datetime.utcnow()
+        event.status = "berlangsung" if event.mulai <= now else "terjadwal"
+        db.session.commit()
+        audit_current("biaya_lelang_penjual_dibayar", "lelang_events", event.id, f"Rp{event.biaya_penjual:g}; ref {ref}")
+        flash(f"Biaya event dicatat lunas (simulasi payment gateway), ref {ref}. Event kini tayang.", "success")
+    return redirect(url_for("auction_detail", event_id=event.id))
+
+
+@app.route("/lelang/<int:event_id>/biaya-peserta", methods=["POST"])
+@login_required("pembeli")
+def pay_auction_participant_fee(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    participant = LelangParticipant.query.filter_by(event_id=event.id, buyer_id=current_user().id).first()
+    if not participant:
+        flash("Daftar sebagai peserta dan setujui syarat event terlebih dahulu.", "warning")
+    elif participant.biaya_lunas:
+        flash("Biaya administrasi event sudah lunas.", "info")
+    elif event.status not in ("terjadwal", "berlangsung") or event.selesai <= datetime.utcnow():
+        flash("Pembayaran peserta untuk event ini sudah ditutup.", "warning")
+    else:
+        method = request.form.get("metode", "qris").strip().lower()
+        if method not in {"qris", "virtual_account", "ewallet", "bank_transfer"}:
+            method = "qris"
+        ref = "AUC-BUYER-" + datetime.now().strftime("%Y%m%d%H%M%S") + "-" + str(random.randint(1000, 9999))
+        participant.biaya_lunas = True
+        participant.ref_pembayaran = f"{ref}:{method}"
+        participant.dibayar_pada = datetime.utcnow()
+        db.session.commit()
+        audit_current("biaya_administrasi_lelang_dibayar", "lelang_events", event.id,
+                      f"pembeli #{current_user().id}; Rp{participant.biaya_administrasi:g}; ref {ref}")
+        flash(f"Biaya administrasi dicatat lunas (simulasi payment gateway), ref {ref}.", "success")
+    return redirect(url_for("auction_detail", event_id=event.id))
+
+
+@app.route("/kalender")
+@login_required()
+def calendar_page():
+    u = current_user()
+    entries = []
+    dashboard_endpoint = {"penjual": "dashboard_seller", "pembeli": "dashboard_buyer"}.get(u.role, "dashboard_admin")
+    dashboard_url = url_for(dashboard_endpoint)
+
+    def add_entry(when, kind, title, description="", location="", event_url=None):
+        if when:
+            entries.append({"when": when, "kind": kind, "title": title,
+                            "description": description, "location": location, "url": event_url})
+
+    participant_rows = LelangParticipant.query.filter_by(buyer_id=u.id).all() if u.role == "pembeli" else []
+    joined_event_ids = {row.event_id for row in participant_rows}
+    if u.role == "penjual":
+        auctions = LelangEvent.query.filter_by(seller_id=u.id).all()
+    elif u.role == "pembeli":
+        auctions = LelangEvent.query.filter(LelangEvent.id.in_(joined_event_ids or [-1])).all()
+    else:
+        auctions = LelangEvent.query.all()
+
+    for event in auctions:
+        event_url = url_for("auction_detail", event_id=event.id)
+        add_entry(event.mulai, "Lelang", f"Mulai lelang: {event.judul}",
+                  f"Status: {event.status.replace('_', ' ')}", event.alamat_lokasi, event_url)
+        add_entry(event.selesai, "Lelang", f"Penawaran ditutup: {event.judul}",
+                  f"Status: {event.status.replace('_', ' ')}", event.alamat_lokasi, event_url)
+        if event.jadwal_pengambilan:
+            add_entry(event.jadwal_pengambilan, "Pengambilan", f"Pengambilan paket lelang: {event.judul}",
+                      "Jadwal pengambilan yang ditetapkan penjual", event.alamat_lokasi, event_url)
+        for award in event.awards:
+            if u.role == "admin" or u.id in (event.seller_id, award.buyer_id):
+                add_entry(award.ditetapkan_pada, "Hasil lelang", f"Pemenang ditetapkan: {event.judul}",
+                          f"{award.buyer.nama} · Rp{award.nominal:,.0f}", event.alamat_lokasi, event_url)
+                add_entry(award.batas_bayar, "Tenggat pembayaran", f"Batas pembayaran pemenang: {event.judul}",
+                          f"{award.buyer.nama} · status {award.status}", event.alamat_lokasi, event_url)
+                if award.dibayar_pada:
+                    add_entry(award.dibayar_pada, "Pembelian lelang", f"Pembayaran pemenang: {event.judul}",
+                              f"{award.buyer.nama} · Rp{award.nominal:,.0f} · lunas", event.alamat_lokasi, event_url)
+        for registration in event.participants:
+            if u.role == "admin" or u.id == event.seller_id or registration.buyer_id == u.id:
+                add_entry(registration.created_at, "Pendaftaran lelang", f"Pendaftaran peserta: {event.judul}",
+                          f"{registration.buyer.nama} · biaya administrasi {'lunas' if registration.biaya_lunas else 'menunggu pembayaran'}",
+                          event.alamat_lokasi, event_url)
+        for bid in event.bids:
+            if u.role == "admin" or u.id == event.seller_id or bid.buyer_id == u.id:
+                who = "Anda" if bid.buyer_id == u.id else bid.buyer.nama
+                add_entry(bid.created_at, "Penawaran", f"Penawaran lelang: {event.judul}",
+                          f"{who} · Rp{bid.nominal:,.0f}", event.alamat_lokasi, event_url)
+
+    bookings_query = Booking.query.join(Offer, Booking.offer_id == Offer.id)
+    if u.role == "pembeli":
+        bookings_query = bookings_query.filter(Offer.buyer_id == u.id)
+    elif u.role == "penjual":
+        bookings_query = bookings_query.join(Product, Offer.product_id == Product.id).filter(Product.seller_id == u.id)
+    for booking in bookings_query.all():
+        offer = booking.offer
+        seller = offer.product.seller
+        description = f"{offer.product.nama_produk} · pembeli {offer.buyer.nama} · status {booking.status.replace('_', ' ')}"
+        add_entry(booking.created_at, "Pemesanan", f"Pemesanan #{booking.id}: {offer.product.nama_produk}",
+                  description, seller.alamat if not booking.ekspedisi_id else "", dashboard_url)
+        if booking.jadwal_kirim:
+            shipment_date = datetime.combine(booking.jadwal_kirim, datetime.min.time()).replace(tzinfo=WIB)
+            activity = "Pengiriman" if booking.ekspedisi_id else "Pengambilan"
+            add_entry(shipment_date, activity, f"Jadwal {activity.lower()}: {offer.product.nama_produk}",
+                      f"Pemesanan #{booking.id} · {'ekspedisi ' + booking.ekspedisi.nama if booking.ekspedisi else 'pengambilan langsung'}",
+                      seller.alamat, dashboard_url)
+
+    transactions_query = Transaksi.query
+    if u.role == "pembeli":
+        transactions_query = transactions_query.filter_by(buyer_id=u.id)
+    elif u.role == "penjual":
+        transactions_query = transactions_query.filter_by(seller_id=u.id)
+    for transaction in transactions_query.all():
+        other_party = transaction.seller.nama if u.role == "pembeli" else transaction.buyer.nama
+        add_entry(transaction.created_at, "Pembelian", f"Pembelian #{transaction.id}: {transaction.product_name}",
+                  f"{(transaction.qty or 0):g} unit · Rp{transaction.nilai:,.0f} · {transaction.status} · {'pihak terkait: ' + other_party if u.role != 'admin' else ''}",
+                  "", dashboard_url)
+
+    entries.sort(key=lambda row: row["when"])
+    return render_template("calendar.html", user=u, entries=entries, ticker=ticker_data())
+
+
+@app.route("/lelang/<int:event_id>/bayar-pemenang", methods=["POST"])
+@login_required("pembeli")
+def pay_auction_winning_bid(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    now = datetime.utcnow()
+    if (event.pemenang_id != current_user().id or event.status != "menunggu_pembayaran_pemenang"
+            or event.pemenang_bayar_lunas):
+        flash("Pembayaran ini hanya tersedia untuk pemenang aktif event.", "warning")
+    elif not event.batas_bayar_pemenang or event.batas_bayar_pemenang <= now:
+        event.status = "tenggat_pemenang_lewat"
+        if event.penetapan_aktif and event.penetapan_aktif.status == "menunggu":
+            event.penetapan_aktif.status = "kedaluwarsa"
+        db.session.commit()
+        flash("Batas pembayaran sudah lewat. Penjual akan memilih penawar berikutnya atau membatalkan lelang.", "danger")
+    else:
+        method = request.form.get("metode", "qris").strip().lower()
+        if method not in {"qris", "virtual_account", "ewallet", "bank_transfer"}:
+            method = "qris"
+        ref = "AUC-WINNER-" + datetime.now().strftime("%Y%m%d%H%M%S") + "-" + str(random.randint(1000, 9999))
+        event.pemenang_bayar_lunas = True
+        event.ref_bayar_pemenang = f"{ref}:{method}"
+        event.status = "selesai"
+        if event.penetapan_aktif:
+            event.penetapan_aktif.status = "lunas"
+            event.penetapan_aktif.ref_pembayaran = event.ref_bayar_pemenang
+            event.penetapan_aktif.dibayar_pada = now
+        db.session.commit()
+        audit_current("pemenang_lelang_membayar", "lelang_events", event.id,
+                      f"Rp{event.harga_pemenang:g}; ref {ref}")
+        flash(f"Pembayaran pemenang dicatat lunas (simulasi payment gateway), ref {ref}.", "success")
+    return redirect(url_for("auction_detail", event_id=event.id))
+
+
+@app.route("/lelang/<int:event_id>/pilih-penawar-berikutnya", methods=["POST"])
+@login_required("penjual")
+def select_next_auction_bidder(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    if event.seller_id != current_user().id or event.status != "tenggat_pemenang_lewat":
+        flash("Pemilihan penawar berikutnya hanya tersedia untuk event milik Anda yang tenggat pembayarannya terlewat.", "warning")
+    else:
+        try:
+            requested_buyer_id = int(request.form.get("buyer_id", ""))
+        except (TypeError, ValueError):
+            requested_buyer_id = None
+        next_bid = next((bid for bid in event.peringkat_tawaran
+                         if bid.buyer_id == requested_buyer_id and bid.buyer_id != event.pemenang_id), None)
+        new_deadline = parse_wib_deadline(request.form.get("batas_bayar_pemenang"))
+        if not next_bid:
+            flash("Pilih peserta lain yang sudah menawar untuk menetapkan pemenang pengganti.", "warning")
+        elif not new_deadline or new_deadline <= datetime.utcnow():
+            flash("Tentukan batas pembayaran baru di masa depan untuk penawar berikutnya.", "danger")
+        else:
+            event.pemenang_id = next_bid.buyer_id
+            event.harga_pemenang = next_bid.nominal
+            event.batas_bayar_pemenang = new_deadline
+            event.pemenang_bayar_lunas = False
+            event.ref_bayar_pemenang = None
+            event.status = "menunggu_pembayaran_pemenang"
+            event.awards.append(LelangAward(buyer_id=next_bid.buyer_id, nominal=next_bid.nominal,
+                                            batas_bayar=new_deadline, status="menunggu"))
+            db.session.commit()
+            audit_current("penawar_lelang_berikutnya_dipilih", "lelang_events", event.id,
+                          f"pembeli #{next_bid.buyer_id}; Rp{next_bid.nominal:g}; tenggat {new_deadline.isoformat()} UTC")
+            flash(f"Penawar berikutnya, {next_bid.buyer.nama}, dipilih sebagai pemenang baru.", "success")
+    return redirect(url_for("auction_detail", event_id=event.id))
+
+
+@app.route("/lelang/<int:event_id>/batalkan-setelah-tenggat", methods=["POST"])
+@login_required("penjual")
+def cancel_timed_out_auction(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    if event.seller_id != current_user().id or event.status != "tenggat_pemenang_lewat":
+        flash("Lelang hanya dapat dibatalkan dari alur tindak lanjut tenggat pemenang milik Anda.", "warning")
+    else:
+        event.status = "dibatalkan"
+        if event.penetapan_aktif and event.penetapan_aktif.status == "kedaluwarsa":
+            event.penetapan_aktif.status = "dibatalkan"
+        for item in event.items:
+            if item.product and item.product.status == "lelang":
+                item.product.status = "aktif"
+        db.session.commit()
+        audit_current("event_lelang_dibatalkan_tenggat_pemenang", "lelang_events", event.id,
+                      "pemenang tidak membayar sebelum tenggat; stok dikembalikan")
+        flash("Lelang dibatalkan dan stok paket dikembalikan ke marketplace.", "info")
     return redirect(url_for("auction_detail", event_id=event.id))
 
 
@@ -967,7 +1364,7 @@ def cancel_auction_event(event_id):
     event = LelangEvent.query.get_or_404(event_id)
     if event.seller_id != current_user().id:
         flash("Tidak berwenang.", "danger")
-    elif event.status != "terjadwal" or event.bids:
+    elif event.status not in ("diajukan", "menunggu_biaya_penjual", "terjadwal") or event.bids:
         flash("Event hanya dapat dibatalkan sebelum mulai dan sebelum ada tawaran.", "warning")
     else:
         event.status = "dibatalkan"
@@ -985,8 +1382,11 @@ def cancel_auction_event(event_id):
 def bid_auction(event_id):
     event = LelangEvent.query.get_or_404(event_id)
     now = datetime.utcnow()
-    if not LelangParticipant.query.filter_by(event_id=event.id, buyer_id=current_user().id).first():
-        flash("Konfirmasikan keikutsertaan sebagai peserta sebelum menawar.", "warning")
+    participant = LelangParticipant.query.filter_by(event_id=event.id, buyer_id=current_user().id).first()
+    if not participant:
+        flash("Daftar sebagai peserta dan setujui syarat lelang sebelum menawar.", "warning")
+    elif not participant.biaya_lunas:
+        flash("Lunasi biaya administrasi peserta sebelum menawar.", "warning")
     elif event.status != "berlangsung" or not (event.mulai <= now < event.selesai):
         flash("Penawaran hanya dapat dikirim selama event berlangsung.", "warning")
     else:
@@ -1028,7 +1428,14 @@ def register():
         if User.query.filter_by(email=email).first():
             flash("Email sudah terdaftar.", "danger")
             return redirect(url_for("register", role=role))
+        if role not in ("penjual", "pembeli"):
+            flash("Peran akun tidak valid.", "danger")
+            return redirect(url_for("register"))
         tipe_list = TIPE_PENJUAL if role == "penjual" else TIPE_PEMBELI
+        tipe = request.form.get("tipe", tipe_list[0])
+        if tipe not in tipe_list:
+            flash("Tipe akun tidak valid untuk peran yang dipilih.", "danger")
+            return redirect(url_for("register", role=role))
         errs = security.check_password_strength(request.form.get("password", ""))
         if errs:
             flash(" | ".join(errs), "danger")
@@ -1039,7 +1446,7 @@ def register():
             password=generate_password_hash(request.form.get("password", "")),
             phone=request.form.get("phone", ""),
             role=role,
-            tipe=request.form.get("tipe", tipe_list[0]),
+            tipe=tipe,
             alamat=request.form.get("alamat", ""),
             kota=request.form.get("kota", ""),
             provinsi=request.form.get("provinsi", ""),
@@ -1255,6 +1662,7 @@ def dashboard_admin():
     pg = PaymentGatewayAPI.query.all()
     eks = Ekspedisi.query.all()
     settings = {p.key: p.value for p in Pengaturan.query.all()}
+    auction_requests = LelangEvent.query.filter_by(status="diajukan").order_by(LelangEvent.created_at.asc()).all()
 
     # ---- Laporan keuangan (rekap per metode pembayaran & status) ----
     by_method, by_status = {}, {}
@@ -1318,6 +1726,7 @@ def dashboard_admin():
                            penjualan_rows=penjualan_rows, pembelian_rows=pembelian_rows,
                            total_penjualan=total_nilai_penjualan, total_pembelian=total_nilai_pembelian,
                            rating_rekap=rating_rekap, rat_rows=rat_rows[:30],
+                           auction_requests=auction_requests,
                            wallet=wallet_ctx(u), bstats=bchain.stats(),
                            feat_cfg=FEATURE_KEYS)
 
@@ -1506,6 +1915,14 @@ def _positive_price(value):
     try:
         price = float(value)
         return price if price > 0 and price < float("inf") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _nonnegative_amount(value):
+    try:
+        amount = float(value)
+        return amount if 0 <= amount < float("inf") else None
     except (TypeError, ValueError):
         return None
 
@@ -1918,6 +2335,12 @@ def save_pengaturan():
                 BIAYA_LABEL["ongkir_persen_asuransi"])
     set_setting("min_transaksi", request.form.get("min_transaksi", "50000"),
                 BIAYA_LABEL["min_transaksi"])
+    for key in ("lelang_biaya_peserta", "lelang_biaya_penjual"):
+        amount = _nonnegative_amount(request.form.get(key))
+        if amount is None:
+            flash("Biaya lelang harus berupa angka nol atau lebih.", "danger")
+            return redirect(url_for("dashboard_admin"))
+        set_setting(key, str(amount), BIAYA_LABEL[key])
     # custom biaya tambahan dinamis: biaya_baru_<n> / label_baru_<n>
     n = int(request.form.get("custom_count", "0"))
     for i in range(1, n + 1):
@@ -2388,6 +2811,29 @@ def seed():
                              ("batas_pembayaran", "TIMESTAMP")]:
                 if col not in offer_columns:
                     db.session.execute(text(f"ALTER TABLE offers ADD COLUMN {col} {ddl}"))
+            auction_schema_columns = {
+                "lelang_events": [
+                    ("syarat_ketentuan", "TEXT NOT NULL DEFAULT ''"),
+                    ("catatan_admin", "TEXT"), ("biaya_peserta", "FLOAT NOT NULL DEFAULT 0"),
+                    ("biaya_penjual", "FLOAT NOT NULL DEFAULT 0"),
+                    ("biaya_penjual_lunas", "BOOLEAN NOT NULL DEFAULT FALSE"),
+                    ("ref_biaya_penjual", "VARCHAR(80)"), ("disetujui_pada", "TIMESTAMP"),
+                    ("batas_bayar_pemenang", "TIMESTAMP"), ("jadwal_pengambilan", "TIMESTAMP"),
+                    ("pemenang_id", "INTEGER"), ("harga_pemenang", "FLOAT"),
+                    ("pemenang_bayar_lunas", "BOOLEAN NOT NULL DEFAULT FALSE"),
+                    ("ref_bayar_pemenang", "VARCHAR(80)"),
+                ],
+                "lelang_participants": [
+                    ("biaya_administrasi", "FLOAT NOT NULL DEFAULT 0"),
+                    ("biaya_lunas", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                    ("ref_pembayaran", "VARCHAR(80)"), ("dibayar_pada", "TIMESTAMP"),
+                ],
+            }
+            for table, columns in auction_schema_columns.items():
+                existing = {col["name"] for col in sa_inspect(db.engine).get_columns(table)}
+                for column, ddl in columns:
+                    if column not in existing:
+                        db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
             db.session.commit()
         except Exception as e:
             print("migrasi:", e)
@@ -2461,7 +2907,7 @@ def seed():
                          tipe="Perorangan", verified=True, kota="Jakarta", provinsi="DKI Jakarta")
             seller = User(nama="Pak Budi Tani", email="penjual@agr.id",
                           password=generate_password_hash("penjual123"), role="penjual",
-                          tipe="Kelompok Tani (Paguyuban)", alamat="Desa Cikarang, Kab. Brebes",
+                          tipe="Kelompok/Paguyuban", alamat="Desa Cikarang, Kab. Brebes",
                           kota="Brebes", provinsi="Jawa Tengah", lat=-6.866, lng=109.055, verified=True)
             seller2 = User(nama="Koperasi Mina Laut", email="koperasi@agr.id",
                            password=generate_password_hash("penjual123"), role="penjual",
@@ -2473,7 +2919,7 @@ def seed():
                          provinsi="Jawa Barat", lat=-6.914, lng=107.609, verified=True)
             corp = User(nama="PT Segar Food Industry", email="corporate@agr.id",
                         password=generate_password_hash("corporate123"), role="pembeli",
-                        tipe="Corporate", alamat="Kawasan Industri GIIC", kota="Tangerang",
+                        tipe="Perusahaan", alamat="Kawasan Industri GIIC", kota="Tangerang",
                         provinsi="Banten", lat=-6.238, lng=106.62, npwp="01.234.567.8-901.000",
                         nib="1234567890123", verified=True)
             db.session.add_all([admin, seller, seller2, buyer, corp])

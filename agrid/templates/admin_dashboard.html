@@ -202,6 +202,26 @@
   </div>
   </div><!-- /tab-content -->
 
+  <section class="card shadow-sm mt-4" id="tAuctionAdmin">
+    <div class="card-header bg-white fw-bold d-flex justify-content-between"><span>🔨 Pengajuan Event Lelang Terbuka</span><span class="badge bg-warning text-dark">{{ auction_requests|length }} menunggu</span></div>
+    <div class="card-body">
+      <p class="small text-muted">Tinjau informasi, lokasi, produk dan syarat event. Atur kedua tarif dengan nilai lebih dari nol di panel Pengaturan Biaya sebelum menyetujui pengajuan; tarif disimpan sebagai snapshot saat persetujuan.</p>
+      {% for event in auction_requests %}
+      <article class="border rounded p-3 mb-3">
+        <div class="d-flex justify-content-between flex-wrap gap-2"><div><h5 class="fw-bold mb-1">{{ event.judul }}</h5><div class="small text-muted">{{ event.seller.nama }} · jadwal {{ event.mulai|wib }} – {{ event.selesai|wib }} · harga awal Rp{{ event.harga_awal|rp }}</div></div><a class="btn btn-sm btn-outline-success align-self-start" href="{{ url_for('auction_detail', event_id=event.id) }}">Lihat detail</a></div>
+        <div class="small mt-2" style="white-space:pre-line">{{ event.deskripsi }}</div>
+        <div class="small mt-2"><b>Lokasi:</b> {{ event.alamat_lokasi }} · GPS {{ '%.6f'|format(event.lat) }}, {{ '%.6f'|format(event.lng) }}</div>
+        <div class="small mt-2"><b>Produk:</b> {% for item in event.items %}{{ item.nama_produk }} ({{ item.jumlah|rp }} {{ item.satuan }}){% if not loop.last %}, {% endif %}{% endfor %}</div>
+        <details class="small mt-2"><summary class="fw-bold">Baca syarat dan ketentuan penjual</summary><div class="mt-2" style="white-space:pre-line">{{ event.syarat_ketentuan }}</div></details>
+        <div class="d-flex gap-2 flex-wrap mt-3">
+          <form method="post" action="{{ url_for('approve_auction_event', event_id=event.id) }}" class="d-flex gap-2 flex-grow-1"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input class="form-control form-control-sm" name="catatan_admin" maxlength="1000" placeholder="Catatan untuk penjual (opsional)"><button class="btn btn-sm btn-success" onclick="return confirm('Setujui pengajuan event lelang ini?')">Setujui Event</button></form>
+          <form method="post" action="{{ url_for('reject_auction_event', event_id=event.id) }}" class="d-flex gap-2"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input class="form-control form-control-sm" name="catatan_admin" maxlength="1000" placeholder="Alasan penolakan"><button class="btn btn-sm btn-outline-danger" onclick="return confirm('Tolak pengajuan dan kembalikan stok ke marketplace?')">Tolak</button></form>
+        </div>
+      </article>
+      {% else %}<div class="text-muted small">Tidak ada pengajuan yang menunggu tinjauan.</div>{% endfor %}
+    </div>
+  </section>
+
   <div class="row g-4 mt-1">
     <div class="col-lg-6">
       <!-- Pengaturan ubah DP, penambahan & pengaturan biaya-biaya -->
@@ -223,6 +243,11 @@
               <input class="form-control" type="number" step="0.1" name="ongkir_persen_asuransi" value="{{ settings.get('ongkir_persen_asuransi','1') }}"></div>
             <div class="col-6"><label class="small fw-bold">Minimum Nilai Transaksi (Rp)</label>
               <input class="form-control" type="number" name="min_transaksi" value="{{ settings.get('min_transaksi','50000') }}"></div>
+            <div class="col-12 mt-3"><hr class="my-1"><b class="small">🔨 Tarif Event Lelang (Rp)</b></div>
+            <div class="col-6"><label class="small fw-bold">Biaya administrasi peserta / event</label>
+              <input class="form-control" type="number" min="0" step="1" name="lelang_biaya_peserta" value="{{ settings.get('lelang_biaya_peserta','0') }}"></div>
+            <div class="col-6"><label class="small fw-bold">Biaya lelang penjual / event</label>
+              <input class="form-control" type="number" min="0" step="1" name="lelang_biaya_penjual" value="{{ settings.get('lelang_biaya_penjual','0') }}"></div>
 
             <div class="col-12 mt-3"><hr class="my-1"><b class="small">➕ Penambahan Biaya Custom</b></div>
             {% set customs = [] %}

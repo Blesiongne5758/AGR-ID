@@ -201,8 +201,8 @@ renderers.register = () => {
     <button class="btn btn-primary wide" id="rgo">Daftar</button>
     <p class="muted center">Sudah punya akun? <a href="#/login">Masuk</a></p></div>`;
   let role='penjual';
-  const chkTipe=()=>{ $('#corpFields').style.display=($('#rtipe').value==='Corporate')?'block':'none'; };
-  const isiSeg=()=>{ $('#rtipe').innerHTML=(role==='penjual'?['Perorangan','Koperasi','Kelompok Tani (Paguyuban)']:['Perorangan','Corporate']).map(t=>`<option>${t}</option>`).join(''); chkTipe(); };
+  const chkTipe=()=>{ $('#corpFields').style.display=(['Yayasan','Koperasi','Perusahaan','Kelompok/Paguyuban'].includes($('#rtipe').value))?'block':'none'; };
+  const isiSeg=()=>{ $('#rtipe').innerHTML=(role==='penjual'?['Perorangan','Kelompok/Paguyuban','Koperasi','Perusahaan']:['Perorangan','Yayasan','Koperasi','Perusahaan']).map(t=>`<option>${t}</option>`).join(''); chkTipe(); };
   isiSeg();
   $('#segRole').querySelectorAll('button').forEach(b=>b.onclick=()=>{ role=b.dataset.r; $('#segRole').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); isiSeg(); });
   $('#rtipe').onchange=chkTipe;

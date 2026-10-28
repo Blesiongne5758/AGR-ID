@@ -29,6 +29,7 @@
       <ul class="navbar-nav me-auto">
         <li class="nav-item"><a class="nav-link" href="{{ url_for('marketplace') }}"><i class="bi bi-shop"></i> Marketplace</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('auction_list') }}"><i class="bi bi-hammer"></i> Lelang Terbuka</a></li>
+        {% if user %}<li class="nav-item"><a class="nav-link" href="{{ url_for('calendar_page') }}"><i class="bi bi-calendar3"></i> Kalender</a></li>{% endif %}
         {% if user %}{% if user.role=='penjual' %}
         <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard_seller') }}"><i class="bi bi-speedometer2"></i> Dashboard Penjual</a></li>
         {% elif user.role=='pembeli' %}
@@ -174,8 +175,8 @@
       </div>
       <div class="modal-body" style="font-size:.92rem">
         <ol class="ps-3">
-          <li><b>Layanan.</b> AGR.ID adalah marketplace yang mempertemukan Penjual (Perorangan/Koperasi/Kelompok Tani-Paguyuban) dengan Pembeli (Perorangan/Corporate) pada kategori Pertanian, Perkebunan, Perikanan, dan Peternakan.</li>
-          <li><b>Akun & Data.</b> Pengguna wajib memberikan informasi yang benar (nama, alamat, koordinat GPS, NPWP/NIB untuk Corporate/Koperasi). Data digunakan untuk verifikasi dan ketelusuran (traceability).</li>
+          <li><b>Layanan.</b> AGR.ID adalah marketplace yang mempertemukan Penjual (Perorangan/Kelompok-Paguyuban/Koperasi/Perusahaan) dengan Pembeli (Perorangan/Yayasan/Koperasi/Perusahaan) pada kategori Pertanian, Perkebunan, Perikanan, dan Peternakan.</li>
+          <li><b>Akun & Data.</b> Pengguna wajib memberikan informasi yang benar (nama, alamat, koordinat GPS, NPWP/NIB untuk tipe badan/organisasi). Data digunakan untuk verifikasi dan ketelusuran (traceability).</li>
           <li><b>Penawaran Harga.</b> Pembeli dapat mengajukan penawaran harga (bidding) terhadap produk yang diposting. Penawaran mengikat setelah diterima Penjual.</li>
           <li><b>Booking & DP.</b> Penawaran yang diterima wajib di-booking dengan membayar Uang Muka (DP) sebesar persentase yang berlaku sebagai pengikat kesepakatan melalui payment gateway resmi. Sisa pembayaran dilunasi sesuai jadwal pengiriman. DP hangus bila pembatalan dilakukan sepihak tanpa alasan yang disepakati.</li>
           <li><b>Jadwal Pengiriman & Ekspedisi.</b> Pengiriman menggunakan mitra ekspedisi terpilih dengan tracking code. Risiko selama pengiriman ditanggung sesuai kesepakatan Incoterms sederhana di halaman booking.</li>

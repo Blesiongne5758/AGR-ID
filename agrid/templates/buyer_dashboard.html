@@ -7,6 +7,7 @@
       <span class="badge bg-warning text-dark">{{ u.tipe }}</span></h4>
     <div>
       <a href="{{ url_for('marketplace') }}" class="btn btn-agrid fw-bold"><i class="bi bi-shop-window"></i> Cari Produk</a>
+      <a href="{{ url_for('calendar_page') }}" class="btn btn-outline-primary fw-bold"><i class="bi bi-calendar3"></i> Kalender</a>
       <a href="{{ url_for('chat_page') }}" class="btn btn-outline-success"><i class="bi bi-robot"></i> Minta AI carikan produk</a>
     </div>
   </div>
@@ -61,7 +62,7 @@
       <div class="row g-3">
         {% for event in lelang_diikuti %}{% set high = event.tawaran_tertinggi %}
         <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-body">
-          <div class="d-flex justify-content-between gap-2"><div><h6 class="fw-bold mb-1">{{ event.judul }}</h6><span class="badge {{ {'terjadwal':'bg-info text-dark','berlangsung':'bg-success','selesai':'bg-secondary','dibatalkan':'bg-danger'}.get(event.status,'bg-secondary') }}">{{ event.status|capitalize }}</span></div><a class="btn btn-sm btn-outline-success align-self-start" href="{{ url_for('auction_detail', event_id=event.id) }}">Lihat event</a></div>
+        <div class="d-flex justify-content-between gap-2"><div><h6 class="fw-bold mb-1">{{ event.judul }}</h6><span class="badge {{ {'diajukan':'bg-warning text-dark','ditolak':'bg-danger','menunggu_biaya_penjual':'bg-warning text-dark','terjadwal':'bg-info text-dark','berlangsung':'bg-success','menunggu_pembayaran_pemenang':'bg-warning text-dark','tenggat_pemenang_lewat':'bg-danger','selesai':'bg-secondary','dibatalkan':'bg-danger'}.get(event.status,'bg-secondary') }}">{{ event.status|replace('_',' ')|capitalize }}</span></div><a class="btn btn-sm btn-outline-success align-self-start" href="{{ url_for('auction_detail', event_id=event.id) }}">Lihat event</a></div>
           <div class="small text-muted mt-2">{{ event.mulai|wib }} – {{ event.selesai|wib }}</div>
           <div class="small mt-2">Harga pembukaan Rp{{ event.harga_awal|rp }}{% if high %} · Tawaran tertinggi Rp{{ high.nominal|rp }}{% endif %}</div>
         </div></div></div>

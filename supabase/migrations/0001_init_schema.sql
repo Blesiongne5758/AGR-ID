@@ -12,12 +12,12 @@ create table if not exists users (
   nama          text not null,
   password_hash text not null,               -- bcrypt dari gateway PHP
   role          text not null check (role in ('penjual','pembeli','admin')),
-  tipe          text default 'Perorangan',   -- Penjual: Perorangan/Koperasi/Kelompok Tani (Paguyuban); Pembeli: Perorangan/Corporate
+  tipe          text default 'Perorangan',   -- Sesuai peran: Penjual (Perorangan/Kelompok-Paguyuban/Koperasi/Perusahaan), Pembeli (Perorangan/Yayasan/Koperasi/Perusahaan)
   alamat        text,
   lat           double precision,            -- koordinat GPS
   lng           double precision,
   no_hp         text,
-  npwp          text,                        -- Corporate/Koperasi
+  npwp          text,                        -- Yayasan/Koperasi/Perusahaan
   nib           text,
   crypto_address text,                       -- dompet AGR Coin (bridge Flask)
   created_at    timestamptz default now()

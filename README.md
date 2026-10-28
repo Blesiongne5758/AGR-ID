@@ -1,6 +1,6 @@
 # 🌾 AGR.ID — Marketplace Pertanian, Perkebunan, Perikanan & Peternakan
 
-**AGR.ID** adalah webapp marketplace B2B/B2C yang mempertemukan **penjual** (petani, nelayan, peternak, koperasi, kelompok tani/paguyuban) langsung dengan **pembeli** (perorangan maupun corporate) — dilengkapi **AI Chat Agent**, alur **penawaran harga → booking dengan DP → payment gateway → jadwal pengiriman → verifikasi eviden (foto + GPS)**, serta **laporan transaksi** untuk penjual, pembeli, dan admin.
+**AGR.ID** adalah webapp marketplace B2B/B2C yang mempertemukan **penjual** (petani, nelayan, peternak, koperasi, kelompok tani/paguyuban) langsung dengan **pembeli** (perorangan, yayasan, koperasi, maupun perusahaan) — dilengkapi **AI Chat Agent**, alur **penawaran harga → booking dengan DP → payment gateway → jadwal pengiriman → verifikasi eviden (foto + GPS)**, serta **laporan transaksi** untuk penjual, pembeli, dan admin.
 
 Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system **shadcn/ui v3** (light & dark mode).
 
@@ -23,14 +23,17 @@ Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system *
 ### Lelang Terbuka
 - Penjual membuat event lelang untuk satu paket yang terdiri dari beberapa listing dan seluruh stok yang dipilih, misalnya hasil panen, buah di pohon, atau ternak.
 - Event mencatat deskripsi paket, foto pendukung, jadwal mulai/tutup, alamat, dan koordinat GPS lokasi lelang/pengambilan.
-- Pembeli wajib mengonfirmasi keikutsertaan sebelum dapat menawar. Tawaran berlaku untuk total paket dan harus melampaui harga pembukaan atau tawaran tertinggi saat ini.
-- Event menutup otomatis sesuai jadwal; tawaran tertinggi ditampilkan sebagai pemenang. Stok paket dicadangkan dari marketplace selama lelang dan dikembalikan bila event selesai tanpa tawaran atau dibatalkan sebelum mulai.
-- Penjual dan pemenang mengatur penyerahan paket setelah event ditutup; alur pembayaran event lelang belum terhubung ke booking/payment gateway produk tunggal.
+- Penjual menyertakan syarat dan ketentuan yang harus disetujui semua peserta. Pengajuan ditinjau admin; setelah disetujui, event tayang setelah biaya lelang penjual dibayar.
+- Admin mengatur tarif biaya event dan biaya administrasi peserta. Peserta mendaftar dan melunasi biaya administrasi sebelum bisa menawar; tarif disimpan sebagai snapshot saat event disetujui.
+- Penjual menentukan jadwal buka/tutup, batas pembayaran pemenang, dan jadwal pengambilan opsional. Semua tawaran tampil live di halaman event.
+- Tawaran berlaku untuk total paket dan harus melampaui harga pembukaan atau tawaran tertinggi saat ini. Event menutup otomatis sesuai jadwal; pemenang membayar sebelum tenggat. Jika lewat, penjual dapat membatalkan event atau memilih penawar lain dan menetapkan tenggat baru.
+- Kalender per peran merangkum jadwal lelang, hasil/tenggat pemenang, pendaftaran, pemesanan, pembelian, pengiriman, dan pengambilan. Stok paket dikembalikan bila lelang selesai tanpa penawar atau dibatalkan.
+- Pembayaran biaya lelang saat ini dicatat melalui simulasi gateway aplikasi. Penjual dan pemenang tetap mengatur penyerahan paket setelah event ditutup; pembayaran harga paket belum terhubung ke booking/payment gateway produk tunggal.
 
 ### Akun, Pendaftaran & Login
 - Tombol **Login** dan **Daftar** di navbar; halaman pendaftaran terpisah peran.
-- **Tipe Penjual**: Perorangan / Koperasi / Kelompok Tani (Paguyuban) — badan usaha mengisi NPWP & NIB.
-- **Tipe Pembeli**: Perorangan / Corporate — input NPWP/NIB muncul otomatis untuk Corporate.
+- **Tipe Penjual**: Perorangan / Kelompok-Paguyuban / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
+- **Tipe Pembeli**: Perorangan / Yayasan / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
 - Alamat lengkap + **koordinat GPS** (tombol deteksi lokasi).
 - **Floating window Syarat & Ketentuan** wajib disetujui sebelum masuk halaman pendaftaran/login.
 - Profil penjual menampilkan **rating kepuasan** dan dapat ditandai **favorit** oleh pembeli.
@@ -148,7 +151,7 @@ Buka **http://127.0.0.1:5000**. Server bind ke `0.0.0.0` sehingga juga bisa diak
 | Penjual (Perorangan) | `penjual@agr.id` | `penjual123` |
 | Penjual (Koperasi) | `koperasi@agr.id` | `penjual123` |
 | Pembeli (Perorangan) | `pembeli@agr.id` | `pembeli123` |
-| Pembeli (Corporate) | `corporate@agr.id` | `corporate123` |
+| Pembeli (Perusahaan) | `corporate@agr.id` | `corporate123` |
 | Admin | `admin@agr.id` | `admin123` |
 
 ---

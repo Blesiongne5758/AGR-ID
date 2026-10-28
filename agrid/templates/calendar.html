@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Kalender Kegiatan — AGR.ID{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width:1100px">
+  <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-4">
+    <div><div class="small text-success fw-semibold text-uppercase">Agenda {{ user.role }}</div><h2 class="fw-bold mb-1"><i class="bi bi-calendar3 text-success"></i> Kalender Kegiatan</h2><p class="text-muted mb-0">Jadwal lelang, penawaran, pemesanan, pembelian, pengiriman, dan pengambilan yang terkait dengan akun Anda.</p></div>
+    <a class="btn btn-outline-success" href="{{ url_for('dashboard_seller' if user.role=='penjual' else 'dashboard_buyer' if user.role=='pembeli' else 'dashboard_admin') }}">Kembali ke Dashboard</a>
+  </div>
+  {% if entries %}
+  <div class="card shadow-sm"><div class="list-group list-group-flush">
+    {% for item in entries %}
+    <article class="list-group-item p-3">
+      <div class="row g-2 align-items-start">
+        <div class="col-sm-3 col-md-2"><div class="fw-bold text-success">{{ item.when|wib }}</div><span class="badge bg-light text-dark border mt-1">{{ item.kind }}</span></div>
+        <div class="col-sm-9 col-md-10"><h6 class="fw-bold mb-1">{{ item.title }}</h6>{% if item.description %}<div class="small text-muted">{{ item.description }}</div>{% endif %}{% if item.location %}<div class="small mt-1"><i class="bi bi-geo-alt text-danger"></i> {{ item.location }}</div>{% endif %}{% if item.url %}<a class="small d-inline-block mt-1" href="{{ item.url }}">Buka detail <i class="bi bi-arrow-right"></i></a>{% endif %}</div>
+      </div>
+    </article>
+    {% endfor %}
+  </div></div>
+  {% else %}<div class="empty-state border rounded bg-white"><span class="empty-icon">🗓️</span><h5>Belum ada kegiatan di kalender</h5><p>Kegiatan akan tercatat setelah Anda membuat event lelang, mendaftar, memesan, atau membeli produk.</p></div>{% endif %}
+</div>
+{% endblock %}

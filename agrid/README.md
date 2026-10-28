@@ -1,6 +1,6 @@
 # 🌾 AGR.ID — Marketplace Pertanian, Perkebunan, Perikanan & Peternakan
 
-**AGR.ID** adalah webapp marketplace B2B/B2C yang mempertemukan **penjual** (petani, nelayan, peternak, koperasi, kelompok tani/paguyuban) langsung dengan **pembeli** (perorangan maupun corporate) — dilengkapi **AI Chat Agent**, alur **penawaran harga → booking dengan DP → payment gateway → jadwal pengiriman → verifikasi eviden (foto + GPS)**, serta **laporan transaksi** untuk penjual, pembeli, dan admin.
+**AGR.ID** adalah webapp marketplace B2B/B2C yang mempertemukan **penjual** (petani, nelayan, peternak, koperasi, kelompok tani/paguyuban) langsung dengan **pembeli** (perorangan, yayasan, koperasi, maupun perusahaan) — dilengkapi **AI Chat Agent**, alur **penawaran harga → booking dengan DP → payment gateway → jadwal pengiriman → verifikasi eviden (foto + GPS)**, serta **laporan transaksi** untuk penjual, pembeli, dan admin.
 
 Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system **shadcn/ui v3** (light & dark mode).
 
@@ -20,10 +20,16 @@ Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system *
 - **Ticker harga market** berjalan (animated marquee) berisi ±75 komoditas dengan harga & persentase naik/turun harian.
 - **Database Produk auto-update**: saat penjual mengetik nama produk baru di form, autocomplete memanggil `/api/produk-master`; nama yang belum ada **otomatis disimpan ke tabel `produk_master`** (flag `auto_added`).
 
+### Lelang Terbuka
+- Event paket produk penjual mencatat foto, lokasi GPS, jadwal mulai/tutup, tenggat bayar pemenang, jadwal pengambilan opsional, informasi, dan syarat lelang. Tawaran peserta tampil live.
+- Semua pengajuan ditinjau admin. Tarif peserta dan penjual diatur admin dan disimpan sebagai snapshot saat persetujuan; event tayang setelah biaya penjual dibayar.
+- Peserta harus menyetujui syarat, mendaftar, dan melunasi biaya administrasi sebelum menawar. Pemenang wajib membayar sebelum tenggat; bila terlewat, penjual dapat memilih penawar berikutnya atau membatalkan lelang.
+- Kalender tiap peran merangkum lelang, pemesanan/pembelian, pengiriman, dan pengambilan. Pencatatan biaya memakai simulasi gateway aplikasi.
+
 ### Akun, Pendaftaran & Login
 - Tombol **Login** dan **Daftar** di navbar; halaman pendaftaran terpisah peran.
-- **Tipe Penjual**: Perorangan / Koperasi / Kelompok Tani (Paguyuban) — badan usaha mengisi NPWP & NIB.
-- **Tipe Pembeli**: Perorangan / Corporate — input NPWP/NIB muncul otomatis untuk Corporate.
+- **Tipe Penjual**: Perorangan / Kelompok-Paguyuban / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
+- **Tipe Pembeli**: Perorangan / Yayasan / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
 - Alamat lengkap + **koordinat GPS** (tombol deteksi lokasi).
 - **Floating window Syarat & Ketentuan** wajib disetujui sebelum masuk halaman pendaftaran/login.
 - Profil penjual menampilkan **rating kepuasan** dan dapat ditandai **favorit** oleh pembeli.
@@ -135,7 +141,7 @@ Buka **http://127.0.0.1:5000**. Server bind ke `0.0.0.0` sehingga juga bisa diak
 | Penjual (Perorangan) | `penjual@agr.id` | `penjual123` |
 | Penjual (Koperasi) | `koperasi@agr.id` | `penjual123` |
 | Pembeli (Perorangan) | `pembeli@agr.id` | `pembeli123` |
-| Pembeli (Corporate) | `corporate@agr.id` | `corporate123` |
+| Pembeli (Perusahaan) | `corporate@agr.id` | `corporate123` |
 | Admin | `admin@agr.id` | `admin123` |
 
 ---

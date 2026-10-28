@@ -4,8 +4,8 @@
 # Kategori utama marketplace
 KATEGORI = ["Pertanian", "Perkebunan", "Perikanan", "Peternakan"]
 
-TIPE_PENJUAL = ["Perorangan", "Koperasi", "Kelompok Tani (Paguyuban)"]
-TIPE_PEMBELI = ["Perorangan", "Corporate"]
+TIPE_PENJUAL = ["Perorangan", "Kelompok/Paguyuban", "Koperasi", "Perusahaan"]
+TIPE_PEMBELI = ["Perorangan", "Yayasan", "Koperasi", "Perusahaan"]
 
 # Sub kategori + daftar produk & jenisnya per kategori
 MASTER_PRODUK = {
