@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="google-site-verification" content="KJotVkKjV28_4eeuAF0uZE98ZVNw78GHty8LfqGSC7Q">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}AGR.ID — Marketplace Pertanian, Perkebunan, Perikanan & Peternakan{% endblock %}</title>
+<title>{% block title %}AGR.BIZ.ID — Agrikultur Bisnis Indonesia{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <!-- shadcn/ui theme layer dimuat TERAKHIR agar token & komponen shadcn
      (Card/Button/Badge/Input/Table/Tabs/Dialog/Dropdown/Accordion/
       Tooltip/Skeleton/Switch/Avatar/Progress) mengalahkan Bootstrap -->
-<link href="{{ url_for('static', filename='shadcn.css') }}?v=3" rel="stylesheet">
+<link href="{{ url_for('static', filename='shadcn.css') }}?v=4" rel="stylesheet">
 <link href="{{ url_for('static', filename='mobile-nav.css') }}?v=1" rel="stylesheet">
 <link href="{{ url_for('static', filename='auction.css') }}?v=1" rel="stylesheet">
 <script>/* anti-FOUC dark mode: pasang class sebelum render */
@@ -23,7 +23,7 @@
 <!-- ================= NAVBAR (shadcn header) ================= -->
 <nav class="navbar navbar-expand-lg navbar-agrid sticky-top">
   <div class="container">
-    <a class="navbar-brand fw-bold" href="{{ url_for('home') }}">🌾 AGR<span class="brand-badge">.ID</span></a>
+    <a class="navbar-brand fw-bold" href="{{ url_for('home') }}">🌾 AGR.BIZ.ID</a>
     <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
     <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav me-auto">
@@ -90,12 +90,12 @@
 {% set f_telp = footer.get('footer_telepon') or '' %}
 {% set f_jam = footer.get('footer_jam_operasional') or '' %}
 {% set f_sosial = footer.get('footer_sosial') or '' %}
-{% set f_copy = footer.get('footer_copyright') or '&copy; 2026 AGR.ID' %}
+{% set f_copy = footer.get('footer_copyright') or '&copy; 2026 AGR.BIZ.ID' %}
 {% set f_tautan = footer.get('footer_tautan') or '' %}
 <footer class="footer mt-5 py-4">
   <div class="container row gx-3">
     <div class="col-md-5">
-      <h5 class="text-white">&#127806; AGR<span style="color:#ffca28">.ID</span></h5>
+      <h5 class="text-white">&#127806; AGR.BIZ.ID</h5>
       <p class="small mb-1">{{ f_tentang }}</p>
     </div>
     <div class="col-md-3 small">
@@ -152,7 +152,7 @@
 <div class="modal fade mobile-add-modal" id="mobileAddModal" tabindex="-1" aria-labelledby="mobileAddTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header">
-      <div><h5 class="modal-title fw-bold" id="mobileAddTitle">{% if not user %}Mulai di AGR.ID{% elif user.active_role == 'penjual' %}Kelola Produk{% elif user.active_role == 'pembeli' %}Tambah ke Rencana Belanja{% else %}Akses Cepat{% endif %}</h5>
+      <div><h5 class="modal-title fw-bold" id="mobileAddTitle">{% if not user %}Mulai di AGR.BIZ.ID{% elif user.active_role == 'penjual' %}Kelola Produk{% elif user.active_role == 'pembeli' %}Tambah ke Rencana Belanja{% else %}Akses Cepat{% endif %}</h5>
         <p class="small text-muted mb-0">{% if not user %}Masuk atau buat akun untuk melanjutkan.{% elif user.active_role == 'pembeli' %}Cari produk untuk dipesan atau susun kebutuhan belanja.{% elif user.active_role == 'penjual' %}Tambahkan produk yang akan Anda jual.{% else %}Pilih bagian yang ingin dibuka.{% endif %}</p></div>
       <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
     </div>
@@ -193,11 +193,11 @@
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-file-earmark-text text-success"></i> Syarat & Ketentuan AGR.ID</h5>
+        <h5 class="modal-title"><i class="bi bi-file-earmark-text text-success"></i> Syarat & Ketentuan AGR.BIZ.ID</h5>
       </div>
       <div class="modal-body" style="font-size:.92rem">
         <ol class="ps-3">
-          <li><b>Layanan.</b> AGR.ID adalah marketplace yang mempertemukan Penjual (Perorangan/Kelompok-Paguyuban/Koperasi/Perusahaan) dengan Pembeli (Perorangan/Yayasan/Koperasi/Perusahaan) pada kategori Pertanian, Perkebunan, Perikanan, dan Peternakan.</li>
+          <li><b>Layanan.</b> AGR.BIZ.ID adalah marketplace yang mempertemukan Penjual (Perorangan/Kelompok-Paguyuban/Koperasi/Perusahaan) dengan Pembeli (Perorangan/Yayasan/Koperasi/Perusahaan) pada kategori Pertanian, Perkebunan, Perikanan, dan Peternakan.</li>
           <li><b>Akun & Data.</b> Pengguna wajib memberikan informasi yang benar (nama, alamat, koordinat GPS, NPWP/NIB untuk tipe badan/organisasi). Data digunakan untuk verifikasi dan ketelusuran (traceability).</li>
           <li><b>Penawaran Harga.</b> Pembeli dapat mengajukan penawaran harga (bidding) terhadap produk yang diposting. Penawaran mengikat setelah diterima Penjual.</li>
           <li><b>Booking & DP.</b> Penawaran yang diterima wajib di-booking dengan membayar Uang Muka (DP) sebesar persentase yang berlaku sebagai pengikat kesepakatan melalui payment gateway resmi. Sisa pembayaran dilunasi sesuai jadwal pengiriman. DP hangus bila pembatalan dilakukan sepihak tanpa alasan yang disepakati.</li>
@@ -212,7 +212,7 @@
       <div class="modal-footer flex-column align-items-stretch">
         <div class="form-check mb-2">
           <input class="form-check-input" type="checkbox" id="skkjAccept">
-          <label class="form-check-label small" for="skkjAccept">Saya telah membaca dan <b>menyetujui Syarat & Ketentuan</b> serta Kebijakan Privasi AGR.ID.</label>
+          <label class="form-check-label small" for="skkjAccept">Saya telah membaca dan <b>menyetujui Syarat & Ketentuan</b> serta Kebijakan Privasi AGR.BIZ.ID.</label>
         </div>
         <div class="d-flex gap-2 justify-content-end">
           <button class="btn btn-ghost btn-sm" onclick="closeSknj()">Nanti saja</button>
@@ -267,7 +267,7 @@ function closeSknj(){ skkjModal.hide(); }
     <button class="btn-close btn-close-white border-0" style="background:transparent;color:#fff;font-size:1rem;line-height:1;padding:.25rem;" onclick="toggleChat()" aria-label="Tutup">✕</button>
   </div>
   <div class="chat-body" id="chatBody">
-    <div class="msg ai">Halo {{ user.nama.split(' ')[0] }}! 👋 Saya asisten AI AGR.ID.
+    <div class="msg ai">Halo {{ user.nama.split(' ')[0] }}! 👋 Saya asisten AI AGR.BIZ.ID.
 Saya bisa membantu <b>mengisi informasi produk</b> yang Anda jual atau <b>mencari produk</b> yang Anda butuhkan. Coba ketik: "cara jual produk" atau "cari lele".</div>
   </div>
   <div class="d-flex p-2 gap-2 border-top">
