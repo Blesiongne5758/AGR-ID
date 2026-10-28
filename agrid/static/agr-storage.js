@@ -1,4 +1,4 @@
-/* AGR.ID - Aset statis modul storage: validator sisi klien (gaya Zod) +
+/* AGR.BIZ.ID - Aset statis modul storage: validator sisi klien (gaya Zod) +
    helper direct-upload Pre-Signed URL. Aturan di sini HARUS identik dengan
    storage.py::CATEGORY_RULES (server tetap memverifikasi magic bytes —
    validasi klien hanya pagar UX pertama, bukan satu-satunya pagar). */
