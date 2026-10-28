@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AGR.ID - Keamanan sistem.
+"""AGR.BIZ.ID - Keamanan sistem.
 
 Cakupan:
   * Secret key & session cookie hardening (HttpOnly, SameSite, Secure)
