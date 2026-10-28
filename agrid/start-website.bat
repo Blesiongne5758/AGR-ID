@@ -1,11 +1,11 @@
 @echo off
 REM ============================================================
-REM  AGR.ID - Marketplace Pertanian, Perkebunan, Perikanan,
+REM  AGR.BIZ.ID - Marketplace Pertanian, Perkebunan, Perikanan,
 REM  Peternakan - Start Webapp pada Server Lokal (Windows)
 REM  Cara pakai: klik dua kali file ini (atau jalankan dari CMD)
 REM ============================================================
 setlocal EnableExtensions
-title AGR.ID - Webapp Server
+title AGR.BIZ.ID - Webapp Server
 
 REM Pindah ke folder tempat file .bat ini berada
 cd /d "%~dp0"
@@ -16,7 +16,7 @@ set VENV=.venv
 
 echo.
 echo ============================================
-echo   MEMULAI WEBSAPP AGR.ID
+echo   MEMULAI WEBSAPP AGR.BIZ.ID
 echo ============================================
 echo.
 
@@ -87,6 +87,6 @@ set PORT=%PORT%
 "%PY_RUN%" app.py
 
 echo.
-echo [!] Server AGR.ID telah berhenti.
+echo [!] Server AGR.BIZ.ID telah berhenti.
 pause
 endlocal
