@@ -2,7 +2,7 @@
 
 **AGR.ID** adalah webapp marketplace B2B/B2C yang mempertemukan **penjual** (petani, nelayan, peternak, koperasi, kelompok tani/paguyuban) langsung dengan **pembeli** (perorangan, yayasan, koperasi, maupun perusahaan) — dilengkapi **AI Chat Agent**, alur **penawaran harga → booking dengan DP → payment gateway → jadwal pengiriman → verifikasi eviden (foto + GPS)**, serta **laporan transaksi** untuk penjual, pembeli, dan admin.
 
-Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system **shadcn/ui v3** (light & dark mode).
+Dibangun dengan **Python Flask + SQLAlchemy** untuk aplikasi lokal/server dan frontend statis **HTML/CSS/JavaScript + PHP API gateway** untuk hosting InfinityFree. Database produksi memakai **Supabase (PostgreSQL/PostgREST)**; SQLite digunakan untuk pengembangan Flask lokal.
 
 ---
 
@@ -34,6 +34,7 @@ Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system *
 - Tombol **Login** dan **Daftar** di navbar; halaman pendaftaran terpisah peran.
 - Satu akun dapat memiliki mode **Penjual** dan **Pembeli** sekaligus. Pengguna memilih mode awal saat mendaftar lalu dapat beralih dari navbar tanpa membuat akun baru; peran aktif disimpan per sesi.
 - Tipe badan usaha disimpan terpisah untuk masing-masing mode agar pilihan Penjual dan Pembeli tetap sesuai.
+- Migrasi `supabase/migrations/0004_multi_role_accounts.sql` mengaktifkan kedua mode untuk akun non-admin yang sudah ada, menyimpan tipe penjual/pembeli terpisah, dan menambahkan `sessions.active_role`.
 - **Tipe Penjual**: Perorangan / Kelompok-Paguyuban / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
 - **Tipe Pembeli**: Perorangan / Yayasan / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
 - Alamat lengkap + **koordinat GPS** (tombol deteksi lokasi).
@@ -82,11 +83,14 @@ Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system *
 
 ---
 
-## 🗄️ Struktur Database (SQLite — `agrid.db`)
+## 🗄️ Struktur Database
+
+Flask membuat database SQLite lokal `agrid/agrid.db`. Deployment statis menggunakan schema PostgreSQL Supabase dari `supabase/migrations/` dan `htdocs/supabase-schema.sql`.
 
 | Tabel | Isi |
 |---|---|
-| `users` | Penjual / pembeli / admin (peran, tipe akun, NPWP/NIB, alamat, GPS, pengaturan metode DP penjual) |
+| `users` | Akun, daftar mode (`roles`), mode dasar, tipe Penjual dan Pembeli terpisah, NPWP/NIB, alamat, GPS, dan pengaturan metode DP penjual |
+| `sessions` | Token sesi gateway dan mode akun aktif (`active_role`) |
 | `produk_master` | Master nama produk & jenis; auto-tambah saat penjual mengetik nama baru |
 | `products` | Listing produk penjual (harga, stok, foto, GPS kebun/kolam/kandang, label non-halal) |
 | `offers` | Penawaran harga pembeli + status (pending/accepted/rejected) |
@@ -106,7 +110,7 @@ Dibangun dengan **Python Flask + SQLAlchemy (SQLite)** dan UI component system *
 | `pengaturan` | Semua pengaturan platform (DP%, biaya, footer, tampilan laporan, dll.) |
 | `chat_messages` | Riwayat percakapan AI agent |
 
-Skema dibuat & dimigrasi otomatis (`db.create_all()`) + seed data demo saat pertama kali dijalankan.
+Skema SQLite lokal dibuat (`db.create_all()`) dan diisi seed demo saat pertama kali dijalankan. Migrasi database produksi dikelola sebagai file SQL dan diterapkan oleh workflow GitHub Actions ke Supabase.
 
 ---
 
@@ -143,6 +147,17 @@ python3 app.py            # atau: PORT=8080 python3 app.py
 Buka **http://127.0.0.1:5000**. Server bind ke `0.0.0.0` sehingga juga bisa diakses dari perangkat lain dalam jaringan.
 
 > Tidak diperlukan `index.html` statis — halaman beranda dirender dinamis oleh route `/` (template `home.html`).
+
+### Opsi 3 — Deploy produksi (Supabase + InfinityFree)
+
+1. Siapkan Supabase project dan jalankan migrasi database melalui workflow **Push Database ke Supabase**. Perubahan SQL di `supabase/migrations/` otomatis memicu workflow tersebut saat didorong ke `main`.
+2. Tambahkan GitHub **Repository Secrets** di **Settings → Secrets and variables → Actions**:
+   - `SUPABASE_PROJECT_REF` dan `SUPABASE_MANAGEMENT_TOKEN` untuk migrasi database.
+   - `SUPABASE_ANON_KEY`, `AGR_ID_SESSION_SECRET`, `FTP_SERVER`, `FTP_USERNAME`, dan `FTP_PASSWORD` untuk deploy website.
+   - `AGR_ID_SESSION_SECRET` harus berupa string acak minimal 64 karakter. Jangan commit nilai secret ke repo.
+3. Opsional: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, dan `AGR_ID_API_URL`.
+4. Push perubahan pada `htdocs/` ke branch `main` untuk menjalankan **Deploy to InfinityFree**. Workflow memvalidasi sintaks PHP, membuat `htdocs/config.php` dari secrets, lalu mengirim file melalui FTP. File konfigurasi tidak disimpan di Git.
+5. Untuk konfigurasi lengkap dan langkah pemulihan, lihat [DEPLOY-INFINITYFREE.md](DEPLOY-INFINITYFREE.md).
 
 ---
 
