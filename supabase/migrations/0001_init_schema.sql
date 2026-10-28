@@ -9,10 +9,14 @@ create extension if not exists pgcrypto;
 create table if not exists users (
   id            bigint generated always as identity primary key,
   email         text unique not null,
+  username      text unique not null,
   nama          text not null,
   password_hash text not null,               -- bcrypt dari gateway PHP
   role          text not null check (role in ('penjual','pembeli','admin')),
   tipe          text default 'Perorangan',   -- Sesuai peran: Penjual (Perorangan/Kelompok-Paguyuban/Koperasi/Perusahaan), Pembeli (Perorangan/Yayasan/Koperasi/Perusahaan)
+  roles         jsonb not null default '[]'::jsonb,
+  tipe_penjual  text,
+  tipe_pembeli  text,
   alamat        text,
   lat           double precision,            -- koordinat GPS
   lng           double precision,
@@ -28,6 +32,7 @@ create table if not exists sessions (
   id         bigint generated always as identity primary key,
   user_id    bigint references users(id) on delete cascade,
   token      text unique not null,
+  active_role text,
   expires_at timestamptz not null
 );
 

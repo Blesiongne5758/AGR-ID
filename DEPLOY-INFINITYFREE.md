@@ -13,7 +13,9 @@ semua akses Supabase & Cloudinary dimediasi `htdocs/api.php` (server-side cURL).
 1. Buat project di https://supabase.com → Project Settings → API: salin **URL** & **anon public key**.
    Gateway PHP memakai anon key dan kebijakan RLS; jangan gunakan service-role key di hosting atau workflow.
 2. SQL Editor → Run isi `htdocs/supabase-schema.sql` (membuat 12 tabel + RLS).
-3. Authentication → Sign In / Up → matikan "Confirm email" agar registrasi via gateway jalan.
+3. Jalankan migration `supabase/migrations/0004_multi_role_accounts.sql` dan `0005_registration_profile_activation.sql` untuk mengisi mode akun, username lama, dan peran sesi. Workflow database dapat menjalankannya otomatis bila `SUPABASE_PROJECT_REF` dan `SUPABASE_MANAGEMENT_TOKEN` valid.
+4. Jalankan `htdocs/seed-supabase.sql` bila ingin memasukkan akun dan katalog demo.
+5. Authentication → Sign In / Up → matikan "Confirm email" agar registrasi via gateway jalan.
 
 ## Langkah 2 — Cloudinary
 1. Dashboard → Product Library → Create Media Library (bucket public + private).
@@ -50,11 +52,11 @@ lihat bagian bawah file ini.
 
 ## Seed akun demo (SQL Editor Supabase)
 ```sql
-insert into users(email,nama,password_hash,role,tipe,alamat,no_hp) values
- ('penjual@agr.id','Tani Jaya',     '<bcrypt-penjual123>','penjual','Perorangan','Brebes','08123'),
- ('koperasi@agr.id','Kopi Mitra',   '<bcrypt-penjual123>','penjual','Koperasi','Bandung','08124'),
- ('pembeli@agr.id','Bu Sari',       '<bcrypt-pembeli123>','pembeli','Perorangan','Jakarta','08125'),
- ('corporate@agr.id','PT Segar',    '<bcrypt-corporate123>','pembeli','Corporate','Surabaya','08126'),
- ('admin@agr.id','Admin AGR',       '<bcrypt-admin123>','admin','Perorangan','','');
+insert into users(email,username,nama,password_hash,role,tipe,alamat,no_hp) values
+ ('penjual@agr.id','tani_jaya','Tani Jaya',     '<bcrypt-penjual123>','penjual','Perorangan','Brebes','08123'),
+ ('koperasi@agr.id','kopi_mitra','Kopi Mitra',  '<bcrypt-penjual123>','penjual','Koperasi','Bandung','08124'),
+ ('pembeli@agr.id','bu_sari','Bu Sari',          '<bcrypt-pembeli123>','pembeli','Perorangan','Jakarta','08125'),
+ ('corporate@agr.id','pt_segar','PT Segar',      '<bcrypt-corporate123>','pembeli','Perusahaan','Surabaya','08126'),
+ ('admin@agr.id','admin_agrid','Admin AGR',      '<bcrypt-admin123>','admin','Perorangan','','');
 ```
 Buat hash bcrypt via `php -r "echo password_hash('penjual123', PASSWORD_BCRYPT);"`.

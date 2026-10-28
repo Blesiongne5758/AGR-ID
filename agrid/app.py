@@ -7,6 +7,7 @@ ekspedisi, verifikasi & ketelusuran (traceability) dengan bukti eviden.
 import os
 import json
 import random
+import re
 from datetime import datetime, timedelta, date, timezone
 from functools import wraps
 from zoneinfo import ZoneInfo
@@ -64,6 +65,7 @@ class User(db.Model):
     """Database user penjual & pembeli."""
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=True)
     nama = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(256), nullable=False)
@@ -1473,46 +1475,38 @@ def product_detail(pid):
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    role = request.args.get("role", request.form.get("role", "pembeli"))
     if request.method == "POST":
-        role = request.form.get("role", "pembeli")
         email = request.form.get("email", "").strip().lower()
+        username = request.form.get("username", "").strip().lower()
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+            flash("Format email tidak valid.", "danger")
+            return redirect(url_for("register"))
+        if not re.fullmatch(r"[a-z0-9_.-]{3,32}", username):
+            flash("Nama pengguna harus 3–32 karakter: huruf kecil, angka, titik, garis bawah, atau tanda hubung.", "danger")
+            return redirect(url_for("register"))
         if User.query.filter_by(email=email).first():
             flash("Email sudah terdaftar.", "danger")
-            return redirect(url_for("register", role=role))
-        if role not in ("penjual", "pembeli"):
-            flash("Peran akun tidak valid.", "danger")
             return redirect(url_for("register"))
-        tipe_list = TIPE_PENJUAL if role == "penjual" else TIPE_PEMBELI
-        tipe = request.form.get("tipe", tipe_list[0])
-        if tipe not in tipe_list:
-            flash("Tipe akun tidak valid untuk peran yang dipilih.", "danger")
-            return redirect(url_for("register", role=role))
+        if User.query.filter(db.func.lower(User.username) == username).first():
+            flash("Nama pengguna sudah dipakai.", "danger")
+            return redirect(url_for("register"))
         errs = security.check_password_strength(request.form.get("password", ""))
         if errs:
             flash(" | ".join(errs), "danger")
-            return redirect(url_for("register", role=role))
+            return redirect(url_for("register"))
         u = User(
-            nama=request.form.get("nama", "").strip(),
+            username=username,
+            nama=username,
             email=email,
             password=generate_password_hash(request.form.get("password", "")),
-            phone=request.form.get("phone", ""),
-            role=role,
-            tipe=tipe,
-            roles=["penjual", "pembeli"],
-            tipe_penjual=tipe if role == "penjual" else TIPE_PENJUAL[0],
-            tipe_pembeli=tipe if role == "pembeli" else TIPE_PEMBELI[0],
-            alamat=request.form.get("alamat", ""),
-            kota=request.form.get("kota", ""),
-            provinsi=request.form.get("provinsi", ""),
-            lat=float(request.form.get("lat") or 0) or None,
-            lng=float(request.form.get("lng") or 0) or None,
-            npwp=request.form.get("npwp", ""),
-            nib=request.form.get("nib", ""),
+            role="pembeli",
+            tipe=TIPE_PEMBELI[0],
+            roles=["pembeli"],
+            tipe_pembeli=TIPE_PEMBELI[0],
         )
         db.session.add(u)
         db.session.commit()
-        models_api.AuditLog.record("user_terdaftar", actor=email, role=role, user_id=u.id,
+        models_api.AuditLog.record("user_terdaftar", actor=email, role="pembeli", user_id=u.id,
                                    ip=security.client_ip())
         db.session.commit()
         # ---- blockchain: dompet AGR Coin otomatis untuk setiap user baru ----
@@ -1523,11 +1517,10 @@ def register():
                 print("wallet:", e)
         session.clear(); session.permanent = True
         session["uid"] = u.id
-        session["active_role"] = role
-        flash(f"Pendaftaran berhasil sebagai {role.title()}! Selamat datang di AGR.ID 🌾", "success")
+        session["active_role"] = "pembeli"
+        flash("Pendaftaran berhasil. Lengkapi profil di Pengaturan Akun untuk mengaktifkan mode Penjual.", "success")
         return redirect(url_for("dashboard"))
-    return render_template("register.html", role=role, tipe_penjual=TIPE_PENJUAL,
-                           tipe_pembeli=TIPE_PEMBELI, user=current_user())
+    return render_template("register.html", user=current_user())
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -1542,6 +1535,8 @@ def login():
             db.session.commit()
             return render_template("login.html", user=current_user())
         u = User.query.filter_by(email=email).first()
+        if not u:
+            u = User.query.filter(db.func.lower(User.username) == email).first()
         if u and security.is_locked(u):
             flash(f"Akun dikunci sementara karena terlalu sering gagal login. "
                   f"Coba lagi dalam {security.lock_remaining_min(u)} menit.", "danger")
@@ -1565,14 +1560,93 @@ def login():
     return render_template("login.html", user=current_user())
 
 
+def seller_profile_issues(user):
+    """Field profil wajib agar akun bisa memakai hak penjual."""
+    issues = []
+    required = {
+        "nama": "nama lengkap atau nama usaha",
+        "phone": "nomor telepon",
+        "alamat": "alamat lengkap",
+        "kota": "kota/kabupaten",
+        "provinsi": "provinsi",
+    }
+    issues.extend(label for attr, label in required.items() if not (getattr(user, attr, "") or "").strip())
+    if (user.nama or "").strip().lower() == (user.username or "").strip().lower():
+        if "nama lengkap atau nama usaha" not in issues:
+            issues.append("nama lengkap atau nama usaha")
+    if user.lat is None or user.lng is None:
+        issues.append("koordinat lokasi (GPS)")
+    if user.tipe_penjual not in TIPE_PENJUAL:
+        issues.append("tipe penjual")
+    elif user.tipe_penjual != "Perorangan":
+        if not (user.npwp or "").strip():
+            issues.append("NPWP usaha/organisasi")
+        if not (user.nib or "").strip():
+            issues.append("NIB usaha/organisasi")
+    return issues
+
+
+@app.route("/akun", methods=["GET", "POST"])
+@login_required()
+def account_settings():
+    u = current_user()
+    if request.method == "POST":
+        nama = request.form.get("nama", "").strip()
+        phone = request.form.get("phone", "").strip()
+        alamat = request.form.get("alamat", "").strip()
+        kota = request.form.get("kota", "").strip()
+        provinsi = request.form.get("provinsi", "").strip()
+        tipe_penjual = request.form.get("tipe_penjual", "").strip()
+        if tipe_penjual and tipe_penjual not in TIPE_PENJUAL:
+            flash("Tipe penjual tidak valid.", "danger")
+            return redirect(url_for("account_settings"))
+        try:
+            lat = float(request.form.get("lat")) if request.form.get("lat", "").strip() else None
+            lng = float(request.form.get("lng")) if request.form.get("lng", "").strip() else None
+            if lat is not None and not -90 <= lat <= 90 or lng is not None and not -180 <= lng <= 180:
+                raise ValueError
+        except ValueError:
+            flash("Koordinat GPS tidak valid.", "danger")
+            return redirect(url_for("account_settings"))
+        u.nama = nama or u.nama
+        u.phone = phone
+        u.alamat = alamat
+        u.kota = kota
+        u.provinsi = provinsi
+        u.lat = lat
+        u.lng = lng
+        u.npwp = request.form.get("npwp", "").strip()
+        u.nib = request.form.get("nib", "").strip()
+        if tipe_penjual:
+            u.tipe_penjual = tipe_penjual
+        db.session.commit()
+        audit_current("profil_diperbarui", "users", u.id, "pengaturan profil akun")
+        db.session.commit()
+        flash("Informasi profil berhasil disimpan.", "success")
+        return redirect(url_for("account_settings"))
+    return render_template("account_settings.html", user=u, tipe_penjual=TIPE_PENJUAL,
+                           seller_profile_issues=seller_profile_issues(u))
+
+
 @app.route("/akun/mode", methods=["POST"])
 @login_required()
 def switch_account_mode():
     u = current_user()
     target = request.form.get("role", "").strip()
-    if target not in ("penjual", "pembeli") or target not in u.role_list:
+    if target not in ("penjual", "pembeli"):
         flash("Mode akun yang dipilih tidak tersedia.", "warning")
         return redirect(url_for("dashboard"))
+    if target == "penjual":
+        issues = seller_profile_issues(u)
+        if issues:
+            flash("Lengkapi profil dan informasi usaha sebelum mengaktifkan mode Penjual: " + ", ".join(issues) + ".", "warning")
+            return redirect(url_for("account_settings"))
+        if "penjual" not in u.role_list:
+            u.roles = list(u.role_list) + ["penjual"]
+            db.session.commit()
+    elif target not in u.role_list:
+        flash("Mode akun yang dipilih tidak tersedia.", "warning")
+        return redirect(url_for("account_settings"))
     session["active_role"] = target
     session.permanent = True
     audit_current("mode_akun_diubah", "users", u.id, f"mode aktif: {target}")
@@ -2917,6 +2991,7 @@ def seed():
             from sqlalchemy import inspect as sa_inspect
             user_columns = {col["name"] for col in sa_inspect(db.engine).get_columns("users")}
             for column, ddl in [
+                ("username", "VARCHAR(80)"),
                 ("roles", "TEXT NOT NULL DEFAULT '[]'"),
                 ("tipe_penjual", "VARCHAR(40)"),
                 ("tipe_pembeli", "VARCHAR(40)"),
@@ -2924,13 +2999,17 @@ def seed():
                 if column not in user_columns:
                     db.session.execute(text(f"ALTER TABLE users ADD COLUMN {column} {ddl}"))
             for account in User.query.all():
-                account.roles = ["admin"] if account.role == "admin" else ["penjual", "pembeli"]
+                if not account.username:
+                    base_username = re.sub(r"[^a-z0-9_.-]+", "", (account.email or "user").split("@", 1)[0].lower())[:60] or "user"
+                    account.username = f"{base_username}_{account.id}"
+                if not account.roles:
+                    account.roles = ["admin"] if account.role == "admin" else ["penjual", "pembeli"]
                 if account.role == "penjual":
                     account.tipe_penjual = account.tipe_penjual or (account.tipe if account.tipe in TIPE_PENJUAL else TIPE_PENJUAL[0])
                     account.tipe_pembeli = account.tipe_pembeli or TIPE_PEMBELI[0]
                 elif account.role == "pembeli":
                     account.tipe_pembeli = account.tipe_pembeli or (account.tipe if account.tipe in TIPE_PEMBELI else TIPE_PEMBELI[0])
-                    account.tipe_penjual = account.tipe_penjual or TIPE_PENJUAL[0]
+            db.session.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)"))
             if is_sqlite:   # PRAGMA hanya ada di SQLite; Postgres punya skema penuh dr create_all
                 insp_cols = {c[1] for c in db.session.execute(text("PRAGMA table_info(bookings)"))}
                 if "metode_dp" not in insp_cols:
@@ -3059,33 +3138,35 @@ def seed():
             db.session.commit()
         # Demo accounts
         if User.query.count() == 0:
-            admin = User(nama="Admin AGR.ID", email="admin@agr.id",
+            admin = User(username="admin", nama="Admin AGR.ID", email="admin@agr.id",
                          password=generate_password_hash("admin123"), role="admin",
                          tipe="Perorangan", roles=["admin"],
                          tipe_penjual=TIPE_PENJUAL[0], tipe_pembeli=TIPE_PEMBELI[0],
                          verified=True, kota="Jakarta", provinsi="DKI Jakarta")
-            seller = User(nama="Pak Budi Tani", email="penjual@agr.id",
+            seller = User(username="pak_budi", nama="Pak Budi Tani", email="penjual@agr.id",
                           password=generate_password_hash("penjual123"), role="penjual",
                           tipe="Kelompok/Paguyuban", roles=["penjual", "pembeli"],
                           tipe_penjual="Kelompok/Paguyuban", tipe_pembeli=TIPE_PEMBELI[0],
+                          phone="081234567801", npwp="01.111.111.1-111.111", nib="1111111111111",
                           alamat="Desa Cikarang, Kab. Brebes",
                           kota="Brebes", provinsi="Jawa Tengah", lat=-6.866, lng=109.055, verified=True)
-            seller2 = User(nama="Koperasi Mina Laut", email="koperasi@agr.id",
+            seller2 = User(username="mina_laut", nama="Koperasi Mina Laut", email="koperasi@agr.id",
                            password=generate_password_hash("penjual123"), role="penjual",
                            tipe="Koperasi", roles=["penjual", "pembeli"],
                            tipe_penjual="Koperasi", tipe_pembeli="Koperasi",
+                           phone="081234567802", npwp="02.222.222.2-222.222", nib="2222222222222",
                            alamat="Pelabuhan Pekalongan", kota="Pekalongan",
                            provinsi="Jawa Tengah", lat=-6.889, lng=109.675, verified=True)
-            buyer = User(nama="Siti Pembeli", email="pembeli@agr.id",
+            buyer = User(username="siti_pembeli", nama="Siti Pembeli", email="pembeli@agr.id",
                          password=generate_password_hash("pembeli123"), role="pembeli",
                          tipe="Perorangan", roles=["penjual", "pembeli"],
-                         tipe_penjual=TIPE_PENJUAL[0], tipe_pembeli="Perorangan",
+                         tipe_penjual=TIPE_PENJUAL[0], tipe_pembeli="Perorangan", phone="081234567803",
                          alamat="Jl. Merdeka 12, Bandung", kota="Bandung",
                          provinsi="Jawa Barat", lat=-6.914, lng=107.609, verified=True)
-            corp = User(nama="PT Segar Food Industry", email="corporate@agr.id",
+            corp = User(username="pt_segar", nama="PT Segar Food Industry", email="corporate@agr.id",
                         password=generate_password_hash("corporate123"), role="pembeli",
                         tipe="Perusahaan", roles=["penjual", "pembeli"],
-                        tipe_penjual="Perusahaan", tipe_pembeli="Perusahaan",
+                        tipe_penjual="Perusahaan", tipe_pembeli="Perusahaan", phone="081234567804",
                         alamat="Kawasan Industri GIIC", kota="Tangerang",
                         provinsi="Banten", lat=-6.238, lng=106.62, npwp="01.234.567.8-901.000",
                         nib="1234567890123", verified=True)

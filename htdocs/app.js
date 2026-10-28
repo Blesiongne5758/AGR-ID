@@ -77,10 +77,14 @@ async function loadFooter(){
 }
 function updateNav(){
   const u=S.user;
+  const roles=Array.isArray(u?.roles)?u.roles:(u?[u.role]:[]);
+  const modeControl=!u||u.role==='admin'?'':(roles.includes('penjual')
+    ? `<button class="btn btn-outline" id="btnSwitchRole" data-role="${u.role==='penjual'?'pembeli':'penjual'}">Mode ${u.role==='penjual'?'Pembeli':'Penjual'}</button>`
+    : `<a class="btn btn-outline" href="#/akun">Aktifkan Mode Penjual</a>`);
   $('#navAuth').innerHTML = u
-    ? `<a class="btn btn-ghost" href="#/dashboard/${u.role}">Dashboard</a>${u.role==='admin'?'':`<button class="btn btn-outline" id="btnSwitchRole" data-role="${u.role==='penjual'?'pembeli':'penjual'}">Mode ${u.role==='penjual'?'Pembeli':'Penjual'}</button>`}<a class="btn btn-ghost" href="#/akun" title="Ganti password">⚙️ Akun</a><button class="btn btn-outline" id="btnLogout">Keluar</button>`
+    ? `<a class="btn btn-ghost" href="#/dashboard/${u.role}">Dashboard</a>${modeControl}<a class="btn btn-ghost" href="#/akun" title="Pengaturan pengguna">⚙️ Akun</a><button class="btn btn-outline" id="btnLogout">Keluar</button>`
     : `<a class="btn btn-ghost" href="#/login">Masuk</a><a class="btn btn-primary" href="#/daftar">Daftar</a>`;
-  const bs=$('#btnSwitchRole'); if(bs) bs.onclick=async()=>{try{const r=await api('switch-role',{method:'POST',body:{role:bs.dataset.role}});S.user=r.user;updateNav();toast('Mode akun beralih ke '+r.user.role+'.');location.hash='#/dashboard/'+r.user.role;}catch(e){toast(e.message);} };
+  const bs=$('#btnSwitchRole'); if(bs) bs.onclick=async()=>{try{const r=await api('switch-role',{method:'POST',body:{role:bs.dataset.role}});S.user=r.user;updateNav();toast('Mode akun beralih ke '+r.user.role+'.');location.hash='#/dashboard/'+r.user.role;}catch(e){toast(e.message);if(/lengkapi informasi/i.test(e.message))location.hash='#/akun';} };
   const bl=$('#btnLogout'); if(bl) bl.onclick=async()=>{ try{await api('logout',{method:'POST'})}catch(e){} S.token='';S.user=null;updateNav();location.hash='#/beranda'; };
 }
 
@@ -186,27 +190,14 @@ async function doLogin(){
 }
 
 renderers.register = () => {
-  $('#app').innerHTML = `<div class="auth card-form"><h2>Pendaftaran AGR.ID</h2><p class="muted small">Satu akun dapat digunakan dalam mode penjual dan pembeli. Pilih mode awal; Anda bisa beralih kapan saja.</p>
-    <div class="seg" id="segRole"><button class="on" data-r="penjual">Saya Penjual</button><button data-r="pembeli">Saya Pembeli</button></div>
-    <label>Nama / Nama Usaha<input id="rn" class="input" autocomplete="name"></label>
+  $('#app').innerHTML = `<div class="auth card-form"><h2>Pendaftaran AGR.ID</h2><p class="muted small">Daftar sebagai pembeli dengan tiga data dasar. Lengkapi profil pengguna dan usaha di Pengaturan Pengguna jika ingin mengaktifkan mode Penjual.</p>
     <label>Email<input id="re" class="input" type="email" autocomplete="email"></label>
-    <div class="rel"><label>Password (min. 8 karakter)<input id="rpw" class="input" type="password" name="password" autocomplete="new-password"></label>
+    <label>Nama Pengguna<input id="run" class="input" type="text" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_.-]{3,32}" autocomplete="username" placeholder="contoh: tani_makmur"></label>
+    <div class="rel"><label>Kata Sandi (min. 8 karakter)<input id="rpw" class="input" type="password" name="password" autocomplete="new-password"></label>
       <button type="button" class="btn btn-outline btn-sm pwd-eye" data-for="rpw" title="Tampilkan/sembunyikan">👁</button></div>
     <div class="pw-meter"><i id="pwBar"></i></div><small id="pwHint" class="muted">Gunakan generator: <button type="button" class="btn btn-outline btn-sm" id="pwGen">🔐 Buat Password Kuat</button></small>
-    <label>No. HP<input id="rhp" class="input"></label>
-    <label>Tipe <select id="rtipe" class="input"></select></label>
-    <div id="corpFields" style="display:none"><label>NPWP<input id="rnpwp" class="input"></label><label>NIB<input id="rnib" class="input"></label></div>
-    <label>Alamat lengkap<textarea id="ralamat" class="input" rows="2"></textarea></label>
-    <div class="gps-row"><button class="btn btn-outline btn-sm" id="rgps">📍 Deteksi Koordinat GPS</button><span id="rgpsv" class="muted">belum diisi</span></div>
-    <label class="chk"><input type="checkbox" id="rsksaya"> Saya menyetujui Syarat &amp; Ketentuan</label>
     <button class="btn btn-primary wide" id="rgo">Daftar</button>
     <p class="muted center">Sudah punya akun? <a href="#/login">Masuk</a></p></div>`;
-  let role='penjual';
-  const chkTipe=()=>{ $('#corpFields').style.display=(['Yayasan','Koperasi','Perusahaan','Kelompok/Paguyuban'].includes($('#rtipe').value))?'block':'none'; };
-  const isiSeg=()=>{ $('#rtipe').innerHTML=(role==='penjual'?['Perorangan','Kelompok/Paguyuban','Koperasi','Perusahaan']:['Perorangan','Yayasan','Koperasi','Perusahaan']).map(t=>`<option>${t}</option>`).join(''); chkTipe(); };
-  isiSeg();
-  $('#segRole').querySelectorAll('button').forEach(b=>b.onclick=()=>{ role=b.dataset.r; $('#segRole').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); isiSeg(); });
-  $('#rtipe').onchange=chkTipe;
   // ---- helper password: toggle lihat, strength meter, generator kuat ----
   document.querySelectorAll('.pwd-eye').forEach(b=>b.onclick=()=>{ const i=$('#'+b.dataset.for); i.type = i.type==='password'?'text':'password'; });
   const pwScore=v=>{ let s=0; if(v.length>=8)s++; if(/[a-z]/.test(v)&&/[A-Z]/.test(v))s++; if(/\d/.test(v))s++; if(/[^A-Za-z0-9]/.test(v))s++; if(v.length>=12)s++; return Math.min(s,5); };
@@ -221,27 +212,55 @@ renderers.register = () => {
     $('#rpw').value=out; $('#rpw').dispatchEvent(new Event('input'));
     try{ await navigator.clipboard.writeText(out); toast('Password kuat dibuat & disalin — simpan baik-baik!'); }catch(e){ toast('Password kuat dibuat — salin manual dari kolom.'); } };
 
-  $('#rgps').onclick=()=>{ if(!navigator.geolocation){toast('Browser tidak mendukung geolokasi');return;}
-    navigator.geolocation.getCurrentPosition(pos=>{ window._lat=pos.coords.latitude; window._lng=pos.coords.longitude; $('#rgpsv').textContent=`${window._lat.toFixed(6)}, ${window._lng.toFixed(6)}`; },()=>toast('Izin geolokasi ditolak')); };
   $('#rgo').onclick=async()=>{
-    if(!$('#rsksaya').checked){ toast('Setujui Syarat & Ketentuan terlebih dahulu'); return; }
     const pw=$('#rpw').value;
     if(pw.length<8||pwScore(pw)<3){ toast('Password terlalu lemah — minimal 8 karakter dengan huruf besar, angka & simbol (pakai generator 🔐)'); $('#rpw').focus(); return; }
-    try{ await api('register',{method:'POST',body:{email:$('#re').value.trim(),password:pw,nama:$('#rn').value,role,tipe:$('#rtipe').value,alamat:$('#ralamat').value,no_hp:$('#rhp').value,npwp:$('#rnpwp').value||'',nib:$('#rnib').value||'',lat:window._lat??null,lng:window._lng??null}});
-      toast('Pendaftaran berhasil, silakan Masuk'); location.hash='#/login';
+    const email=$('#re').value.trim(), username=$('#run').value.trim().toLowerCase();
+    if(!/^[a-z0-9_.-]{3,32}$/.test(username)){toast('Nama pengguna harus 3–32 karakter dan hanya memakai huruf, angka, titik, _ atau -');$('#run').focus();return;}
+    try{ const r=await api('register',{method:'POST',body:{email,password:pw,username}});
+      toast('Akun berhasil dibuat. Silakan masuk.'); location.hash='#/login';
     }catch(e){ toast(e.message); } };
 };
 
-/* ---- GANTI PASSWORD untuk semua user (penjual/pembeli/admin) ---- */
+/* ---- Pengaturan profil, mode akun dan kata sandi ---- */
 renderers.akun = () => {
   if(!S.user){ location.hash='#/login'; return; }
-  $('#app').innerHTML = `<div class="auth card-form"><h2>Pengaturan Akun — ${esc(S.user.nama)}</h2>
-    <p class="muted small">Login memakai email/username: <b>${esc(S.user.email)}</b></p>
+  const u=S.user, roles=Array.isArray(u.roles)?u.roles:[u.role];
+  const sellerTypes=['Perorangan','Kelompok/Paguyuban','Koperasi','Perusahaan'];
+  const missing=[];
+  if(!u.nama||u.nama===u.username)missing.push('nama lengkap/nama usaha');
+  if(!u.no_hp)missing.push('nomor telepon'); if(!u.alamat)missing.push('alamat lengkap');
+  if(!u.kota)missing.push('kota/kabupaten'); if(!u.provinsi)missing.push('provinsi');
+  if(u.lat==null||u.lng==null)missing.push('koordinat lokasi (GPS)');
+  if(!sellerTypes.includes(u.tipe_penjual))missing.push('tipe penjual');
+  if(u.tipe_penjual&&u.tipe_penjual!=='Perorangan'){if(!u.npwp)missing.push('NPWP');if(!u.nib)missing.push('NIB');}
+  $('#app').innerHTML = `<div class="auth card-form"><h2>Pengaturan Pengguna — ${esc(u.nama||u.username)}</h2>
+    <p class="muted small">Email: <b>${esc(u.email)}</b> · Nama pengguna: <b>${esc(u.username||'')}</b></p>
+    <h3>Profil pengguna dan informasi usaha</h3><p class="muted small">Lengkapi data di bawah sebelum mengaktifkan mode Penjual.</p>
+    <label>Nama Lengkap / Nama Usaha<input id="pNama" class="input" value="${esc(u.nama||'')}"></label>
+    <label>Nomor Telepon / WhatsApp<input id="pPhone" class="input" value="${esc(u.no_hp||'')}" autocomplete="tel"></label>
+    <label>Alamat Lengkap<textarea id="pAlamat" class="input" rows="2">${esc(u.alamat||'')}</textarea></label>
+    <div class="grid2"><label>Kota/Kabupaten<input id="pKota" class="input" value="${esc(u.kota||'')}"></label><label>Provinsi<input id="pProvinsi" class="input" value="${esc(u.provinsi||'')}"></label></div>
+    <label>Tipe Penjual<select id="pTipe" class="input"><option value="">Pilih tipe penjual</option>${sellerTypes.map(t=>`<option ${u.tipe_penjual===t?'selected':''}>${t}</option>`).join('')}</select></label>
+    <div id="pOrgFields"><label>NPWP Usaha / Organisasi<input id="pNpwp" class="input" value="${esc(u.npwp||'')}"></label><label>NIB Usaha / Organisasi<input id="pNib" class="input" value="${esc(u.nib||'')}"></label><small class="muted">Wajib untuk Kelompok/Paguyuban, Koperasi, atau Perusahaan.</small></div>
+    <div class="grid2"><label>Latitude<input id="pLat" class="input" type="number" step="0.000001" value="${u.lat??''}"></label><label>Longitude<input id="pLng" class="input" type="number" step="0.000001" value="${u.lng??''}"></label></div>
+    <button class="btn btn-outline btn-sm" id="pGps">📍 Isi lokasi dari GPS</button>
+    <button class="btn btn-primary wide" id="pSave">Simpan Profil</button>
+    ${u.role==='admin'?'':u.role==='penjual'?`<button class="btn btn-outline wide" id="pBuyerMode">Beralih ke Mode Pembeli</button>`:`<button class="btn btn-primary wide" id="pSellerMode">Aktifkan Mode Penjual</button><p class="muted small">${missing.length?'Masih perlu dilengkapi: '+esc(missing.join(', '))+'.':'Profil tampak lengkap. Simpan profil sebelum mengaktifkan mode.'}</p>`}
+    <hr><h3>Ganti Kata Sandi</h3>
     <label>Password Lama<div class="rel"><input id="kOld" class="input" type="password" autocomplete="current-password"><button type="button" class="btn btn-outline btn-sm pwd-eye" data-for="kOld">👁</button></div></label>
     <label>Password Baru (min. 8 karakter)<div class="rel"><input id="kNew" class="input" type="password" autocomplete="new-password"><button type="button" class="btn btn-outline btn-sm pwd-eye" data-for="kNew">👁</button></div></label>
     <div class="pw-meter"><i id="kBar"></i></div>
     <label>Konfirmasi Password Baru<input id="kNew2" class="input" type="password" autocomplete="new-password"></label>
     <button class="btn btn-primary wide" id="kSave">Simpan Password</button></div>`;
+  const profileData=()=>({nama:$('#pNama').value,no_hp:$('#pPhone').value,alamat:$('#pAlamat').value,kota:$('#pKota').value,provinsi:$('#pProvinsi').value,tipe_penjual:$('#pTipe').value,npwp:$('#pNpwp').value,nib:$('#pNib').value,lat:$('#pLat').value||null,lng:$('#pLng').value||null});
+  const toggleOrg=()=>$('#pOrgFields').style.display=$('#pTipe').value&&$('#pTipe').value!=='Perorangan'?'':'none';
+  $('#pTipe').onchange=toggleOrg;toggleOrg();
+  $('#pGps').onclick=()=>{if(!navigator.geolocation){toast('Browser tidak mendukung geolokasi');return;}navigator.geolocation.getCurrentPosition(pos=>{$('#pLat').value=pos.coords.latitude.toFixed(6);$('#pLng').value=pos.coords.longitude.toFixed(6);},()=>toast('Izin lokasi tidak tersedia'));};
+  $('#pSave').onclick=async()=>{try{const r=await api('update-profile',{method:'POST',body:profileData()});S.user=r.user;updateNav();toast('Profil berhasil disimpan');renderers.akun();}catch(e){toast(e.message);}};
+  const activate=async(target)=>{try{const saved=await api('update-profile',{method:'POST',body:profileData()});S.user=saved.user;const r=await api('switch-role',{method:'POST',body:{role:target}});S.user=r.user;updateNav();toast(target==='penjual'?'Mode Penjual aktif':'Mode Pembeli aktif');location.hash='#/dashboard/'+target;}catch(e){toast(e.message);}};
+  const pSeller=$('#pSellerMode');if(pSeller)pSeller.onclick=()=>activate('penjual');
+  const pBuyer=$('#pBuyerMode');if(pBuyer)pBuyer.onclick=()=>activate('pembeli');
   document.querySelectorAll('.pwd-eye').forEach(b=>b.onclick=()=>{ const i=$('#'+b.dataset.for); i.type=i.type==='password'?'text':'password'; });
   const score=v=>{ let s=0; if(v.length>=8)s++; if(/[a-z]/.test(v)&&/[A-Z]/.test(v))s++; if(/\d/.test(v))s++; if(/[^A-Za-z0-9]/.test(v))s++; if(v.length>=12)s++; return Math.min(s,5); };
   $('#kNew').oninput=()=>{ const v=$('#kNew').value,s=score(v); $('#kBar').style.width=(s*20)+'%'; $('#kBar').className='lvl'+s; };

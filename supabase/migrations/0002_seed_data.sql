@@ -5,13 +5,13 @@
 -- Idempotent: aman dijalankan berulang (on conflict do nothing)
 -- =====================================================================
 
-insert into users (email,nama,role,tipe,alamat,lat,lng,password_hash) values
-  ('penjual@agr.id','Pak Budi Tani','penjual','Perorangan','Lahan Cabai, Kec. Malang, Jawa Timur',-7.9536,112.6563,'$2y$10$TxLuNK1cYTtZyOy7B8x7VOavikTqE2LUr1wlMjDx9Q.ogb7PTMhd6'),
-  ('koperasi@agr.id','Kop. Tani Maju Bersama','penjual','Koperasi','Jl. Melati 12, Lampung Selatan',-5.2781,105.7199,'$2y$10$TxLuNK1cYTtZyOy7B8x7VOavikTqE2LUr1wlMjDx9Q.ogb7PTMhd6'),
-  ('paguyuban@agr.id','Paguyuban Horti Lembang','penjual','Kelompok/Paguyuban','Cikahuripan, Lembang',-6.8047,107.6199,'$2y$10$TxLuNK1cYTtZyOy7B8x7VOavikTqE2LUr1wlMjDx9Q.ogb7PTMhd6'),
-  ('pembeli@agr.id','Sari Dapur','pembeli','Perorangan','Jl. Kenanga 5, Bandung',-6.9175,107.6191,'$2y$10$TxLuNK1cYTtZyOy7B8x7VOavikTqE2LUr1wlMjDx9Q.ogb7PTMhd6'),
-  ('corporate@agr.id','PT Segar Food Indonesia','pembeli','Perusahaan','Jl. Industri Raya 88, Bekasi',-6.2383,106.9756,'$2y$10$TxLuNK1cYTtZyOy7B8x7VOavikTqE2LUr1wlMjDx9Q.ogb7PTMhd6'),
-  ('admin@agr.id','Admin AGR.ID','admin','Perorangan','Kantor Pusat AGR.ID, Jakarta',-6.2088,106.8456,'$2y$10$ps49ftdDvdJsvqGGZCCOjO2Y4d1TAHWkzDXY33f7f1gWwz.glroRi')
+insert into users (email,username,nama,role,tipe,alamat,lat,lng,password_hash) values
+  ('penjual@agr.id','pak_budi','Pak Budi Tani','penjual','Perorangan','Lahan Cabai, Kec. Malang, Jawa Timur',-7.9536,112.6563,'$2y$10$TxLuNK1cYTtZyOy7B8x7VOavikTqE2LUr1wlMjDx9Q.ogb7PTMhd6'),
+  ('koperasi@agr.id','koperasi_tani','Kop. Tani Maju Bersama','penjual','Koperasi','Jl. Melati 12, Lampung Selatan',-5.2781,105.7199,'$2y$10$TxLuNK1cYTtZyOy7B8x7VOavikTqE2LUr1wlMjDx9Q.ogb7PTMhd6'),
+  ('paguyuban@agr.id','horti_lembang','Paguyuban Horti Lembang','penjual','Kelompok/Paguyuban','Cikahuripan, Lembang',-6.8047,107.6199,'$2y$10$TxLuNK1cYTtZyOy7B8x7VOavikTqE2LUr1wlMjDx9Q.ogb7PTMhd6'),
+  ('pembeli@agr.id','sari_dapur','Sari Dapur','pembeli','Perorangan','Jl. Kenanga 5, Bandung',-6.9175,107.6191,'$2y$10$TxLuNK1cYTtZyOy7B8x7VOavikTqE2LUr1wlMjDx9Q.ogb7PTMhd6'),
+  ('corporate@agr.id','pt_segar','PT Segar Food Indonesia','pembeli','Perusahaan','Jl. Industri Raya 88, Bekasi',-6.2383,106.9756,'$2y$10$TxLuNK1cYTtZyOy7B8x7VOavikTqE2LUr1wlMjDx9Q.ogb7PTMhd6'),
+  ('admin@agr.id','admin_agrid','Admin AGR.ID','admin','Perorangan','Kantor Pusat AGR.ID, Jakarta',-6.2088,106.8456,'$2y$10$ps49ftdDvdJsvqGGZCCOjO2Y4d1TAHWkzDXY33f7f1gWwz.glroRi')
 on conflict (email) do nothing;
 
 -- MASTER PRODUK: seluruh nama produk + jenis tiap kategori/sub kategori

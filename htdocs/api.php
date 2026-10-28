@@ -164,25 +164,20 @@ switch ($action) {
     /* ---- AUTH ---- */
     case 'register': {
         $b = body_json();
-        foreach (['email','password','nama','role'] as $req) if (empty($b[$req])) err("Field wajib: $req");
+        foreach (['email','password','username'] as $req) if (empty($b[$req])) err("Field wajib: $req");
         if (!filter_var($b['email'], FILTER_VALIDATE_EMAIL)) err('Email tidak valid');
         if (strlen($b['password']) < 8) err('Password minimal 8 karakter');
-        if (!in_array($b['role'], ['penjual','pembeli'])) err('Role tidak valid');
-        $tipe = $b['tipe'] ?? 'Perorangan';
-        $tipeValid = $b['role'] === 'penjual'
-            ? ['Perorangan','Kelompok/Paguyuban','Koperasi','Perusahaan']
-            : ['Perorangan','Yayasan','Koperasi','Perusahaan'];
-        if (!in_array($tipe, $tipeValid, true)) err('Tipe akun tidak valid untuk peran yang dipilih');
+        $username = strtolower(trim((string)$b['username']));
+        if (!preg_match('/^[a-z0-9_.-]{3,32}$/', $username)) err('Nama pengguna harus 3–32 karakter (huruf kecil, angka, titik, garis bawah, atau tanda hubung)');
         $exists = sb('users', 'GET', ['email=eq.' . urlencode(strtolower($b['email'])), 'select=id']);
         if ($exists) err('Email sudah terdaftar', 409);
+        $usernameExists = sb('users', 'GET', ['username=eq.' . urlencode($username), 'select=id']);
+        if ($usernameExists) err('Nama pengguna sudah dipakai', 409);
         $user = [
-            'email' => strtolower($b['email']), 'nama' => $b['nama'],
+            'email' => strtolower($b['email']), 'username' => $username, 'nama' => $username,
             'password_hash' => password_hash($b['password'], PASSWORD_BCRYPT),
-            'role' => $b['role'], 'roles' => ['penjual','pembeli'], 'tipe' => $tipe,
-            'tipe_penjual' => $b['role'] === 'penjual' ? $tipe : 'Perorangan',
-            'tipe_pembeli' => $b['role'] === 'pembeli' ? $tipe : 'Perorangan',
-            'alamat' => $b['alamat'] ?? '', 'lat' => $b['lat'] ?? null, 'lng' => $b['lng'] ?? null,
-            'no_hp' => $b['no_hp'] ?? '', 'npwp' => $b['npwp'] ?? '', 'nib' => $b['nib'] ?? '',
+            'role' => 'pembeli', 'roles' => ['pembeli'], 'tipe' => 'Perorangan',
+            'tipe_pembeli' => 'Perorangan',
             'created_at' => date('c'),
         ];
         $row = sb('users', 'POST', [], $user)[0] ?? null;
@@ -192,10 +187,11 @@ switch ($action) {
 
     case 'login': {
         $b = body_json();
-        // DUKUNG LOGIN USERNAME ATAU EMAIL — kolom username disamakan dengan email.
+        // Login dapat memakai email atau nama pengguna.
         $ident = trim((string)($b['email'] ?? $b['username'] ?? ''));
         if ($ident === '') err('Email/username wajib diisi', 422);
         $rows = sb('users', 'GET', ['email=eq.' . urlencode(strtolower($ident)), 'select=*']);
+        if (!$rows) $rows = sb('users', 'GET', ['username=eq.' . urlencode(strtolower($ident)), 'select=*']);
         $u = $rows[0] ?? null;
         if (!$u || !password_verify($b['password'] ?? '', $u['password_hash'] ?? '')) err('Email/password salah', 401);
         $tok = make_token((int)$u['id']);
@@ -211,6 +207,35 @@ switch ($action) {
     case 'me':
         out(['ok' => true, 'user' => public_user(require_session($token))]);
 
+    case 'update-profile': {
+        $u = require_session($token);
+        $b = body_json();
+        $sellerTypes = ['Perorangan','Kelompok/Paguyuban','Koperasi','Perusahaan'];
+        $tipe = trim((string)($b['tipe_penjual'] ?? ''));
+        if ($tipe !== '' && !in_array($tipe, $sellerTypes, true)) err('Tipe penjual tidak valid', 422);
+        $lat = ($b['lat'] ?? '') === '' || ($b['lat'] ?? null) === null ? null : filter_var($b['lat'], FILTER_VALIDATE_FLOAT);
+        $lng = ($b['lng'] ?? '') === '' || ($b['lng'] ?? null) === null ? null : filter_var($b['lng'], FILTER_VALIDATE_FLOAT);
+        if (($b['lat'] ?? '') !== '' && $lat === false || ($b['lng'] ?? '') !== '' && $lng === false) err('Koordinat GPS tidak valid', 422);
+        if ($lat !== null && ($lat < -90 || $lat > 90) || $lng !== null && ($lng < -180 || $lng > 180)) err('Koordinat GPS di luar rentang', 422);
+        $update = [
+            'nama' => trim((string)($b['nama'] ?? '')),
+            'no_hp' => trim((string)($b['no_hp'] ?? '')),
+            'alamat' => trim((string)($b['alamat'] ?? '')),
+            'kota' => trim((string)($b['kota'] ?? '')),
+            'provinsi' => trim((string)($b['provinsi'] ?? '')),
+            'tipe_penjual' => $tipe !== '' ? $tipe : null,
+            'npwp' => trim((string)($b['npwp'] ?? '')),
+            'nib' => trim((string)($b['nib'] ?? '')),
+            'lat' => $lat,
+            'lng' => $lng,
+        ];
+        $rows = sb('users', 'PATCH', ['id=eq.' . urlencode((string)$u['id'])], $update);
+        $fresh = $rows[0] ?? array_merge($u, $update);
+        $fresh['role'] = $u['role'];
+        $fresh['roles'] = $u['roles'] ?? [];
+        out(['ok' => true, 'user' => public_user($fresh)]);
+    }
+
     case 'switch-role': {
         $u = require_session($token);
         if (($u['role'] ?? '') === 'admin') err('Mode admin tidak dapat diganti', 403);
@@ -218,10 +243,21 @@ switch ($action) {
         $target = $b['role'] ?? '';
         $roles = $u['roles'] ?? [];
         if (is_string($roles)) $roles = json_decode($roles, true) ?: [];
-        if (!in_array($target, ['penjual','pembeli'], true) || !in_array($target, $roles, true))
+        if (!in_array($target, ['penjual','pembeli'], true))
             err('Mode akun yang dipilih tidak tersedia', 422);
+        if ($target === 'penjual') {
+            $missing = seller_profile_missing($u);
+            if ($missing) err('Lengkapi informasi pengguna dan usaha sebelum mengaktifkan mode Penjual: ' . implode(', ', $missing) . '.', 422);
+            if (!in_array('penjual', $roles, true)) {
+                $roles[] = 'penjual';
+                sb('users', 'PATCH', ['id=eq.' . urlencode((string)$u['id'])], ['roles' => array_values(array_unique($roles))]);
+            }
+        } elseif (!in_array($target, $roles, true)) {
+            err('Mode akun yang dipilih tidak tersedia', 422);
+        }
         sb('sessions', 'PATCH', ['token=eq.' . urlencode($token)], ['active_role' => $target]);
         $u['role'] = $target;
+        $u['roles'] = $roles;
         out(['ok' => true, 'user' => public_user($u)]);
     }
 
@@ -556,6 +592,26 @@ switch ($action) {
 function get_pengaturan(?string $key = null): array {
     $q = $key ? ['key=eq.' . urlencode($key), 'select=value'] : ['select=*'];
     try { return sb('pengaturan', 'GET', $q); } catch (Throwable $e) { return []; }
+}
+function seller_profile_missing(array $u): array {
+    $missing = [];
+    foreach ([
+        'nama' => 'nama lengkap/nama usaha', 'no_hp' => 'nomor telepon',
+        'alamat' => 'alamat lengkap', 'kota' => 'kota/kabupaten', 'provinsi' => 'provinsi',
+    ] as $field => $label) {
+        if (trim((string)($u[$field] ?? '')) === '') $missing[] = $label;
+    }
+    if (strtolower(trim((string)($u['nama'] ?? ''))) === strtolower(trim((string)($u['username'] ?? '')))
+        && !in_array('nama lengkap/nama usaha', $missing, true)) $missing[] = 'nama lengkap/nama usaha';
+    if (!is_numeric($u['lat'] ?? null) || !is_numeric($u['lng'] ?? null)) $missing[] = 'koordinat lokasi (GPS)';
+    $sellerTypes = ['Perorangan','Kelompok/Paguyuban','Koperasi','Perusahaan'];
+    $tipe = $u['tipe_penjual'] ?? null;
+    if (!in_array($tipe, $sellerTypes, true)) $missing[] = 'tipe penjual';
+    elseif ($tipe !== 'Perorangan') {
+        if (trim((string)($u['npwp'] ?? '')) === '') $missing[] = 'NPWP usaha/organisasi';
+        if (trim((string)($u['nib'] ?? '')) === '') $missing[] = 'NIB usaha/organisasi';
+    }
+    return $missing;
 }
 function public_user(array $u): array {
     unset($u['password_hash']);

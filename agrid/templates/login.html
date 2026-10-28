@@ -7,11 +7,11 @@
     <div class="card-body">
       <form method="post">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-        <div class="mb-3"><label class="form-label">Email</label><input class="form-control" type="email" name="email" required autofocus></div>
+        <div class="mb-3"><label class="form-label">Email atau Nama Pengguna</label><input class="form-control" name="email" autocomplete="username" required autofocus></div>
         <div class="mb-3"><label class="form-label">Password</label><input class="form-control" type="password" name="password" required></div>
         <div class="d-grid mb-2"><button class="btn btn-agrid fw-bold btn-lg">Masuk</button></div>
         <div class="text-center small">Belum punya akun?
-          <a href="/register?role=penjual">Daftar Penjual</a> · <a href="/register?role=pembeli">Daftar Pembeli</a></div>
+          <a href="/register">Buat Akun AGR.ID</a></div>
       </form>
     </div>
   </div>

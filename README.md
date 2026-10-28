@@ -31,10 +31,10 @@ Dibangun dengan **Python Flask + SQLAlchemy** untuk aplikasi lokal/server dan fr
 - Pembayaran biaya lelang saat ini dicatat melalui simulasi gateway aplikasi. Penjual dan pemenang tetap mengatur penyerahan paket setelah event ditutup; pembayaran harga paket belum terhubung ke booking/payment gateway produk tunggal.
 
 ### Akun, Pendaftaran & Login
-- Tombol **Login** dan **Daftar** di navbar; halaman pendaftaran terpisah peran.
-- Satu akun dapat memiliki mode **Penjual** dan **Pembeli** sekaligus. Pengguna memilih mode awal saat mendaftar lalu dapat beralih dari navbar tanpa membuat akun baru; peran aktif disimpan per sesi.
+- Pendaftaran hanya meminta **email, nama pengguna, dan kata sandi**; pengguna baru memulai dalam mode Pembeli dan dapat login menggunakan email atau nama pengguna.
+- Satu akun dapat memiliki mode **Penjual** dan **Pembeli**. Mode Penjual diaktifkan dari Pengaturan Pengguna setelah nama lengkap/usaha, nomor telepon, alamat, kota, provinsi, koordinat GPS, tipe penjual, dan NPWP/NIB untuk badan/organisasi dilengkapi.
 - Tipe badan usaha disimpan terpisah untuk masing-masing mode agar pilihan Penjual dan Pembeli tetap sesuai.
-- Migrasi `supabase/migrations/0004_multi_role_accounts.sql` mengaktifkan kedua mode untuk akun non-admin yang sudah ada, menyimpan tipe penjual/pembeli terpisah, dan menambahkan `sessions.active_role`.
+- Migrasi `0004_multi_role_accounts.sql` dan `0005_registration_profile_activation.sql` menyiapkan mode multi-peran, mode aktif per sesi, dan nama pengguna unik. Migrasi memberi akun lama dukungan mode yang sudah ada; pendaftaran baru hanya memberi peran Pembeli sampai aktivasi penjual selesai.
 - **Tipe Penjual**: Perorangan / Kelompok-Paguyuban / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
 - **Tipe Pembeli**: Perorangan / Yayasan / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
 - Alamat lengkap + **koordinat GPS** (tombol deteksi lokasi).
@@ -89,7 +89,7 @@ Flask membuat database SQLite lokal `agrid/agrid.db`. Deployment statis mengguna
 
 | Tabel | Isi |
 |---|---|
-| `users` | Akun, daftar mode (`roles`), mode dasar, tipe Penjual dan Pembeli terpisah, NPWP/NIB, alamat, GPS, dan pengaturan metode DP penjual |
+| `users` | Akun, username unik, daftar mode (`roles`), mode dasar, tipe Penjual dan Pembeli terpisah, NPWP/NIB, alamat, GPS, dan pengaturan metode DP penjual |
 | `sessions` | Token sesi gateway dan mode akun aktif (`active_role`) |
 | `produk_master` | Master nama produk & jenis; auto-tambah saat penjual mengetik nama baru |
 | `products` | Listing produk penjual (harga, stok, foto, GPS kebun/kolam/kandang, label non-halal) |

@@ -41,12 +41,15 @@
       <button class="btn btn-ghost btn-sm btn-icon me-1" id="themeToggle" title="Mode gelap/terang" onclick="toggleTheme()">🌙</button>
       {% if user %}
       <span class="navbar-text me-3 small d-flex align-items-center gap-2"><span class="avatar">{{ user.nama[0]|upper }}</span> {{ user.nama }} <span class="badge bg-secondary">{{ user.active_role }}</span> <span class="text-muted">{{ user.active_tipe }}</span></span>
-      {% if user.active_role in ('penjual', 'pembeli') %}
+      <a class="btn btn-outline-secondary btn-sm me-2" href="{{ url_for('account_settings') }}"><i class="bi bi-person-gear"></i> Pengaturan Pengguna</a>
+      {% if user.active_role == 'penjual' or 'penjual' in user.role_list %}
       <form method="post" action="{{ url_for('switch_account_mode') }}" class="d-inline me-2">
         <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
         <input type="hidden" name="role" value="{{ 'pembeli' if user.active_role == 'penjual' else 'penjual' }}">
         <button class="btn btn-outline-success btn-sm"><i class="bi bi-arrow-left-right"></i> Mode {{ 'Pembeli' if user.active_role == 'penjual' else 'Penjual' }}</button>
       </form>
+      {% elif user.active_role == 'pembeli' %}
+      <a class="btn btn-outline-success btn-sm me-2" href="{{ url_for('account_settings') }}"><i class="bi bi-shop"></i> Aktifkan Mode Penjual</a>
       {% endif %}
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Keluar</a>
       {% else %}
@@ -153,16 +156,19 @@
     </div>
     <div class="modal-body d-grid gap-2">
       {% if user and user.active_role in ('penjual', 'pembeli') %}
+      {% if user.active_role == 'penjual' or 'penjual' in user.role_list %}
       <form method="post" action="{{ url_for('switch_account_mode') }}">
         <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
         <input type="hidden" name="role" value="{{ 'pembeli' if user.active_role == 'penjual' else 'penjual' }}">
         <button class="mobile-action-link w-100 text-start"><i class="bi bi-arrow-left-right"></i><span><b>Beralih ke Mode {{ 'Pembeli' if user.active_role == 'penjual' else 'Penjual' }}</b><small>Gunakan akun yang sama untuk transaksi sebagai pembeli atau penjual</small></span><i class="bi bi-chevron-right ms-auto"></i></button>
       </form>
+      {% else %}
+      <a class="mobile-action-link" href="{{ url_for('account_settings') }}"><i class="bi bi-shop"></i><span><b>Aktifkan Mode Penjual</b><small>Lengkapi profil dan informasi usaha terlebih dahulu</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
+      {% endif %}
       {% endif %}
       {% if not user %}
       <button type="button" class="mobile-action-link" onclick="openSknj('login')"><i class="bi bi-box-arrow-in-right"></i><span><b>Login</b><small>Lanjutkan ke akun Anda</small></span><i class="bi bi-chevron-right ms-auto"></i></button>
-      <button type="button" class="mobile-action-link" onclick="openSknj('register?role=pembeli')"><i class="bi bi-person-plus"></i><span><b>Daftar sebagai Pembeli</b><small>Pesan produk dan kelola kebutuhan</small></span><i class="bi bi-chevron-right ms-auto"></i></button>
-      <button type="button" class="mobile-action-link" onclick="openSknj('register?role=penjual')"><i class="bi bi-shop"></i><span><b>Daftar sebagai Penjual</b><small>Jual produk pertanian dan perikanan</small></span><i class="bi bi-chevron-right ms-auto"></i></button>
+      <button type="button" class="mobile-action-link" onclick="openSknj('register')"><i class="bi bi-person-plus"></i><span><b>Buat Akun</b><small>Daftar dengan email, nama pengguna, dan kata sandi</small></span><i class="bi bi-chevron-right ms-auto"></i></button>
       {% elif user.active_role == 'pembeli' %}
       <a class="mobile-action-link" href="{{ url_for('marketplace') }}"><i class="bi bi-search"></i><span><b>Cari & Pesan Produk</b><small>Jelajahi produk dan ajukan penawaran</small></span><i class="bi bi-chevron-right ms-auto"></i></a>
       <a class="mobile-action-link" href="{{ url_for('dashboard_buyer') }}#tOff"><i class="bi bi-receipt"></i><span><b>Daftar Pesanan</b><small>Lihat penawaran dan transaksi Anda</small></span><i class="bi bi-chevron-right ms-auto"></i></a>

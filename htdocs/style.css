@@ -22,6 +22,8 @@ header.nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.96);bor
 .wide{width:100%}.mb{margin-bottom:14px}
 .input{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;font:inherit;background:#fff;margin-top:4px}
 .input:focus{outline:none;border-color:var(--green2)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media(max-width:640px){.grid2{grid-template-columns:1fr}}
 label{display:block;font-weight:600;font-size:.9rem;margin-bottom:10px;position:relative}
 .muted{color:var(--muted)}.small{font-size:.8rem}.center{text-align:center}
 /* hero & cards */
