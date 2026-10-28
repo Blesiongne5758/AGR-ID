@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-AGR.ID - Storage API Blueprint
+AGR.BIZ.ID - Storage API Blueprint
 ==============================
 Endpoint pendukung arsitektur media terpisahkan (Cloud Object Storage):
 
