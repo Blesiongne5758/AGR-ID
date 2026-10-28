@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AGR.ID - Utilitas umum backend: format, upload aman, ID unik."""
+"""AGR.BIZ.ID - Utilitas umum backend: format, upload aman, ID unik."""
 import os
 import re
 import uuid
