@@ -215,6 +215,31 @@ jobs:
           print("Migration 0004 multi-role accounts berhasil diterapkan.")
           PY
 
+      - name: Apply migration 0005 registration and seller activation
+        run: |
+          python3 - "supabase/migrations/0005_registration_profile_activation.sql" <<'PY'
+          import json, os, subprocess, sys
+          path = sys.argv[1]
+          sql = open(path, encoding="utf-8").read()
+          r = subprocess.run([
+              "curl", "-sS", "--fail-with-body", "--max-time", "120", "--retry", "3", "--retry-delay", "5",
+              f"https://api.supabase.com/v1/projects/{os.environ['PROJECT_REF']}/database/query",
+              "-H", f"Authorization: Bearer {os.environ['MGMT_TOKEN']}",
+              "-H", "Content-Type: application/json",
+              "-d", json.dumps({"query": sql}),
+          ], capture_output=True, text=True)
+          if r.returncode:
+              sys.exit(f"Migration 0005 gagal ({r.returncode}): {r.stderr[:500]} {r.stdout[:500]}")
+          out = r.stdout.strip()
+          try:
+              result = json.loads(out) if out else None
+              if isinstance(result, dict) and result.get("error"):
+                  sys.exit(f"Migration 0005 gagal: {result['error']}")
+          except json.JSONDecodeError:
+              sys.exit(f"Respons migration 0005 bukan JSON: {out[:500]}")
+          print("Migration 0005 registration and seller activation berhasil diterapkan.")
+          PY
+
       # ---------- Verifikasi hasil ----------
       # Query tunggal sederhana yang sudah terbukti sukses dari sandbox:
       # daftar nama tabel publik via information_schema.

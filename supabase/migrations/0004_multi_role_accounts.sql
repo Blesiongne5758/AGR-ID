@@ -8,14 +8,16 @@ ALTER TABLE public.users
 
 UPDATE public.users
 SET roles = CASE
-      WHEN role = 'admin' THEN '["admin"]'::jsonb
-      ELSE '["penjual","pembeli"]'::jsonb
+      WHEN roles IS NULL OR roles = '[]'::jsonb THEN
+        CASE WHEN role = 'admin' THEN '["admin"]'::jsonb
+             ELSE '["penjual","pembeli"]'::jsonb END
+      ELSE roles
     END,
     tipe_penjual = COALESCE(
       tipe_penjual,
-      CASE WHEN tipe IN ('Perorangan','Kelompok/Paguyuban','Koperasi','Perusahaan')
+      CASE WHEN role = 'penjual' AND tipe IN ('Perorangan','Kelompok/Paguyuban','Koperasi','Perusahaan')
            THEN tipe END,
-      'Perorangan'
+      NULL
     ),
     tipe_pembeli = COALESCE(
       tipe_pembeli,
@@ -25,9 +27,9 @@ SET roles = CASE
     );
 
 ALTER TABLE public.users
-  ALTER COLUMN roles SET DEFAULT '["penjual","pembeli"]'::jsonb,
+  ALTER COLUMN roles SET DEFAULT '["pembeli"]'::jsonb,
   ALTER COLUMN roles SET NOT NULL,
-  ALTER COLUMN tipe_penjual SET DEFAULT 'Perorangan',
+  ALTER COLUMN tipe_penjual DROP DEFAULT,
   ALTER COLUMN tipe_pembeli SET DEFAULT 'Perorangan';
 
 ALTER TABLE public.sessions
