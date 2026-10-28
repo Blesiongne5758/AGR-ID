@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Chat {{ chat.product.nama_produk }} — AGR.ID{% endblock %}
+{% block title %}Chat {{ chat.product.nama_produk }} — AGR.BIZ.ID{% endblock %}
 {% block content %}
 <div class="container py-4" style="max-width:900px">
   <a class="text-decoration-none" href="{{ url_for('product_chats') }}">← Semua pesan</a>
@@ -11,7 +11,7 @@
   <div class="alert alert-warning small" role="note"><b>Pengingat privasi</b><br>{{ privacy_notice }}</div>
   <div class="card shadow-sm"><div class="card-body" style="height:min(55vh,520px);overflow-y:auto">
     {% for message in chat.messages %}
-      {% if message.is_system %}<div class="alert alert-warning small mx-auto" style="max-width:720px"><b>AGR.ID</b><br>{{ message.body }}</div>
+      {% if message.is_system %}<div class="alert alert-warning small mx-auto" style="max-width:720px"><b>AGR.BIZ.ID</b><br>{{ message.body }}</div>
       {% else %}<div class="d-flex mb-3 {{ 'justify-content-end' if message.sender_id==user.id else 'justify-content-start' }}"><div class="rounded-3 px-3 py-2 {{ 'bg-success text-white' if message.sender_id==user.id else 'bg-light border' }}" style="max-width:80%;white-space:pre-wrap;overflow-wrap:anywhere"><div class="small fw-semibold mb-1">{{ 'Anda' if message.sender_id==user.id else message.sender.nama }}</div>{{ message.body }}<div class="small text-end opacity-75 mt-1">{{ message.created_at|dt }}</div></div></div>{% endif %}
     {% endfor %}
     <div id="pesan-terakhir"></div>
