@@ -92,7 +92,7 @@ BEGIN
     AND ((active='pembeli' AND buyer_id=uid) OR (active='penjual' AND seller_id=uid));
   IF NOT FOUND THEN RAISE EXCEPTION 'Percakapan tidak ditemukan' USING ERRCODE='P0002'; END IF;
   SELECT COALESCE(jsonb_agg(jsonb_build_object('id',m.id,'sender_id',m.sender_id,
-    'sender_name',COALESCE(u.nama,'AGR.ID'),'body',m.body,'is_system',m.is_system,'created_at',m.created_at)
+    'sender_name',COALESCE(u.nama,'AGR.BIZ.ID'),'body',m.body,'is_system',m.is_system,'created_at',m.created_at)
     ORDER BY m.created_at,m.id),'[]'::jsonb) INTO result
   FROM public.product_chat_messages m LEFT JOIN public.users u ON u.id=m.sender_id
   WHERE m.conversation_id=convo.id;
