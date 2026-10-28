@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-AGR.ID - Storage & Media Architecture (STRICT)
+AGR.BIZ.ID - Storage & Media Architecture (STRICT)
 ================================================
 TIDAK ada file upload yang disimpan pada filesystem lokal web server.
 Seluruh media dialirkan ke Cloud Object Storage (AWS S3 / DigitalOcean
