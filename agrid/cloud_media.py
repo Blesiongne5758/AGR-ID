@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-AGR.ID - Cloudinary Media Integration (cloudinary.com)
+AGR.BIZ.ID - Cloudinary Media Integration (cloudinary.com)
 ======================================================
 Penyimpanan & optimasi file multimedia (foto produk, avatar, eviden, dokumen)
 didelegasikan ke Cloudinary — TIDAK ada file di filesystem web server.
