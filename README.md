@@ -155,9 +155,16 @@ Buka **http://127.0.0.1:5000**. Server bind ke `0.0.0.0` sehingga juga bisa diak
    - `SUPABASE_PROJECT_REF` dan `SUPABASE_MANAGEMENT_TOKEN` untuk migrasi database.
    - `SUPABASE_ANON_KEY`, `AGR_ID_SESSION_SECRET`, `FTP_SERVER`, `FTP_USERNAME`, dan `FTP_PASSWORD` untuk deploy website.
    - `AGR_ID_SESSION_SECRET` harus berupa string acak minimal 64 karakter. Jangan commit nilai secret ke repo.
-3. Opsional: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, dan `AGR_ID_API_URL`. Kredensial Cloudinary mengaktifkan endpoint tanda tangan sementara `api.php?action=media-signature`; frontend mengunggah foto langsung ke Cloudinary tanpa mengekspos API Secret. Foto produk dibatasi ke JPG/PNG/WebP, 8 MB, dan folder publik khusus produk.
+3. Untuk mengaktifkan Cloudinary, tambahkan GitHub Repository Secrets `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, dan `CLOUDINARY_API_SECRET` dari Cloudinary Dashboard → **Settings → Access Keys**. Workflow membuat `htdocs/config.php` dari secrets saat deploy; jangan commit file konfigurasi atau API Secret ke repository. `AGR_ID_API_URL` hanya diperlukan untuk layanan backend Flask opsional.
 4. Push perubahan pada `htdocs/` ke branch `main` untuk menjalankan **Deploy to InfinityFree**. Workflow memvalidasi sintaks PHP, membuat `htdocs/config.php` dari secrets, lalu mengirim file melalui FTP. File konfigurasi tidak disimpan di Git.
 5. Untuk konfigurasi lengkap dan langkah pemulihan, lihat [DEPLOY-INFINITYFREE.md](DEPLOY-INFINITYFREE.md).
+
+### Upload media Cloudinary
+
+- Saat penjual mengunggah foto produk, frontend meminta signature sementara melalui `api.php?action=media-signature`. API memvalidasi sesi mode Penjual dan membuat signature memakai kredensial server.
+- Browser mengunggah foto langsung ke endpoint Cloudinary `image/upload`. API Secret tidak pernah dikirim ke browser. Foto publik dibatasi ke JPG/JPEG, PNG, atau WebP dengan ukuran maksimal 8 MB dan disimpan pada folder produk AGR.ID.
+- Dokumen KYC menggunakan jalur privat dan tidak ditampilkan sebagai foto publik. Aksesnya menggunakan URL bertanda tangan dengan masa berlaku terbatas.
+- Untuk mengecek konfigurasi setelah deploy, buka `https://<domain-anda>/api.php?action=health`. Nilai `cloudinary: true` menandakan Cloud Name, API Key, dan API Secret terbaca oleh server. Agar workflow juga menjalankan health check otomatis, atur GitHub Actions Variable `SITE_DOMAIN` ke hostname situs Anda.
 
 ---
 
