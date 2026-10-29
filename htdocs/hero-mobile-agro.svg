@@ -1,0 +1,235 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 960" width="100%" height="100%">
+  <defs>
+    <!-- Sky Gradient -->
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2d5542"/>
+      <stop offset="35%" stop-color="#3c6e54"/>
+      <stop offset="70%" stop-color="#6b9371"/>
+      <stop offset="100%" stop-color="#9bb78f"/>
+    </linearGradient>
+
+    <!-- Sun Glow -->
+    <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffecb3" stop-opacity="0.9"/>
+      <stop offset="40%" stop-color="#ffd54f" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#ffd54f" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Sawah Terrace Gradient -->
+    <linearGradient id="sawahGrad1" x1="0%" y1="0%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#2e7d32"/>
+      <stop offset="50%" stop-color="#43a047"/>
+      <stop offset="100%" stop-color="#66bb6a"/>
+    </linearGradient>
+    <linearGradient id="sawahGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbc02d"/>
+      <stop offset="50%" stop-color="#c0ca33"/>
+      <stop offset="100%" stop-color="#388e3c"/>
+    </linearGradient>
+
+    <!-- Kolam Ikan Gradient -->
+    <linearGradient id="waterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0277bd"/>
+      <stop offset="40%" stop-color="#0288d1"/>
+      <stop offset="80%" stop-color="#26c6da"/>
+      <stop offset="100%" stop-color="#80deea"/>
+    </linearGradient>
+
+    <!-- Orchard Foliage Gradient -->
+    <linearGradient id="treeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2e7d32"/>
+      <stop offset="100%" stop-color="#1b5e20"/>
+    </linearGradient>
+  </defs>
+
+  <!-- SKY BACKGROUND -->
+  <rect x="0" y="0" width="720" height="960" fill="url(#skyGrad)"/>
+
+  <!-- SUN & MORNING GLOW -->
+  <circle cx="540" cy="190" r="140" fill="url(#sunGlow)"/>
+  <circle cx="540" cy="190" r="42" fill="#fff9c4"/>
+
+  <!-- DISTANT MOUNTAINS -->
+  <path d="M0 320 L 140 220 L 310 330 L 490 200 L 630 290 L 720 230 L 720 460 L 0 460 Z" fill="#2d523e" opacity="0.6"/>
+  <path d="M0 370 L 190 270 L 380 390 L 560 280 L 720 370 L 720 520 L 0 520 Z" fill="#355e47" opacity="0.8"/>
+
+  <!-- ======================================================== -->
+  <!-- 1. KEBUN POHON BUAH (FRUIT ORCHARD)                      -->
+  <!-- ======================================================== -->
+  <!-- Perbukitan Kebun Buah Kiri & Tengah -->
+  <path d="M-20 490 Q 180 430, 380 470 Q 560 500, 740 450 L 740 600 L -20 600 Z" fill="#388e3c"/>
+
+  <!-- Pohon Buah 1 (Kiri) -->
+  <rect x="70" y="440" width="16" height="50" rx="3" fill="#5d4037"/>
+  <circle cx="78" cy="425" r="38" fill="url(#treeGrad)"/>
+  <circle cx="58" cy="415" r="28" fill="#388e3c"/>
+  <circle cx="98" cy="415" r="28" fill="#43a047"/>
+  <!-- Buah Jeruk / Apel Merah & Oranye -->
+  <circle cx="60" cy="410" r="5" fill="#f4511e"/><circle cx="85" cy="405" r="5" fill="#fb8c00"/>
+  <circle cx="75" cy="435" r="5.5" fill="#e53935"/><circle cx="95" cy="425" r="5" fill="#f4511e"/>
+  <circle cx="52" cy="430" r="4.5" fill="#fb8c00"/>
+
+  <!-- Pohon Buah 2 (Kanan Tengah) -->
+  <rect x="230" y="450" width="14" height="46" rx="3" fill="#4e342e"/>
+  <circle cx="237" cy="435" r="34" fill="url(#treeGrad)"/>
+  <circle cx="220" cy="430" r="24" fill="#388e3c"/>
+  <circle cx="255" cy="428" r="25" fill="#43a047"/>
+  <!-- Buah di Pohon 2 -->
+  <circle cx="225" cy="425" r="4.5" fill="#e53935"/><circle cx="245" cy="420" r="5" fill="#fb8c00"/>
+  <circle cx="238" cy="445" r="4.5" fill="#f4511e"/><circle cx="252" cy="438" r="4.5" fill="#e53935"/>
+
+  <!-- Pohon Buah 3 (Kanan) -->
+  <rect x="620" y="445" width="16" height="50" rx="3" fill="#5d4037"/>
+  <circle cx="628" cy="430" r="36" fill="url(#treeGrad)"/>
+  <circle cx="605" cy="425" r="26" fill="#388e3c"/>
+  <circle cx="648" cy="422" r="26" fill="#43a047"/>
+  <circle cx="615" cy="420" r="5" fill="#fb8c00"/><circle cx="638" cy="415" r="5" fill="#e53935"/>
+  <circle cx="630" cy="440" r="5" fill="#f4511e"/>
+
+  <!-- ======================================================== -->
+  <!-- 2. SAWAH BERUNDAK & PADI (TERRACED RICE FIELDS)          -->
+  <!-- ======================================================== -->
+  <!-- Terasering Sawah 1 (Atas) -->
+  <path d="M-10 530 Q 180 490, 420 530 Q 580 550, 730 510 L 730 640 L -10 640 Z" fill="url(#sawahGrad1)"/>
+  <!-- Saluran Pematang Padi -->
+  <path d="M-10 535 Q 180 495, 420 535 Q 580 555, 730 515" stroke="#2e7d32" stroke-width="4" fill="none"/>
+  
+  <!-- Terasering Sawah 2 (Menguning) -->
+  <path d="M-10 590 Q 220 540, 460 590 Q 610 610, 730 570 L 730 730 L -10 730 Z" fill="url(#sawahGrad2)"/>
+  <path d="M-10 595 Q 220 545, 460 595 Q 610 615, 730 575" stroke="#fbc02d" stroke-width="4" fill="none"/>
+
+  <!-- Rumpun Padi Menguning Detail -->
+  <g stroke="#fdd835" stroke-width="2" stroke-linecap="round">
+    <path d="M 90 620 Q 95 600, 105 590 M 100 620 Q 108 595, 120 592 M 110 620 Q 112 602, 115 588"/>
+    <path d="M 140 625 Q 145 605, 155 595 M 150 625 Q 158 600, 170 598 M 160 625 Q 162 607, 165 592"/>
+    <path d="M 280 635 Q 285 615, 295 605 M 290 635 Q 298 610, 310 608 M 300 635 Q 302 617, 305 602"/>
+  </g>
+
+  <!-- ======================================================== -->
+  <!-- 3. PADANG RUMPUT & HEWAN TERNAK (LIVESTOCK)              -->
+  <!-- ======================================================== -->
+  <!-- Bukit Padang Rumput Ternak Kiri -->
+  <path d="M-10 670 Q 160 620, 380 680 L 380 820 L -10 820 Z" fill="#558b2f"/>
+  <path d="M-10 674 Q 160 624, 380 684" stroke="#689f38" stroke-width="3" fill="none"/>
+
+  <!-- SAPI TERNAK 1 (Sapi Perah Hitam Putih) -->
+  <g transform="translate(130, 640) scale(0.65)">
+    <!-- Kaki -->
+    <rect x="24" y="65" width="8" height="35" fill="#37474f"/>
+    <rect x="38" y="65" width="8" height="35" fill="#263238"/>
+    <rect x="80" y="65" width="8" height="35" fill="#37474f"/>
+    <rect x="94" y="65" width="8" height="35" fill="#263238"/>
+    <!-- Badan Sapi Putih -->
+    <path d="M 15 35 Q 25 20, 55 20 Q 95 20, 110 25 Q 118 35, 115 65 Q 60 70, 15 65 Z" fill="#ffffff"/>
+    <!-- Corak Tutul Hitam Khas Sapi -->
+    <path d="M 35 22 Q 45 28, 40 45 Q 25 48, 28 30 Z" fill="#263238"/>
+    <path d="M 68 22 Q 85 24, 82 42 Q 65 48, 62 35 Z" fill="#263238"/>
+    <circle cx="102" cy="48" r="9" fill="#263238"/>
+    <!-- Kepala & Moncong -->
+    <path d="M 110 25 L 128 20 L 135 38 L 120 48 Z" fill="#ffffff"/>
+    <ellipse cx="132" cy="38" rx="8" ry="6" fill="#f48fb1"/>
+    <!-- Tanduk & Telinga -->
+    <path d="M 122 18 Q 126 10, 130 14" stroke="#ffb74d" stroke-width="3" fill="none"/>
+    <ellipse cx="116" cy="24" rx="5" ry="3" fill="#263238"/>
+    <!-- Ekor -->
+    <path d="M 15 35 Q 8 50, 12 65" stroke="#263238" stroke-width="2.5" fill="none"/>
+  </g>
+
+  <!-- HEWAN TERNAK 2 (Domba / Kambing Merumput) -->
+  <g transform="translate(60, 675) scale(0.48)">
+    <rect x="20" y="48" width="6" height="24" fill="#4e342e"/>
+    <rect x="32" y="48" width="6" height="24" fill="#3e2723"/>
+    <rect x="58" y="48" width="6" height="24" fill="#4e342e"/>
+    <rect x="70" y="48" width="6" height="24" fill="#3e2723"/>
+    <!-- Bulu Wol Domba Putih Lembut -->
+    <ellipse cx="48" cy="34" rx="30" ry="20" fill="#f5f5f5"/>
+    <circle cx="30" cy="30" r="14" fill="#f5f5f5"/>
+    <circle cx="65" cy="32" r="14" fill="#f5f5f5"/>
+    <!-- Kepala -->
+    <ellipse cx="78" cy="28" rx="9" ry="7" fill="#5d4037"/>
+    <ellipse cx="75" cy="23" rx="4" ry="2" fill="#3e2723"/>
+  </g>
+
+  <!-- SAPI TERNAK 3 (Coklat Muda di Bukit Sedang Merumput) -->
+  <g transform="translate(250, 665) scale(0.45)">
+    <rect x="24" y="65" width="8" height="32" fill="#5d4037"/>
+    <rect x="38" y="65" width="8" height="32" fill="#4e342e"/>
+    <rect x="80" y="65" width="8" height="32" fill="#5d4037"/>
+    <rect x="94" y="65" width="8" height="32" fill="#4e342e"/>
+    <path d="M 15 35 Q 25 22, 60 22 Q 95 22, 110 32 L 122 55 L 115 65 Q 60 70, 15 65 Z" fill="#8d6e63"/>
+    <circle cx="120" cy="55" r="9" fill="#6d4c41"/>
+    <!-- Moncong ke Bawah Merumput -->
+    <ellipse cx="126" cy="62" rx="7" ry="5" fill="#ffab91"/>
+  </g>
+
+  <!-- ======================================================== -->
+  <!-- 4. KOLAM IKAN DENGAN IKAN & RIAK AIR (FISH POND)         -->
+  <!-- ======================================================== -->
+  <!-- Pematang Tepi Kolam Ikan -->
+  <path d="M 340 680 Q 520 640, 730 670 L 730 960 L 320 960 Q 300 800, 340 680 Z" fill="#37474f"/>
+  
+  <!-- Badan Air Kolam Ikan -->
+  <path d="M 355 695 Q 520 655, 730 685 L 730 960 L 340 960 Q 320 815, 355 695 Z" fill="url(#waterGrad)"/>
+
+  <!-- Riak Gelombang Air Kolam -->
+  <g stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.6">
+    <path d="M 390 730 Q 420 720, 450 730"/>
+    <path d="M 520 710 Q 560 700, 600 710"/>
+    <path d="M 440 780 Q 480 770, 520 780"/>
+    <path d="M 580 760 Q 620 750, 660 760"/>
+    <path d="M 380 840 Q 430 825, 480 840"/>
+    <path d="M 510 890 Q 560 875, 610 890"/>
+  </g>
+
+  <!-- DAUN TERATAI DI KOLAM -->
+  <ellipse cx="430" cy="745" rx="22" ry="10" fill="#2e7d32" opacity="0.85"/>
+  <path d="M 430 745 L 445 742" stroke="#1b5e20" stroke-width="1.5"/>
+  <ellipse cx="610" cy="735" rx="26" ry="12" fill="#388e3c" opacity="0.85"/>
+  <!-- Bunga Teratai Pink -->
+  <circle cx="612" cy="732" r="6" fill="#f06292"/>
+  <circle cx="612" cy="732" r="3" fill="#f8bbd0"/>
+
+  <ellipse cx="540" cy="830" rx="30" ry="14" fill="#2e7d32" opacity="0.85"/>
+  <ellipse cx="380" cy="890" rx="24" ry="11" fill="#388e3c" opacity="0.85"/>
+
+  <!-- IKAN 1 (Ikan Koi Oranye Melompat Cantik) -->
+  <g transform="translate(480, 735) rotate(-25) scale(0.65)">
+    <!-- Badan Ikan -->
+    <path d="M 0 30 Q 30 5, 70 30 Q 30 55, 0 30 Z" fill="#ff6f00"/>
+    <!-- Corak Putih Ikan Koi -->
+    <path d="M 25 15 Q 40 18, 35 32 Q 22 28, 25 15 Z" fill="#ffffff"/>
+    <path d="M 48 20 Q 58 22, 54 36 Q 42 34, 48 20 Z" fill="#ffffff"/>
+    <!-- Ekor Mengembang -->
+    <path d="M 0 30 L -25 12 Q -18 30, -25 48 Z" fill="#ff8f00"/>
+    <!-- Sirip Atas & Bawah -->
+    <path d="M 35 15 Q 48 2, 55 18 Z" fill="#ffa000"/>
+    <path d="M 35 45 Q 45 56, 52 42 Z" fill="#ffa000"/>
+    <!-- Mata -->
+    <circle cx="60" cy="27" r="2.5" fill="#212121"/>
+    <!-- Percikan Air Lompatan -->
+    <circle cx="75" cy="18" r="2" fill="#e0f7fa" opacity="0.9"/>
+    <circle cx="82" cy="28" r="2.5" fill="#e0f7fa" opacity="0.8"/>
+  </g>
+
+  <!-- IKAN 2 (Ikan Nila / Ikan Biru Berenang di Bawah Air) -->
+  <g transform="translate(420, 830) rotate(15) scale(0.55)">
+    <path d="M 0 30 Q 35 8, 75 30 Q 35 52, 0 30 Z" fill="#0d47a1" opacity="0.8"/>
+    <path d="M 0 30 L -22 15 Q -15 30, -22 45 Z" fill="#1565c0" opacity="0.8"/>
+    <path d="M 35 17 Q 50 5, 58 20 Z" fill="#1976d2" opacity="0.8"/>
+    <circle cx="65" cy="27" r="2" fill="#ffffff"/>
+  </g>
+
+  <!-- IKAN 3 (Ikan Mas Merah Kecil) -->
+  <g transform="translate(580, 860) rotate(-10) scale(0.45)">
+    <path d="M 0 30 Q 30 10, 65 30 Q 30 50, 0 30 Z" fill="#e65100" opacity="0.85"/>
+    <path d="M 0 30 L -20 15 Q -15 30, -20 45 Z" fill="#f57c00" opacity="0.85"/>
+    <circle cx="55" cy="28" r="2" fill="#212121"/>
+  </g>
+
+  <!-- SILUET BURUNG TERBANG DI LANGIT AGRO -->
+  <g stroke="#ffffff" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.45">
+    <path d="M 280 160 Q 290 150, 300 160 Q 310 150, 320 160"/>
+    <path d="M 330 180 Q 338 172, 346 180 Q 354 172, 362 180"/>
+    <path d="M 400 150 Q 407 143, 414 150 Q 421 143, 428 150"/>
+  </g>
+</svg>

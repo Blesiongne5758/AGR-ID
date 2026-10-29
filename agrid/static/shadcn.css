@@ -415,7 +415,7 @@ body{line-height:1.6;letter-spacing:0;-webkit-font-smoothing:antialiased}
 .form-control,.form-select{min-height:2.8rem;border-radius:.75rem;font-size:.92rem}
 :focus-visible{outline:3px solid hsl(var(--ring)/.32);outline-offset:2px}
 .navbar-agrid{background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border-bottom:1px solid hsl(var(--border))}
-@media(max-width:575.98px){.container{--bs-gutter-x:1.15rem}.card-body,.card-content{padding:1rem}.hero{border-radius:0}}
+@media(max-width:575.98px){.container{--bs-gutter-x:1.15rem}.card-body,.card-content{padding:1rem}/* .hero border-radius mobile handled below */}
 
 /* Responsive account controls and role dashboard navigation */
 .account-settings-page{max-width:1040px}
@@ -642,4 +642,217 @@ html.dark .card-cat-peternakan, html.dark .cat-card.cat-peternakan {
 }
 html.dark .card-cat-peternakan .cat-title, html.dark .cat-card.cat-peternakan h3 {
   color: #d99b97 !important;
+}
+
+
+/* ============================================================
+   RESPONSIVE MOBILE VIEW ENHANCEMENTS:
+   - HERO FRAME MARGIN (JARAK KIRI & KANAN)
+   - HERO BACKGROUND (SAWAH, HEWAN TERNAK, KEBUN BUAH, KOLAM IKAN)
+   - HERO ACTIONS BUTTON SPACING
+   - KARTU KATEGORI WARNA SELARAS DENGAN DESKTOP
+   - DASHBOARD USER BUTTONS & CARDS WITH LEFT/RIGHT SPACING
+   ============================================================ */
+
+/* 1. Hero Frame & Mobile Background */
+@media (max-width: 767.98px) {
+  .hero {
+    margin: 0.75rem 1rem 1.75rem 1rem !important; /* Jarak kiri dan kanan untuk frame hero */
+    border-radius: 1.25rem !important;            /* Sudut membulat modern */
+    background-image: url("hero-mobile-agro.svg") !important; /* Latar sawah, ternak, kebun buah & kolam ikan */
+    background-size: cover !important;
+    background-position: center bottom !important;
+    box-shadow: 0 10px 28px rgba(18, 30, 24, 0.22) !important;
+    padding-top: 2.25rem !important;
+    padding-bottom: 2.25rem !important;
+  }
+  .hero-mosaic {
+    display: none !important; /* Sembunyikan grid 4 mosaik di mobile agar latar terpadu terlihat jelas */
+  }
+  .hero-overlay {
+    background: linear-gradient(180deg, rgba(16, 28, 22, 0.74) 0%, rgba(16, 28, 22, 0.88) 100%) !important;
+    border-radius: 1.25rem !important;
+  }
+  .hero .container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  /* 2. Tombol Jelajahi Produk dan Jadi Penjual di Mobile View */
+  .hero-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 14px !important; /* Jarak pas dan proporsional antar tombol di mobile */
+    margin-top: 1.35rem !important;
+    width: 100% !important;
+    padding: 0 0.5rem !important;
+  }
+  .hero-actions .btn,
+  .hero-actions a,
+  .hero-actions button {
+    width: 100% !important;
+    max-width: 290px !important;
+    margin: 0 !important;
+    padding: 0.75rem 1.25rem !important;
+    font-size: 0.95rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 0.75rem !important;
+  }
+
+  /* 3. Kartu Kategori di Mobile View: Warna Selaras dengan Desktop */
+  .card-category, .cat-card {
+    border-radius: 1rem !important;
+  }
+  .card-cat-pertanian, .cat-card.cat-pertanian {
+    background: linear-gradient(145deg, #e8f5ee 0%, #d0ecdc 100%) !important;
+    border: 1px solid #a3d4bb !important;
+  }
+  .card-cat-pertanian .cat-title, .cat-card.cat-pertanian h3 {
+    color: #007849 !important;
+  }
+  .card-cat-perkebunan, .cat-card.cat-perkebunan {
+    background: linear-gradient(145deg, #fdf3ea 0%, #f7e0c7 100%) !important;
+    border: 1px solid #ddb98a !important;
+  }
+  .card-cat-perkebunan .cat-title, .cat-card.cat-perkebunan h3 {
+    color: #8a5a2f !important;
+  }
+  .card-cat-perikanan, .cat-card.cat-perikanan {
+    background: linear-gradient(145deg, #eaf2fc 0%, #d0e5f8 100%) !important;
+    border: 1px solid #9ac2e8 !important;
+  }
+  .card-cat-perikanan .cat-title, .cat-card.cat-perikanan h3 {
+    color: #2160a0 !important;
+  }
+  .card-cat-peternakan, .cat-card.cat-peternakan {
+    background: linear-gradient(145deg, #faf0ef 0%, #f3d8d5 100%) !important;
+    border: 1px solid #d99b97 !important;
+  }
+  .card-cat-peternakan .cat-title, .cat-card.cat-peternakan h3 {
+    color: #7a3530 !important;
+  }
+
+  /* 4. Dashboard User: Jarak Kiri dan Kanan pada Tombol & Kartu */
+  .container-fluid,
+  .dashboard-container,
+  .account-settings-page,
+  main.container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    box-sizing: border-box !important;
+  }
+
+  .dashboard-heading {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .dashboard-shortcuts,
+  .settings-role-action {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    margin: 0.75rem 0 1rem 0 !important;
+    padding: 0 !important;
+  }
+  .dashboard-shortcuts .btn,
+  .settings-role-action .btn {
+    width: 100% !important;
+    min-height: 48px !important;
+    padding: 0.6rem 0.5rem !important;
+    margin: 0 !important;
+    font-size: 0.82rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    border-radius: 0.65rem !important;
+  }
+
+  .dashboard-action-tabs,
+  .seller-action-tabs,
+  .buyer-action-tabs,
+  .settings-tabs,
+  .user-action-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    margin: 0.75rem 0 1.25rem 0 !important;
+    padding: 0 !important;
+  }
+  .dashboard-action-tabs .nav-item,
+  .settings-tabs .nav-item {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  .dashboard-action-tabs .nav-link,
+  .settings-tabs .nav-link,
+  .user-action-tabs button {
+    width: 100% !important;
+    min-height: 52px !important;
+    padding: 0.6rem 0.65rem !important;
+    margin: 0 !important;
+    font-size: 0.82rem !important;
+    border-radius: 0.65rem !important;
+    box-sizing: border-box !important;
+  }
+
+  .stat-card,
+  .card,
+  .settings-header,
+  .settings-panel,
+  .table-responsive {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    border-radius: 0.95rem !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
+  }
+  .stat-card .card-body {
+    padding: 0.85rem 1rem !important;
+  }
+  .card-body,
+  .card-content {
+    padding: 1rem 1.15rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    margin: 0.65rem 0.85rem 1.5rem 0.85rem !important;
+    border-radius: 1.15rem !important;
+    padding-top: 1.85rem !important;
+    padding-bottom: 1.85rem !important;
+  }
+  .hero-overlay {
+    border-radius: 1.15rem !important;
+  }
+  .container-fluid,
+  .dashboard-container,
+  .account-settings-page,
+  main.container {
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .dashboard-shortcuts,
+  .settings-role-action {
+    grid-template-columns: 1fr !important;
+  }
+  .dashboard-action-tabs,
+  .seller-action-tabs,
+  .buyer-action-tabs,
+  .settings-tabs,
+  .user-action-tabs {
+    grid-template-columns: 1fr !important;
+  }
 }
