@@ -44,10 +44,10 @@
   <h4 class="border-start border-4 border-success ps-2 fw-bold">Kategori Utama</h4>
   <div class="row g-3 mt-2 mb-5">
     {% set meta = {
-      'Pertanian': ('cat-pertanian.svg','Sayuran & Buah-buahan — cabai, bawang, tomat, pisang, durian, dll.', 'card-cat-pertanian'),
-      'Perkebunan': ('cat-perkebunan.svg','Kopi, kakao, sawit, karet, rempah ekspor, vanili, gula aren.', 'card-cat-perkebunan'),
-      'Perikanan': ('cat-perikanan.svg','Air Tawar (lele, nila, gurame) & Air Laut (udang, tuna, kerapuh, rumput laut).', 'card-cat-perikanan'),
-      'Peternakan': ('cat-peternakan.svg','Sapi, kambing & domba, unggas, kelinci — Babi ditandai ⚠️ Non Halal.', 'card-cat-peternakan')} %}
+      'Pertanian': ('cat-pertanian.svg','Sayuran, Buah, Pupuk, Obat Kimia Pertanian & Vitamin/Nutrisi Tanaman.', 'card-cat-pertanian'),
+      'Perkebunan': ('cat-perkebunan.svg','Kopi, Sawit, Kakao, Rempah, Karet, Pupuk & Obat Kimia Perkebunan.', 'card-cat-perkebunan'),
+      'Perikanan': ('cat-perikanan.svg','Ikan Tawar & Laut, Udang, Pakan Ikan, Obat Kolam & Vitamin/Suplemen.', 'card-cat-perikanan'),
+      'Peternakan': ('cat-peternakan.svg','Sapi, Kambing, Unggas, Pakan Ternak, Obat & Vitamin — Babi ⚠️ Non Halal.', 'card-cat-peternakan')} %}
     {% for c in categories %}
     <div class="col-6 col-md-3">
       <a class="text-decoration-none" href="{{ url_for('marketplace', kategori=c) }}">

@@ -3324,51 +3324,299 @@ def seed():
                         nib="1234567890123", verified=True)
             db.session.add_all([admin, seller, seller2, buyer, corp])
             db.session.commit()
-            # Demo products
+            # Daftar produk lengkap mencakup seluruh sub kategori terbaru sesuai README.md
             demo = [
+                # Pertanian > Sayuran
                 Product(seller_id=seller.id, nama_produk="Cabai Merah Keriting", jenis="Keriting",
                         kategori="Pertanian", subkategori="Sayuran",
-                        deskripsi="Panaman harian, grade A, sortir tangkai. Kemasan karung 20kg / box 10kg.",
+                        deskripsi="Panen segar harian grade A, sortir tangkai bersih. Kemasan karung 20kg / box.",
                         harga=41000, satuan="kg", stok=850,
-                        alamat_lahan="Desa cikimbang, Brebes", lat=-6.866, lng=109.055,
-                        sertifikasi="Prima 3 - Pestiside Residue Test"),
-                Product(seller_id=seller.id, nama_produk="Bawang Merah", jenis="Lokal",
+                        alamat_lahan="Desa Cikimbang, Brebes", lat=-6.866, lng=109.055,
+                        sertifikasi="Prima 3 - Residu Pestisida Aman"),
+                Product(seller_id=seller.id, nama_produk="Bawang Merah Brebes", jenis="Lokal Super",
                         kategori="Pertanian", subkategori="Sayuran",
-                        deskripsi="Bawang merah super rendeng, kadar air rendah, tahan simpan.",
+                        deskripsi="Bawang merah super rendeng Brebes, kadar air rendah, umbi padat tahan simpan.",
                         harga=32500, satuan="kg", stok=1200, lat=-6.87, lng=109.06,
                         alamat_lahan="Brebes - Jawa Tengah"),
+                Product(seller_id=seller.id, nama_produk="Tomat Cherry Hidroponik", jenis="Cherry",
+                        kategori="Pertanian", subkategori="Sayuran",
+                        deskripsi="Tomat cherry hidroponik manis renyah, bebas residu, panen harian greenhouse.",
+                        harga=28000, satuan="kg", stok=400, lat=-6.804, lng=107.619,
+                        alamat_lahan="Greenhouse Lembang, Jawa Barat"),
+
+                # Pertanian > Buah-buahan
                 Product(seller_id=seller.id, nama_produk="Durian Musang King", jenis="Musang King",
                         kategori="Pertanian", subkategori="Buah-buahan",
-                        deskripsi="Grade A, 3.5-4.5 kg/buah, jatuh matang pohon.",
+                        deskripsi="Grade A, bobot 3.5-4.5 kg/buah, garansi manis legit jatuh matang pohon.",
                         harga=92000, satuan="kg", stok=320, lat=-7.0, lng=110.4,
                         sertifikasi="Organik Nusantara"),
-                Product(seller_id=seller2.id, nama_produk="Lele Sangkuriang", jenis="Sangkuriang",
-                        kategori="Perikanan", subkategori="Air Tawar",
-                        deskripsi="Ukuran 7-9 cm/ekor siap konsumsi, pakan pelet murni, bebas bau tanah.",
-                        harga=19000, satuan="kg", stok=2500, lat=-6.889, lng=109.675,
-                        alamat_lahan="Kolam TPI Copalang, Pekalongan"),
-                Product(seller_id=seller2.id, nama_produk="Udang Vaname", jenis="Beku Size 40",
-                        kategori="Perikanan", subkategori="Air Laut",
-                        deskripsi="Headless shell-on beku, size 40, glazing 70%, cold chain terjaga.",
-                        harga=76000, satuan="kg", stok=1800, lat=-6.89, lng=109.68),
-                Product(seller_id=seller.id, nama_produk="Kambing PE 76", jenis="PE 76 Jantan",
-                        kategori="Peternakan", subkategori="Kambing & Domba",
-                        deskripsi="Kambing kacang peranakan etawa jantan, umur 10-12 bln, bobot 25-30kg. SKKH lengkap.",
-                        harga=3100000, satuan="ekor", stok=45, lat=-6.95, lng=109.1,
-                        sertifikasi="SKKH & Vaksin PMK"),
-                Product(seller_id=seller2.id, nama_produk="Babi Landrace", jenis="Landrace",
-                        kategori="Peternakan", subkategori="Babi",
-                        deskripsi="Babi bakalan hidup 60-70 kg, asal peternakan legal Bali/Nusra.",
-                        harga=2800000, satuan="ekor", stok=18, non_halal=True,
-                        alamat_lahan="Peternakan registered, Nusa Tenggara Timur", lat=-10.17, lng=123.60),
-                Product(seller_id=seller.id, nama_produk="Kopi Arabika Gayo", jenis="Gayo Fullwash",
+                Product(seller_id=seller.id, nama_produk="Pisang Cavendish Super", jenis="Cavendish",
+                        kategori="Pertanian", subkategori="Buah-buahan",
+                        deskripsi="Pisang cavendish mulus standar ekspor, cluster 4-6 fingers, brix manis stabil.",
+                        harga=18000, satuan="kg", stok=1500, lat=-5.278, lng=105.719,
+                        alamat_lahan="Perkebunan Lampung"),
+
+                # Pertanian > Pupuk
+                Product(seller_id=seller.id, nama_produk="Pupuk NPK Mutiara 16-16-16", jenis="Granul Biru",
+                        kategori="Pertanian", subkategori="Pupuk",
+                        deskripsi="Pupuk majemuk NPK seimbang untuk vegetatif dan generatif, cepat larut dan diserap akar.",
+                        harga=14500, satuan="kg", stok=3500, lat=-6.866, lng=109.055,
+                        sertifikasi="SNI 2803:2012"),
+                Product(seller_id=seller.id, nama_produk="Pupuk Kompos Organik Granul", jenis="Organik Granul",
+                        kategori="Pertanian", subkategori="Pupuk",
+                        deskripsi="Kompos kotoran ternak dan hijauan terfermentasi actinomycetes, memperkaya mikroba tanah.",
+                        harga=3500, satuan="kg", stok=8000, lat=-7.953, lng=112.656,
+                        sertifikasi="Kementan Organik No. 128/2024"),
+
+                # Pertanian > Obat Kimia Pertanian
+                Product(seller_id=seller.id, nama_produk="Insektisida Prevathon 50SC", jenis="Insektisida Kontak-Sistemik",
+                        kategori="Pertanian", subkategori="Obat Kimia Pertanian",
+                        deskripsi="Bahan aktif klorantraniliprol, ampuh kendalikan ulat grayak dan sundep pada cabai & padi.",
+                        harga=125000, satuan="botol", stok=180, lat=-6.866, lng=109.055),
+                Product(seller_id=seller.id, nama_produk="Fungisida Antracol 70WP", jenis="Fungisida Protektif",
+                        kategori="Pertanian", subkategori="Obat Kimia Pertanian",
+                        deskripsi="Fungisida kontak berbahan aktif propineb + zinc, melindungi tanaman dari bercak daun & busuk daun.",
+                        harga=75000, satuan="pack", stok=220, lat=-6.87, lng=109.06),
+
+                # Pertanian > Vitamin & Nutrisi Tanaman
+                Product(seller_id=seller.id, nama_produk="Pupuk Daun Gandasil D & B", jenis="Serbuk Larut Air",
+                        kategori="Pertanian", subkategori="Vitamin & Nutrisi Tanaman",
+                        deskripsi="Nutrisi makro mikro lengkap untuk fase daun (Gandasil D) dan perangsang bunga/buah (Gandasil B).",
+                        harga=35000, satuan="pack", stok=300, lat=-6.804, lng=107.619),
+                Product(seller_id=seller.id, nama_produk="ZPT Atonik 6.5L Biostimulan", jenis="Cair",
+                        kategori="Pertanian", subkategori="Vitamin & Nutrisi Tanaman",
+                        deskripsi="Zat pengatur tumbuh pemicu perakaran dan mempercepat pemulihan tanaman stres cuaca.",
+                        harga=55000, satuan="botol", stok=190, lat=-6.866, lng=109.055),
+
+                # Perkebunan > Tanaman Tahunan
+                Product(seller_id=seller.id, nama_produk="Kopi Arabika Gayo", jenis="Gayo Fullwash Grade 1",
                         kategori="Perkebunan", subkategori="Tanaman Tahunan",
-                        deskripsi="Green bean grade 1, defect max 3%, lot panen 2026, warehouse Takengon.",
+                        deskripsi="Green bean grade 1, defect max 3%, lot panen 2026, cupping score 84+, warehouse Takengon.",
                         harga=94000, satuan="kg", stok=5200, lat=4.6, lng=96.85,
                         sertifikasi="Indikasi Geografis Gayo"),
+                Product(seller_id=seller.id, nama_produk="Biji Kakao Kering Fermentasi", jenis="Lindak Fermentasi",
+                        kategori="Perkebunan", subkategori="Tanaman Tahunan",
+                        deskripsi="Kadar air 7%, biji tebal aroma cokelat kuat, siap untuk roastery & pabrik cokelat.",
+                        harga=58000, satuan="kg", stok=3200, lat=-5.278, lng=105.719),
+
+                # Perkebunan > Tanaman Industri
+                Product(seller_id=seller.id, nama_produk="Kelapa Sawit TBS Segar", jenis="Sawit Marihat TBS",
+                        kategori="Perkebunan", subkategori="Tanaman Industri",
+                        deskripsi="Tandan buah segar kelapa sawit usia produktif 9 tahun, rendemen CPO tinggi, panen harian.",
+                        harga=2650, satuan="kg", stok=25000, lat=-0.5, lng=101.4,
+                        alamat_lahan="Perkebunan Sawit Riau"),
+                Product(seller_id=seller.id, nama_produk="Vanili Planifolia Gourmet", jenis="Pod Kering Hitam",
+                        kategori="Perkebunan", subkategori="Tanaman Industri",
+                        deskripsi="Panjang 17-20 cm, aroma wangi vanilin tinggi, kadar air 28-32%, kemasan vacuum pack.",
+                        harga=850000, satuan="kg", stok=80, lat=-8.34, lng=115.09,
+                        sertifikasi="Organik Ekspor"),
+
+                # Perkebunan > Rempah Perkebunan
+                Product(seller_id=seller.id, nama_produk="Lada Putih Muntok Super", jenis="Muntok White Pepper",
+                        kategori="Perkebunan", subkategori="Rempah Perkebunan",
+                        deskripsi="Lada putih bangka grade super, aroma pedas tajam, kadar air < 12%, bersih tanpa kulit.",
+                        harga=115000, satuan="kg", stok=1800, lat=-2.12, lng=106.11),
+                Product(seller_id=seller.id, nama_produk="Cengkeh Kering Bunga Super", jenis="Zanzibar Kering",
+                        kategori="Perkebunan", subkategori="Rempah Perkebunan",
+                        deskripsi="Bunga cengkeh petik merah, jemur matahari alami, kadar minyak atsiri tinggi.",
+                        harga=128000, satuan="kg", stok=1400, lat=-3.65, lng=128.19),
+
+                # Perkebunan > Karet & Getah
+                Product(seller_id=seller.id, nama_produk="Karet Sheet RSS 1", jenis="Ribbed Smoked Sheet",
+                        kategori="Perkebunan", subkategori="Karet & Getah",
+                        deskripsi="Lembaran karet asap mutu 1, elastisitas tinggi, bersih bebas gelembung dan karat.",
+                        harga=28500, satuan="kg", stok=6000, lat=-2.97, lng=104.75),
+                Product(seller_id=seller.id, nama_produk="Lateks Kebun Pekat 60%", jenis="Lateks Cair Sentrifugasi",
+                        kategori="Perkebunan", subkategori="Karet & Getah",
+                        deskripsi="Lateks alami konsentrasi 60% DRC, diawetkan amonia rendah, cocok untuk sarung tangan & busa.",
+                        harga=22000, satuan="kg", stok=4500, lat=-2.98, lng=104.76),
+
+                # Perkebunan > Serat & Lainnya
+                Product(seller_id=seller.id, nama_produk="Cocopeat Blok Sabut Kelapa", jenis="Low EC Washed",
+                        kategori="Perkebunan", subkategori="Serat & Lainnya",
+                        deskripsi="Media tanam sabut kelapa pres blok 5kg, sudah dicuci EC < 0.5, daya serap air prima.",
+                        harga=18000, satuan="pack", stok=2400, lat=-7.7, lng=110.3),
+                Product(seller_id=seller.id, nama_produk="Gula Aren Cetak Murni", jenis="Aren Organik",
+                        kategori="Perkebunan", subkategori="Serat & Lainnya",
+                        deskripsi="Nira aren alami tanpa campuran gula pasir/pengawet, aroma karamel wangi khas pegunungan.",
+                        harga=32000, satuan="kg", stok=1600, lat=-6.9, lng=107.0),
+
+                # Perkebunan > Pupuk
+                Product(seller_id=seller.id, nama_produk="Pupuk NPK Khusus Kelapa Sawit", jenis="Formula 13-6-27-4+0.65B",
+                        kategori="Perkebunan", subkategori="Pupuk",
+                        deskripsi="Pupuk majemuk khusus tanaman sawit menghasilkan (TM), kaya kalium & boron pencegah gugur buah.",
+                        harga=16000, satuan="kg", stok=5000, lat=-0.5, lng=101.4),
+
+                # Perkebunan > Obat Kimia Perkebunan
+                Product(seller_id=seller.id, nama_produk="Herbisida Gulma Perkebunan", jenis="Sistemik Glifosat 480SL",
+                        kategori="Perkebunan", subkategori="Obat Kimia Perkebunan",
+                        deskripsi="Herbisida purna tumbuh untuk kendalikan ilalang dan gulma berdaun lebar di piringan kelapa sawit & karet.",
+                        harga=95000, satuan="liter", stok=250, lat=-0.5, lng=101.4),
+
+                # Perkebunan > Vitamin & Nutrisi Tanaman
+                Product(seller_id=seller.id, nama_produk="Biostimulan & Mikoriza Kebun", jenis="Hayati Padat",
+                        kategori="Perkebunan", subkategori="Vitamin & Nutrisi Tanaman",
+                        deskripsi="Inokulan jamur mikoriza memperluas serapan hara akar kopi, sawit, dan bibit tanaman perkebunan.",
+                        harga=78000, satuan="kg", stok=350, lat=-6.8, lng=107.6),
+
+                # Perikanan > Air Tawar
+                Product(seller_id=seller2.id, nama_produk="Lele Sangkuriang Segar", jenis="Sangkuriang Konsumsi",
+                        kategori="Perikanan", subkategori="Air Tawar",
+                        deskripsi="Ukuran isi 7-9 ekor/kg siap konsumsi, dibudidayakan kolam bioflok, daging gurih tanpa bau tanah.",
+                        harga=19500, satuan="kg", stok=2800, lat=-6.889, lng=109.675,
+                        alamat_lahan="Kolam TPI Copalang, Pekalongan"),
+                Product(seller_id=seller2.id, nama_produk="Ikan Nila Merah Segar", jenis="Nila Gesit",
+                        kategori="Perikanan", subkategori="Air Tawar",
+                        deskripsi="Ikan nila merah hidup/segar kolam air deras, size 3-4 ekor/kg, tekstur daging tebal padat.",
+                        harga=34000, satuan="kg", stok=2100, lat=-6.889, lng=109.675),
+
+                # Perikanan > Air Laut
+                Product(seller_id=seller2.id, nama_produk="Udang Vaname Tambak", jenis="Size 40 Segar/Beku",
+                        kategori="Perikanan", subkategori="Air Laut",
+                        deskripsi="Udang vaname fresh harvest dari tambak intensif pesisir utara, size 40, glazing tipis rantai dingin.",
+                        harga=76000, satuan="kg", stok=1900, lat=-6.89, lng=109.68),
+                Product(seller_id=seller2.id, nama_produk="Tuna Loin Sashimi Grade", jenis="Yellowfin Beku",
+                        kategori="Perikanan", subkategori="Air Laut",
+                        deskripsi="Tuna loin loin beku -50C sashimi grade, kemasan vacuum pack, tangkapan nelayan laut dalam.",
+                        harga=98000, satuan="kg", stok=950, lat=-8.7, lng=115.2),
+
+                # Perikanan > Pakan Ikan
+                Product(seller_id=seller2.id, nama_produk="Pakan Ikan Apung Hi-Pro-Vite 781", jenis="Pelet Terapung 2-3mm",
+                        kategori="Perikanan", subkategori="Pakan Ikan",
+                        deskripsi="Pakan ikan lele, nila, gurame protein 31-33%, meningkatkan pertumbuhan dan FCR efisien.",
+                        harga=13500, satuan="kg", stok=4500, lat=-6.889, lng=109.675),
+                Product(seller_id=seller2.id, nama_produk="Pakan Benih Artemia Shell-Free", jenis="Pakan Alami Larva",
+                        kategori="Perikanan", subkategori="Pakan Ikan",
+                        deskripsi="Kista artemia tanpa cangkang siap saji untuk benih ikan dan udang, kaya asam lemak esensial.",
+                        harga=85000, satuan="kaleng", stok=180, lat=-6.89, lng=109.68),
+
+                # Perikanan > Obat Kimia Perikanan
+                Product(seller_id=seller2.id, nama_produk="Disinfektan Kolam Aquasept", jenis="Sterilisasi Air",
+                        kategori="Perikanan", subkategori="Obat Kimia Perikanan",
+                        deskripsi="Cairan pembasmi bakteri vibrio, jamur, dan parasit pada air kolam budidaya tanpa meracuni ikan.",
+                        harga=68000, satuan="botol", stok=240, lat=-6.889, lng=109.675),
+                Product(seller_id=seller2.id, nama_produk="Garam Ikan Non-Yodium Murni", jenis="Kristal Kasar",
+                        kategori="Perikanan", subkategori="Obat Kimia Perikanan",
+                        deskripsi="Garam murni NaCl 98% untuk stabilkan pH, kurangi stres ikan saat tebar benih, dan basmi parasit jamur.",
+                        harga=3500, satuan="kg", stok=6000, lat=-6.89, lng=109.68),
+
+                # Perikanan > Vitamin & Suplemen Ikan
+                Product(seller_id=seller2.id, nama_produk="Vitamin C Aquavit Booster Imun", jenis="Serbuk Campur Pakan",
+                        kategori="Perikanan", subkategori="Vitamin & Suplemen Ikan",
+                        deskripsi="Vitamin C konsentrasi tinggi mencegah penyakit dan tingkatkan sintasan (SR) benih ikan & udang.",
+                        harga=52000, satuan="pack", stok=280, lat=-6.889, lng=109.675),
+                Product(seller_id=seller2.id, nama_produk="Probiotik EM4 Perikanan & Tambak", jenis="Bakteri Fermentasi Cair",
+                        kategori="Perikanan", subkategori="Vitamin & Suplemen Ikan",
+                        deskripsi="Kultur mikroorganisme menguntungkan pengurai amoniak dasar kolam dan penyehat pencernaan ikan.",
+                        harga=32000, satuan="botol", stok=400, lat=-6.889, lng=109.675),
+
+                # Peternakan > Sapi & Kerbau
+                Product(seller_id=seller.id, nama_produk="Sapi Limousin Bakalan Super", jenis="Jantan 380-450 kg",
+                        kategori="Peternakan", subkategori="Sapi & Kerbau",
+                        deskripsi="Sapi bakalan limousin jantan siap penggemukan, vaksin PMK & LSD lengkap, SKKH resmi daerah.",
+                        harga=24500000, satuan="ekor", stok=14, lat=-6.95, lng=109.1,
+                        sertifikasi="SKKH & Vaksin PMK"),
+
+                # Peternakan > Kambing & Domba
+                Product(seller_id=seller.id, nama_produk="Kambing PE 76 Unggul", jenis="PE Jantan Siap Qurban/Breeding",
+                        kategori="Peternakan", subkategori="Kambing & Domba",
+                        deskripsi="Kambing peranakan etawa jantan umur 12-14 bulan, bobot 30-35 kg, postur tegap telinga lemas.",
+                        harga=3200000, satuan="ekor", stok=50, lat=-6.95, lng=109.1,
+                        sertifikasi="SKKH Ternak Brebes"),
+
+                # Peternakan > Unggas
+                Product(seller_id=seller.id, nama_produk="Ayam Broiler Segar Karkas", jenis="Karkas Bersih 1.2-1.4kg",
+                        kategori="Peternakan", subkategori="Unggas",
+                        deskripsi="Ayam broiler potong higienis RPA bersertifikat halal, bersih tanpa jeroan, pendingin terjaga.",
+                        harga=34000, satuan="ekor", stok=1200, lat=-6.95, lng=109.1,
+                        sertifikasi="Halal RPA ID3311"),
+                Product(seller_id=seller.id, nama_produk="Telur Ayam Kampung Asli", jenis="Free-Range Organik",
+                        kategori="Peternakan", subkategori="Unggas",
+                        deskripsi="Telur ayam kampung murni umbaran, kuning telur oranye pekat kaya omega 3, segar panen pagi.",
+                        harga=56000, satuan="kg", stok=450, lat=-6.95, lng=109.1),
+
+                # Peternakan > Babi (NON HALAL)
+                Product(seller_id=seller2.id, nama_produk="Babi Landrace Hidup", jenis="Landrace Super",
+                        kategori="Peternakan", subkategori="Babi",
+                        deskripsi="Babi hidup bobot 70-85 kg dari peternakan berizin resmi. Label NON HALAL.",
+                        harga=2800000, satuan="ekor", stok=18, non_halal=True,
+                        alamat_lahan="Peternakan registered, Nusa Tenggara Timur", lat=-10.17, lng=123.60),
+
+                # Peternakan > Perah Susu
+                Product(seller_id=seller.id, nama_produk="Susu Sapi Segar Pasteurisasi", jenis="Pure Whole Milk",
+                        kategori="Peternakan", subkategori="Perah Susu",
+                        deskripsi="Susu murni peternakan sapi perah dataran tinggi, dipasteurisasi tanpa tambahan air atau gula.",
+                        harga=18000, satuan="liter", stok=600, lat=-7.95, lng=112.65),
+
+                # Peternakan > Lainnya
+                Product(seller_id=seller.id, nama_produk="Madu Murni Lebah Klanceng", jenis="Trigona SP Raw Honey",
+                        kategori="Peternakan", subkategori="Lainnya",
+                        deskripsi="Madu murni tanpa sengat lebah klanceng, rasa manis asam khas kaya antioksidan dan propolis alami.",
+                        harga=140000, satuan="botol", stok=200, lat=-6.95, lng=109.1),
+
+                # Peternakan > Pakan Ternak
+                Product(seller_id=seller.id, nama_produk="Konsentrat Penggemukan Sapi 144", jenis="Konsentrat Pelet",
+                        kategori="Peternakan", subkategori="Pakan Ternak",
+                        deskripsi="Konsentrat pakan sapi potong dan kambing TDN 70%, protein kasar 14%, pemicu bobot harian optimal.",
+                        harga=6800, satuan="kg", stok=7500, lat=-6.95, lng=109.1),
+                Product(seller_id=seller.id, nama_produk="Silase Tebon Jagung Fermentasi", jenis="Silase Pakan Hijauan",
+                        kategori="Peternakan", subkategori="Pakan Ternak",
+                        deskripsi="Tebon jagung manis cacah fermentasi anaerob dengan molase, pakan awet bernutrisi tinggi.",
+                        harga=1600, satuan="kg", stok=12000, lat=-6.87, lng=109.06),
+
+                # Peternakan > Obat Kimia Peternakan
+                Product(seller_id=seller.id, nama_produk="Disinfektan Kandang Medisep", jenis="Cairan Antiseptik",
+                        kategori="Peternakan", subkategori="Obat Kimia Peternakan",
+                        deskripsi="Antiseptik dan disinfektan pembasmi virus, bakteri, dan spora di lantai dan peralatan kandang ternak.",
+                        harga=65000, satuan="botol", stok=260, lat=-6.95, lng=109.1),
+                Product(seller_id=seller.id, nama_produk="Obat Cacing Ternak Albendazole", jenis="Bolus Ternak Besar",
+                        kategori="Peternakan", subkategori="Obat Kimia Peternakan",
+                        deskripsi="Obat cacing spektrum luas basmi cacing hati, lambung, dan paru pada sapi, kerbau, kambing & domba.",
+                        harga=45000, satuan="pack", stok=320, lat=-6.95, lng=109.1),
+
+                # Peternakan > Vitamin & Suplemen Ternak
+                Product(seller_id=seller.id, nama_produk="Mineral Blok Sapi & Kambing", jenis="Blok Jilat 2kg",
+                        kategori="Peternakan", subkategori="Vitamin & Suplemen Ternak",
+                        deskripsi="Mineral jilat lengkap makro mikro mencegah defisiensi kalsium, kelumpuhan, dan tingkatkan nafsu makan.",
+                        harga=38000, satuan="blok", stok=420, lat=-6.95, lng=109.1),
+                Product(seller_id=seller.id, nama_produk="Multivitamin ADE Injeksi/Oral", jenis="Cair Vitamin",
+                        kategori="Peternakan", subkategori="Vitamin & Suplemen Ternak",
+                        deskripsi="Kombinasi vitamin A, D3, dan E pemicu fertilitas indukan dan perbaiki stamina ternak.",
+                        harga=75000, satuan="botol", stok=210, lat=-6.95, lng=109.1),
             ]
             db.session.add_all(demo)
             db.session.commit()
+
+            
+        # Pastikan produk dari seluruh sub kategori terbaru selalu tersedia (walau akun sudah ada)
+        seller_user = User.query.filter_by(role="penjual").first()
+        if seller_user:
+            existing_product_names = {p.nama_produk for p in Product.query.all()}
+            for item in flatten_products():
+                # Jika subkategori belum punya produk sama sekali di DB, tambahkan produk contoh
+                sub_count = Product.query.filter_by(kategori=item["kategori"], subkategori=item["subkategori"]).count()
+                if sub_count == 0:
+                    sample_name = item["nama_produk"]
+                    if sample_name not in existing_product_names:
+                        db.session.add(Product(
+                            seller_id=seller_user.id,
+                            nama_produk=sample_name,
+                            jenis=item["jenis"].split(",")[0].strip() if item["jenis"] else "Standar",
+                            kategori=item["kategori"],
+                            subkategori=item["subkategori"],
+                            deskripsi=f"Produk unggulan {item['nama_produk']} kategori {item['kategori']} subkategori {item['subkategori']} berkualitas tinggi langsung dari produsen.",
+                            harga=45000,
+                            satuan="kg" if item["kategori"] in ("Pertanian", "Perikanan") else "unit",
+                            stok=250,
+                            non_halal=item["non_halal"],
+                            alamat_lahan=seller_user.alamat or "Sentra Agribisnis Indonesia",
+                            lat=seller_user.lat or -6.866,
+                            lng=seller_user.lng or 109.055,
+                            status="aktif"
+                        ))
+                        existing_product_names.add(sample_name)
+            db.session.commit()
+
             # Demo offer + transaksi selesai utk laporan
             o = Offer(product_id=demo[0].id, buyer_id=buyer.id, qty=100,
                       harga_penawaran=40000, total=4_000_000, pesan="Butuh rutin mingguan",

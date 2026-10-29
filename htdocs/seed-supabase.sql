@@ -252,22 +252,68 @@ on conflict (nama) do nothing;
 insert into products (user_id,nama_product,jenis,kategori,sub_kategori,deskripsi,harga,satuan,stok,lat,lng,status)
 select u.id, v.nama, v.jenis, v.kategori, v.sub_kategori, v.deskripsi, v.harga, v.satuan, v.stok, u.lat, u.lng, 'aktif'
 from (values
-  ('penjual@agr.id','Cabai Merah','Biasa','Pertanian','Sayuran','Panen segar grade A, pedas khas dataran tinggi.',62000,'kg',500),
-  ('penjual@agr.id','Tomat Ceri Cherry','Hidroponik','Pertanian','Sayuran','Manis renyah, cocok salad dan jus.',28000,'kg',300),
-  ('paguyuban@agr.id','Brokoli Green Sprouting','Organik','Pertanian','Sayuran','Ditanam tanpa pestisida sintetis.',35000,'kg',200),
-  ('koperasi@agr.id','Mangga Gedong Gincu','Varietas Cirebon','Pertanian','Buah-buahan','Warna oranye kemerahan, aroma kuat.',22000,'kg',800),
-  ('paguyuban@agr.id','Strawberry Festival','Hidroponik','Pertanian','Buah-buahan','Manis asam, petik sendiri tersedia.',45000,'pack',150),
-  ('koperasi@agr.id','Kopi Robusta Green Bean','Grade 1','Perkebunan','Tanaman Tahunan','Roastery-ready, body tebal, low acid.',55000,'kg',1200),
-  ('penjual@agr.id','Kelapa Sawit TBS','Sawi Minyak','Perkebunan','Industri','Tandan buah segar usia tanam 8 tahun.',2400,'kg',5000),
-  ('koperasi@agr.id','Lada Putih Merica','Belitung','Perkebunan','Rempah','Aroma tajam, kadar air kurang dari 12%.',110000,'kg',400),
-  ('paguyuban@agr.id','Nila Salin Fillet','Ukuran 80-100 g','Perikanan','Air Tawar','Budidaya kolam terpal, tanpa bau tanah.',38000,'kg',250),
-  ('penjual@agr.id','Lele Sangkurihan','Ukuran 7-8 per ekor','Perikanan','Air Tawar','Panen harian, pakan pelet organik.',19000,'kg',600),
-  ('koperasi@agr.id','Kerapu Macan Segar','3-5 kg per ekor','Perikanan','Air Laut','Dari keramba laut lepas, es rantai dingin.',135000,'kg',80),
-  ('paguyuban@agr.id','Tuna Loin Beku','Yellowfin','Perikanan','Air Laut','Sashimi grade, frozen -60C.',95000,'kg',300),
-  ('penjual@agr.id','Ayam Broiler Livebird','Ukuran 1.8-2.2 kg','Peternakan','Unggas','DOC CP, panen 33 hari, vaksin lengkap.',18500,'ekor',1000),
-  ('koperasi@agr.id','Sapi Limousin','Jantan 350-450 kg','Peternakan','Sapi/Kerbau','Kandang semi-intensif, riwayat kesehatan lengkap.',38000000,'ekor',12),
+  -- Pertanian > Sayuran & Buah-buahan
+  ('penjual@agr.id','Cabai Merah Keriting','Keriting','Pertanian','Sayuran','Panen segar harian grade A, sortir tangkai bersih. Kemasan karung 20kg / box.',41000,'kg',850),
+  ('penjual@agr.id','Bawang Merah Brebes','Lokal Super','Pertanian','Sayuran','Bawang merah super rendeng Brebes, kadar air rendah, tahan simpan.',32500,'kg',1200),
+  ('paguyuban@agr.id','Tomat Ceri Cherry','Hidroponik','Pertanian','Sayuran','Manis renyah, cocok untuk salad dan jus.',28000,'kg',300),
+  ('koperasi@agr.id','Durian Musang King','Musang King','Pertanian','Buah-buahan','Grade A, bobot 3.5-4.5 kg/buah, jatuh matang pohon.',92000,'kg',320),
+  ('paguyuban@agr.id','Pisang Cavendish Super','Cavendish','Pertanian','Buah-buahan','Mulus standar ekspor, cluster 4-6 fingers, brix manis stabil.',18000,'kg',750),
+
+  -- Pertanian > Pupuk, Obat Kimia & Vitamin
+  ('penjual@agr.id','Pupuk NPK Mutiara 16-16-16','Granul Biru','Pertanian','Pupuk','Pupuk majemuk seimbang NPK untuk pertumbuhan vegetatif dan generatif.',14500,'kg',3500),
+  ('koperasi@agr.id','Pupuk Kompos Organik Granul','Organik Granul','Pertanian','Pupuk','Kompos kotoran ternak dan hijauan terfermentasi actinomycetes.',3500,'kg',8000),
+  ('penjual@agr.id','Insektisida Prevathon 50SC','Kontak-Sistemik','Pertanian','Obat Kimia Pertanian','Ampuh kendalikan ulat grayak dan sundep pada tanaman cabai & padi.',125000,'botol',180),
+  ('paguyuban@agr.id','Fungisida Antracol 70WP','Protektif','Pertanian','Obat Kimia Pertanian','Melindungi tanaman dari bercak daun & busuk daun.',75000,'pack',220),
+  ('penjual@agr.id','Pupuk Daun Gandasil D & B','Serbuk Larut','Pertanian','Vitamin & Nutrisi Tanaman','Nutrisi makro mikro lengkap fase vegetatif dan perangsang buah.',35000,'pack',300),
+  ('paguyuban@agr.id','ZPT Atonik 6.5L Biostimulan','Cair','Pertanian','Vitamin & Nutrisi Tanaman','Zat pengatur tumbuh pemicu perakaran dan ketahanan cuaca.',55000,'botol',190),
+
+  -- Perkebunan > Tanaman Tahunan & Industri
+  ('koperasi@agr.id','Kopi Arabika Gayo','Fullwash Grade 1','Perkebunan','Tanaman Tahunan','Green bean grade 1, defect max 3%, cupping score 84+.',94000,'kg',5200),
+  ('koperasi@agr.id','Biji Kakao Kering Fermentasi','Lindak Fermentasi','Perkebunan','Tanaman Tahunan','Kadar air 7%, aroma cokelat kuat siap roastery & pabrik.',58000,'kg',3200),
+  ('penjual@agr.id','Kelapa Sawit TBS Segar','Marihat TBS','Perkebunan','Tanaman Industri','Tandan buah segar kelapa sawit usia produktif 9 tahun, rendemen tinggi.',2650,'kg',25000),
+  ('koperasi@agr.id','Vanili Planifolia Gourmet','Pod Hitam Kering','Perkebunan','Tanaman Industri','Panjang 17-20 cm, aroma wangi vanilin tinggi, grade ekspor.',850000,'kg',80),
+
+  -- Perkebunan > Rempah, Karet, Serat, Pupuk & Obat Kimia
+  ('koperasi@agr.id','Lada Putih Muntok Super','Muntok Super','Perkebunan','Rempah Perkebunan','Lada putih bangka grade super, aroma tajam, kadar air < 12%.',115000,'kg',1800),
+  ('penjual@agr.id','Cengkeh Kering Bunga Super','Zanzibar Kering','Perkebunan','Rempah Perkebunan','Bunga cengkeh petik merah, jemur matahari alami, kadar minyak tinggi.',128000,'kg',1400),
+  ('penjual@agr.id','Karet Sheet RSS 1','Ribbed Smoked Sheet','Perkebunan','Karet & Getah','Lembaran karet asap mutu 1, elastisitas tinggi, bersih bebas cacat.',28500,'kg',6000),
+  ('penjual@agr.id','Lateks Kebun Pekat 60%','Sentrifugasi','Perkebunan','Karet & Getah','Lateks alami konsentrasi 60% DRC untuk industri busa & sarung tangan.',22000,'kg',4500),
+  ('paguyuban@agr.id','Cocopeat Blok Sabut Kelapa','Low EC Washed','Perkebunan','Serat & Lainnya','Media tanam sabut kelapa pres blok 5kg, sudah dicuci bebas tanin.',18000,'pack',2400),
+  ('penjual@agr.id','Gula Aren Cetak Murni','Organik','Perkebunan','Serat & Lainnya','Nira aren alami tanpa campuran gula pasir, aroma karamel wangi.',32000,'kg',1600),
+  ('penjual@agr.id','Pupuk NPK Khusus Kelapa Sawit','Formula 13-6-27-4','Perkebunan','Pupuk','Pupuk majemuk tanaman sawit menghasilkan (TM) kaya kalium & boron.',16000,'kg',5000),
+  ('penjual@agr.id','Herbisida Gulma Perkebunan','Sistemik 480SL','Perkebunan','Obat Kimia Perkebunan','Herbisida purna tumbuh untuk kendalikan gulma di piringan kebun.',95000,'liter',250),
+  ('paguyuban@agr.id','Biostimulan & Mikoriza Kebun','Hayati Padat','Perkebunan','Vitamin & Nutrisi Tanaman','Inokulan jamur mikoriza memperluas serapan hara bibit kebun.',78000,'kg',350),
+
+  -- Perikanan > Air Tawar & Air Laut
+  ('penjual@agr.id','Lele Sangkuriang Segar','Konsumsi 7-9/kg','Perikanan','Air Tawar','Budidaya bioflok, panen harian, daging gurih tanpa bau lumpur.',19500,'kg',2800),
+  ('paguyuban@agr.id','Ikan Nila Merah Segar','Nila Gesit','Perikanan','Air Tawar','Ikan nila hidup/segar kolam air deras, size 3-4 ekor/kg.',34000,'kg',2100),
+  ('penjual@agr.id','Udang Vaname Tambak','Size 40 Fresh','Perikanan','Air Laut','Fresh harvest dari tambak pesisir, size 40, rantai dingin terjaga.',76000,'kg',1900),
+  ('paguyuban@agr.id','Tuna Loin Sashimi Grade','Yellowfin Beku','Perikanan','Air Laut','Tuna loin beku -50C sashimi grade, vacuum pack tangkapan laut dalam.',98000,'kg',950),
+
+  -- Perikanan > Pakan, Obat & Vitamin Ikan
+  ('koperasi@agr.id','Pakan Ikan Apung Hi-Pro-Vite 781','Pelet Terapung','Perikanan','Pakan Ikan','Pakan lele/nila protein 32%, pertumbuhan cepat dan FCR hemat.',13500,'kg',4500),
+  ('paguyuban@agr.id','Pakan Benih Artemia Shell-Free','Alami Larva','Perikanan','Pakan Ikan','Kista artemia tanpa cangkang siap saji untuk benih ikan & udang.',85000,'kaleng',180),
+  ('penjual@agr.id','Disinfektan Kolam Aquasept','Sterilisasi Air','Perikanan','Obat Kimia Perikanan','Pembasmi bakteri dan parasit air kolam tanpa meracuni biota.',68000,'botol',240),
+  ('penjual@agr.id','Garam Ikan Non-Yodium Murni','Kristal Kasar','Perikanan','Obat Kimia Perikanan','Garam murni untuk stabilkan osmoregulasi dan cegah infeksi jamur.',3500,'kg',6000),
+  ('koperasi@agr.id','Vitamin C Aquavit Booster Imun','Serbuk Campur','Perikanan','Vitamin & Suplemen Ikan','Vitamin C dosis tinggi mencegah stres dan tingkatkan sintasan ikan.',52000,'pack',280),
+  ('penjual@agr.id','Probiotik EM4 Perikanan & Tambak','Bakteri Cair','Perikanan','Vitamin & Suplemen Ikan','Pengurai sisa pakan & amoniak dasar kolam serta penyehat pencernaan.',32000,'botol',400),
+
+  -- Peternakan > Sapi, Kambing, Unggas & Perah Susu
+  ('koperasi@agr.id','Sapi Limousin Bakalan Super','Jantan 380-450kg','Peternakan','Sapi & Kerbau','Sapi bakalan jantan siap penggemukan, vaksin PMK lengkap, SKKH resmi.',24500000,'ekor',14),
+  ('penjual@agr.id','Kambing PE 76 Unggul','Jantan Siap Qurban','Peternakan','Kambing & Domba','Kambing peranakan etawa jantan umur 12-14 bulan, bobot 30-35 kg.',3200000,'ekor',50),
+  ('penjual@agr.id','Ayam Broiler Segar Karkas','Bersih 1.2-1.4kg','Peternakan','Unggas','Ayam broiler potong higienis RPA bersertifikat halal, pendingin aman.',34000,'ekor',1200),
+  ('penjual@agr.id','Telur Ayam Kampung Asli','Free-Range','Peternakan','Unggas','Telur ayam kampung murni umbaran, kuning telur oranye kaya nutrisi.',56000,'kg',450),
+  ('penjual@agr.id','Susu Sapi Segar Pasteurisasi','Pure Whole Milk','Peternakan','Perah Susu','Susu murni peternakan dataran tinggi tanpa pemanis atau pengawet.',18000,'liter',600),
+  ('paguyuban@agr.id','Madu Murni Lebah Klanceng','Trigona Raw','Peternakan','Lainnya','Madu murni lebah tanpa sengat, kaya antioksidan dan propolis alami.',140000,'botol',200),
   ('paguyuban@agr.id','Babi Landrace Hidup','Berat 80-100 kg','Peternakan','Babi','PRODUK NON HALAL - khusus pembeli non-muslim terdaftar.',5500000,'ekor',20),
-  ('penjual@agr.id','Telur Ayam Kampung','Free-range','Peternakan','Unggas','Kuning telur orange pekat.',58000,'kg',120)
+
+  -- Peternakan > Pakan, Obat & Vitamin Ternak
+  ('koperasi@agr.id','Konsentrat Penggemukan Sapi 144','Pelet TDN 70%','Peternakan','Pakan Ternak','Konsentrat pakan sapi potong & kambing protein 14% pemicu bobot cepat.',6800,'kg',7500),
+  ('penjual@agr.id','Silase Tebon Jagung Fermentasi','Hijauan Silase','Peternakan','Pakan Ternak','Tebon jagung cacah fermentasi anaerob bernutrisi tinggi dan awet.',1600,'kg',12000),
+  ('penjual@agr.id','Disinfektan Kandang Medisep','Antiseptik','Peternakan','Obat Kimia Peternakan','Antiseptik dan disinfektan pembasmi virus dan bakteri kandang ternak.',65000,'botol',260),
+  ('penjual@agr.id','Obat Cacing Ternak Albendazole','Bolus Sapi/Kambing','Peternakan','Obat Kimia Peternakan','Obat cacing spektrum luas basmi cacing gilig, pita, dan cacing hati.',45000,'pack',320),
+  ('koperasi@agr.id','Mineral Blok Sapi & Kambing','Blok Jilat 2kg','Peternakan','Vitamin & Suplemen Ternak','Mineral jilat lengkap makro mikro mencegah kelumpuhan dan defisiensi.',38000,'blok',420),
+  ('penjual@agr.id','Multivitamin ADE Ternak Injeksi','Vitamin Ternak','Peternakan','Vitamin & Suplemen Ternak','Kombinasi vitamin A, D3, E pemicu fertilitas dan perbaiki stamina ternak.',75000,'botol',210)
 ) as v(email,nama,jenis,kategori,sub_kategori,deskripsi,harga,satuan,stok)
 join users u on u.email = v.email
 left join products ex on ex.user_id = u.id and ex.nama_product = v.nama

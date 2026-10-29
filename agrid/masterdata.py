@@ -121,6 +121,13 @@ MASTER_PRODUK = {
                 ("Cokelat Olahan", ["Dark Couverture", "Cocoa Nibs", "Cocoa Butter"]),
                 ("Vanili", ["Vanili Planifolia", "Vanili Pod Basah", "Kering", "Powder"]),
             ],
+            "Karet & Getah": [
+                ("Karet Sheet / RSS", ["RSS 1", "RSS 2", "RSS 3"]),
+                ("Karet Lateks", ["Lateks Pekat 60%", "Lateks Kebun"]),
+                ("Karet Remiling / Slab", ["Slab Tebal", "Lump Mangkok"]),
+                ("Getah Pinus", ["Gondorukem", "Terpentin"]),
+                ("Getah Damar", ["Mata Kucing", "Damar Batu"]),
+            ],
             "Rempah Perkebunan": [
                 ("Lada", ["Putih", "Hitam", "Hijau", "Lada Petaling"]),
                 ("Cengkeh", ["Tangkai/Bunga Kering", "Minyak Cengkeh", "Bugil"]),
