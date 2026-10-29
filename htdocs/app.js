@@ -25,11 +25,75 @@ async function api(action, opts={}){
 }
 const rp = n => 'Rp ' + Number(n||0).toLocaleString('id-ID');
 const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// Katalog foto ilustrasi realistik untuk contoh produk
+const PRODUCT_ILLUSTRATIONS = {
+  'Cabai Merah Keriting': 'products/cabai-merah-keriting.jpg',
+  'Bawang Merah Brebes': 'products/bawang-merah-brebes.jpg',
+  'Tomat Cherry Hidroponik': 'products/tomat-cherry-hidroponik.jpg',
+  'Tomat Ceri Cherry': 'products/tomat-cherry-hidroponik.jpg',
+  'Durian Musang King': 'products/durian-musang-king.jpg',
+  'Pisang Cavendish Super': 'products/pisang-cavendish-super.jpg',
+  'Pupuk NPK Mutiara 16-16-16': 'products/pupuk-npk-mutiara.jpg',
+  'Pupuk Kompos Organik Granul': 'products/pupuk-kompos-organik.jpg',
+  'Insektisida Prevathon 50SC': 'products/insektisida-prevathon.jpg',
+  'Fungisida Antracol 70WP': 'products/fungisida-antracol.jpg',
+  'Pupuk Daun Gandasil D & B': 'products/pupuk-daun-gandasil.jpg',
+  'ZPT Atonik 6.5L Biostimulan': 'products/zpt-atonik-biostimulan.jpg',
+  'Kopi Arabika Gayo': 'products/kopi-arabika-gayo.jpg',
+  'Biji Kakao Kering Fermentasi': 'products/biji-kakao-fermentasi.jpg',
+  'Kelapa Sawit TBS Segar': 'products/kelapa-sawit-tbs.jpg',
+  'Vanili Planifolia Gourmet': 'products/vanili-planifolia-gourmet.jpg',
+  'Lada Putih Muntok Super': 'products/lada-putih-muntok.jpg',
+  'Cengkeh Kering Bunga Super': 'products/cengkeh-kering-super.jpg',
+  'Karet Sheet RSS 1': 'products/karet-sheet-rss1.jpg',
+  'Lateks Kebun Pekat 60%': 'products/lateks-kebun-pekat.jpg',
+  'Cocopeat Blok Sabut Kelapa': 'products/cocopeat-blok-kelapa.jpg',
+  'Gula Aren Cetak Murni': 'products/gula-aren-cetak-murni.jpg',
+  'Pupuk NPK Khusus Kelapa Sawit': 'products/pupuk-npk-kelapa-sawit.jpg',
+  'Herbisida Gulma Perkebunan': 'products/herbisida-gulma-kebun.jpg',
+  'Biostimulan & Mikoriza Kebun': 'products/biostimulan-mikoriza.jpg',
+  'Lele Sangkuriang Segar': 'products/lele-sangkuriang-segar.jpg',
+  'Ikan Nila Merah Segar': 'products/ikan-nila-merah-segar.jpg',
+  'Udang Vaname Tambak': 'products/udang-vaname-tambak.jpg',
+  'Tuna Loin Sashimi Grade': 'products/tuna-loin-sashimi.jpg',
+  'Pakan Ikan Apung Hi-Pro-Vite 781': 'products/pakan-ikan-apung.jpg',
+  'Pakan Benih Artemia Shell-Free': 'products/pakan-benih-artemia.jpg',
+  'Disinfektan Kolam Aquasept': 'products/disinfektan-kolam-aquasept.jpg',
+  'Garam Ikan Non-Yodium Murni': 'products/garam-ikan-non-yodium.jpg',
+  'Vitamin C Aquavit Booster Imun': 'products/vitamin-c-aquavit-booster.jpg',
+  'Probiotik EM4 Perikanan & Tambak': 'products/probiotik-em4-perikanan.jpg',
+  'Sapi Limousin Bakalan Super': 'products/sapi-limousin-bakalan.jpg',
+  'Kambing PE 76 Unggul': 'products/kambing-pe-unggul.jpg',
+  'Ayam Broiler Segar Karkas': 'products/ayam-broiler-segar-karkas.jpg',
+  'Telur Ayam Kampung Asli': 'products/telur-ayam-kampung-asli.jpg',
+  'Babi Landrace Hidup': 'products/babi-landrace-hidup.jpg',
+  'Susu Sapi Segar Pasteurisasi': 'products/susu-sapi-segar-pasteurisasi.jpg',
+  'Madu Murni Lebah Klanceng': 'products/madu-murni-lebah-klanceng.jpg',
+  'Konsentrat Penggemukan Sapi 144': 'products/konsentrat-penggemukan-sapi.jpg',
+  'Silase Tebon Jagung Fermentasi': 'products/silase-tebon-jagung.jpg',
+  'Disinfektan Kandang Medisep': 'products/disinfektan-kandang-medisep.jpg',
+  'Obat Cacing Ternak Albendazole': 'products/obat-cacing-ternak-albendazole.jpg',
+  'Mineral Blok Sapi & Kambing': 'products/mineral-blok-sapi-kambing.jpg',
+  'Multivitamin ADE Injeksi/Oral': 'products/multivitamin-ade-ternak.jpg',
+  'Multivitamin ADE Ternak Injeksi': 'products/multivitamin-ade-ternak.jpg'
+};
+
+const CAT_FALLBACK = {
+  'Pertanian': 'products/cabai-merah-keriting.jpg',
+  'Perkebunan': 'products/kopi-arabika-gayo.jpg',
+  'Perikanan': 'products/ikan-nila-merah-segar.jpg',
+  'Peternakan': 'products/sapi-limousin-bakalan.jpg'
+};
+
 const fotoP = p => {
-  if(!p.foto) return '';
-  if(/^https?:\/\//.test(p.foto)) return p.foto;            // URL lengkap (mis. seed demo)
+  if(!p) return '';
+  let f = p.foto || PRODUCT_ILLUSTRATIONS[p.nama_product || p.nama_produk] || CAT_FALLBACK[p.kategori];
+  if(!f) return '';
+  if(/^https?:\/\//.test(f)) return f;
+  if(f.startsWith('/static/')) return f.replace(/^\/static\//, '');
+  if(f.startsWith('/') || f.startsWith('./') || f.startsWith('products/')) return f;
   const cn = (typeof CLOUD_NAME!=='undefined'&&CLOUD_NAME)?CLOUD_NAME:(window.CLOUD_NAME||'');
-  return 'https://res.cloudinary.com/'+(cn||'demo')+'/image/upload/w_600,f_auto,q_auto/'+encodeURIComponent(p.foto);
+  return 'https://res.cloudinary.com/'+(cn||'demo')+'/image/upload/w_600,f_auto,q_auto/'+encodeURIComponent(f);
 };
 
 /* ==================== ROUTER SPA ==================== */

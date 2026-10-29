@@ -10,9 +10,20 @@
               title="Simpan produk favorit">{{ '❤️' if (fav_products is defined and p.id in fav_products) or (fav is defined and fav.product) else '🤍' }}</button>
     </form>
     {% endif %}
-    <div style="height:130px;background:#e8f2e8;display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative">
-      {% if p.foto %}<img src="{{ p.foto }}" class="w-100 h-100 object-fit-cover">{% else %}
-        {{ {'Pertanian':'🥬','Perkebunan':'☕','Perikanan':'🐟','Peternakan':'🐄'}[p.kategori] }}{% endif %}
+    <div style="height:140px;background:#e8f2e8;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
+      {% if p.foto %}
+        <img src="{{ p.foto }}" alt="{{ p.nama_produk }}" class="w-100 h-100 object-fit-cover" loading="lazy">
+      {% elif p.kategori == 'Pertanian' %}
+        <img src="/static/products/cabai-merah-keriting.jpg" alt="{{ p.nama_produk }}" class="w-100 h-100 object-fit-cover" loading="lazy">
+      {% elif p.kategori == 'Perkebunan' %}
+        <img src="/static/products/kopi-arabika-gayo.jpg" alt="{{ p.nama_produk }}" class="w-100 h-100 object-fit-cover" loading="lazy">
+      {% elif p.kategori == 'Perikanan' %}
+        <img src="/static/products/ikan-nila-merah-segar.jpg" alt="{{ p.nama_produk }}" class="w-100 h-100 object-fit-cover" loading="lazy">
+      {% elif p.kategori == 'Peternakan' %}
+        <img src="/static/products/sapi-limousin-bakalan.jpg" alt="{{ p.nama_produk }}" class="w-100 h-100 object-fit-cover" loading="lazy">
+      {% else %}
+        <span style="font-size:3rem">{{ {'Pertanian':'🥬','Perkebunan':'☕','Perikanan':'🐟','Peternakan':'🐄'}.get(p.kategori, '🌾') }}</span>
+      {% endif %}
       {% if p.non_halal %}<span class="badge badge-nonhalal position-absolute top-0 start-0">⚠️ NON HALAL</span>{% endif %}
       {% if p.sertifikasi %}<span class="badge bg-success position-absolute bottom-0 end-0 halal-chip">✅ {{ p.sertifikasi[:18] }}</span>{% endif %}
     </div>
