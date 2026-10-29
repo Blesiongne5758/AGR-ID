@@ -629,6 +629,30 @@ switch ($action) {
         out(['ok' => true, 'url' => "https://res.cloudinary.com/{$CFG['cloudinary_cloud']}/image/authenticated/s--{$sig}--/v{$exp}/{$pubId}?e=expire:{$exp}"]);
     }
 
+    /* ---- DATA PEMBAYARAN PER AKUN ---- */
+    case 'seller-payment-settings': {
+        $u = require_session($token);
+        $settingKey = 'pembayaran_penjual_' . (int)$u['id'];
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
+            $rows = get_pengaturan($settingKey);
+            $cfg = json_decode((string)($rows[0]['value'] ?? ''), true);
+            if (!is_array($cfg)) $cfg = [];
+            out(['ok' => true] + array_merge(['metode_dp' => ['Transfer Bank'], 'rekening' => '', 'qris' => '', 'tujuan_tunai' => ''], $cfg));
+        }
+        $b = body_json();
+        $allowed = ['Transfer Bank', 'QRIS', 'Tunai'];
+        $methods = array_values(array_intersect($allowed, is_array($b['metode_dp'] ?? null) ? $b['metode_dp'] : []));
+        $cfg = [
+            'metode_dp' => $methods ?: ['Transfer Bank'],
+            'rekening' => trim((string)($b['rekening'] ?? '')),
+            'qris' => trim((string)($b['qris'] ?? '')),
+            'tujuan_tunai' => trim((string)($b['tujuan_tunai'] ?? '')),
+        ];
+        if (strlen($cfg['rekening']) > 160 || strlen($cfg['qris']) > 500 || strlen($cfg['tujuan_tunai']) > 300) err('Data pembayaran terlalu panjang', 422);
+        $saved = sb_rpc('agr_seller_payment_settings_save', ['p_token' => $token, 'p_settings' => $cfg]);
+        out(['ok' => true, 'settings' => is_array($saved) ? $saved : $cfg]);
+    }
+
     /* ---- PENGATURAN admin ---- */
     case 'settings': {
         if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') { out(get_pengaturan()); }
@@ -700,4 +724,3 @@ function require_admin(string $token): array {
     if ($u['role'] !== 'admin') err('Akses khusus admin', 403);
     return $u;
 }
-

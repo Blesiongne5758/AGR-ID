@@ -266,7 +266,7 @@ textarea.form-control{ min-height:80px; }
 /* ===================== HERO & FOOTER ===================== */
 .hero{ background:linear-gradient(rgba(39,51,46,.80),rgba(39,51,46,.86)),url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1600&q=60') center/cover; color:#fff; }
 .hero h1{ font-size:clamp(1.8rem,4vw,3rem); font-weight:800; letter-spacing:-.04em; }
-.footer{ background:#354d43; color:#e3e8e0; }
+.footer{ background:#354d43; color:#bcdcc0; }
 .footer b,.footer h5{ color:#fff; }
 .footer a{ color:#f0f1eb; }
 .footer a:hover{ color:#d6ad68; }
@@ -399,6 +399,7 @@ html.dark ::placeholder{ color:hsl(var(--muted-foreground)); }
 /* transisi halus saat ganti tema */
 body,.card,.modal-content,.dropdown-menu,.form-control,.form-select,.table thead th{ transition:background-color .2s,color .2s,border-color .2s; }
 
+
 /* AGR.BIZ.ID refinement: clear rhythm, readable controls, calm surfaces */
 body{line-height:1.6;letter-spacing:0;-webkit-font-smoothing:antialiased}
 .container{--bs-gutter-x:1.5rem}
@@ -410,4 +411,64 @@ body{line-height:1.6;letter-spacing:0;-webkit-font-smoothing:antialiased}
 .navbar-agrid{background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border-bottom:1px solid hsl(var(--border))}
 @media(max-width:575.98px){.container{--bs-gutter-x:1.15rem}.card-body,.card-content{padding:1rem}.hero{border-radius:0}}
 
-/* 60-30-10 distribution: porcelain base, eucalyptus surfaces, harvest-gold accents. */
+/* Responsive account controls and role dashboard navigation */
+.account-settings-page{max-width:1040px}
+.settings-header{display:flex;align-items:center;padding:1.25rem 1.4rem;background:hsl(var(--card))}
+.settings-header h4{font-size:1.15rem}
+.settings-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.65rem;border:0;margin:0 0 1.35rem}
+.settings-tabs .nav-item{min-width:0}
+.settings-tabs .nav-link{--tab-color:157 21% 34%;display:flex;align-items:center;justify-content:center;gap:.45rem;width:100%;min-height:54px;padding:.7rem .75rem;border:1px solid hsl(var(--tab-color)/.25);border-left:4px solid hsl(var(--tab-color));border-radius:.68rem;background:hsl(var(--tab-color)/.09);color:hsl(var(--foreground));font-size:.84rem;font-weight:600;text-align:center;white-space:normal}
+.settings-tabs .nav-item:nth-child(2) .nav-link{--tab-color:38 57% 52%}
+.settings-tabs .nav-item:nth-child(3) .nav-link{--tab-color:208 19% 46%}
+.settings-tabs .nav-item:nth-child(4) .nav-link{--tab-color:330 20% 52%}
+.settings-tabs .nav-link:hover,.settings-tabs .nav-link.active{border-color:hsl(var(--tab-color)/.38);border-left-color:hsl(var(--tab-color));background:hsl(var(--tab-color)/.1);color:hsl(var(--foreground));box-shadow:var(--shadow-xs)}
+.settings-tab-content{min-width:0;padding-top:.25rem}
+.settings-tab-content>.tab-pane{min-width:0}
+.settings-form{max-width:880px}
+.settings-form .form-control,.settings-form .form-select{min-height:2.8rem}
+.settings-submit{min-height:48px;min-width:min(100%,210px)}
+.settings-section-intro{margin:.25rem 0 1rem}
+.settings-methods{display:flex;flex-wrap:wrap;gap:.65rem}
+.settings-method{display:flex;align-items:center;gap:.45rem;min-width:145px;padding:.7rem .85rem;border:1px solid hsl(var(--border));border-radius:.75rem;background:hsl(var(--muted)/.5);font-weight:550}
+.settings-method .form-check-input{margin:0}
+.settings-password-form{max-width:540px}
+.settings-mode-button{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:52px;width:min(100%,340px);padding:.75rem 1rem;white-space:normal;line-height:1.35}
+.settings-role-action{display:flex;flex-wrap:wrap;align-items:center;gap:.8rem}
+.dashboard-shortcuts{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem}
+.dashboard-shortcuts .btn{min-height:44px;white-space:normal}
+.dashboard-action-tabs{display:flex;flex-wrap:wrap;gap:.55rem;border:0}
+.dashboard-action-tabs .nav-item{min-width:0}
+.dashboard-action-tabs .nav-link{--tab-color:157 21% 34%;display:flex;align-items:center;justify-content:flex-start;gap:.3rem;min-height:50px;padding:.65rem .8rem;border:1px solid hsl(var(--tab-color)/.25);border-left:4px solid hsl(var(--tab-color));border-radius:.68rem;background:hsl(var(--tab-color)/.09);color:hsl(var(--foreground));font-size:.83rem;font-weight:600;line-height:1.3;white-space:normal}
+.dashboard-action-tabs .nav-item:nth-child(2) .nav-link{--tab-color:38 57% 52%}
+.dashboard-action-tabs .nav-item:nth-child(3) .nav-link{--tab-color:208 19% 46%}
+.dashboard-action-tabs .nav-item:nth-child(4) .nav-link{--tab-color:152 24% 42%}
+.dashboard-action-tabs .nav-item:nth-child(5) .nav-link{--tab-color:330 20% 52%}
+.dashboard-action-tabs .nav-item:nth-child(6) .nav-link{--tab-color:28 48% 52%}
+.dashboard-action-tabs .nav-item:nth-child(7) .nav-link{--tab-color:180 18% 44%}
+.dashboard-action-tabs .nav-item:nth-child(8) .nav-link{--tab-color:260 12% 50%}
+.dashboard-action-tabs .nav-link:hover,.dashboard-action-tabs .nav-link.active{border-color:hsl(var(--tab-color)/.4);border-left-color:hsl(var(--tab-color));background:hsl(var(--tab-color)/.11);color:hsl(var(--foreground));box-shadow:var(--shadow-xs)}
+/* A subtle transparent illustration unifies farming, plantations, fisheries and livestock. */
+body{background-image:url("agri-ecosystem.svg");background-repeat:no-repeat;background-position:right 3vw bottom 2rem;background-size:min(46vw,620px);background-attachment:fixed}
+@media(max-width:991.98px){
+  .navbar-agrid .navbar-collapse.show{align-items:stretch}
+  .navbar-agrid .navbar-collapse.show .navbar-nav .nav-link{padding:.65rem .25rem}
+}
+@media(max-width:767.98px){
+  .settings-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}
+  .settings-tabs .nav-link{min-height:56px;padding:.6rem .45rem;font-size:.78rem;border-radius:.62rem}
+  .settings-header{padding:1rem}
+  .settings-tab-content{padding-top:.35rem}
+  .dashboard-heading{align-items:stretch!important}
+  .dashboard-heading h4{font-size:1.05rem}
+  .dashboard-shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:.5rem}
+  .dashboard-shortcuts .btn{display:flex;align-items:center;justify-content:center;min-width:0;min-height:48px;padding:.55rem .45rem;font-size:.78rem}
+  .dashboard-action-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}
+  .dashboard-action-tabs .nav-item{width:100%}
+  .dashboard-action-tabs .nav-link{width:100%;min-height:56px;padding:.55rem .6rem;font-size:.78rem;border-radius:.62rem}
+  body{background-position:right -3rem bottom 5rem;background-size:min(88vw,460px);background-attachment:scroll}
+  .settings-form .btn{max-width:100%}
+}
+@media(max-width:359.98px){
+  .settings-tabs,.dashboard-action-tabs{grid-template-columns:1fr}
+  .dashboard-shortcuts{grid-template-columns:1fr}
+}

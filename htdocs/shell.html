@@ -7,7 +7,7 @@
 <title>AGR.BIZ.ID — Agrikultur Bisnis Indonesia</title>
 <meta name="description" content="AGR.BIZ.ID mempertemukan petani, peternak dan nelayan langsung dengan pembeli: penawaran harga, booking DP, pembayaran, eviden & ketelusuran.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 
@@ -29,6 +29,14 @@
 
 <!-- ================= APP (SPA router mengisi area ini) ================= -->
 <main class="container" id="app"></main>
+
+<nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Navigasi utama">
+  <a class="mobile-nav-item" data-nav="home" href="#/beranda"><i aria-hidden="true">⌂</i><span>Home</span></a>
+  <a class="mobile-nav-item" data-nav="search" href="#/marketplace"><i aria-hidden="true">⌕</i><span>Cari</span></a>
+  <a class="mobile-nav-item mobile-nav-add" data-nav="add" href="#/produk-baru"><i aria-hidden="true">＋</i><span>Tambah</span></a>
+  <a class="mobile-nav-item" data-nav="messages" href="#/pesan"><i aria-hidden="true">✉</i><span>Pesan</span></a>
+  <a class="mobile-nav-item" data-nav="profile" href="#/login"><i aria-hidden="true">◎</i><span>Saya</span></a>
+</nav>
 
 <!-- ================= FOOTER ================= -->
 <footer class="f-bot">
@@ -78,6 +86,6 @@
 <div id="toasts"></div>
 
 <script src="data-master.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

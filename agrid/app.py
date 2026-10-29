@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 45650)
-Total output lines: 3385
-
 # -*- coding: utf-8 -*-
 """
 AGR.BIZ.ID - Marketplace Pertanian, Perkebunan, Perikanan & Peternakan
@@ -1131,7 +1128,1216 @@ def approve_auction_event(event_id):
             flash("Atur biaya administrasi peserta dan biaya penjual di pengaturan admin dengan nilai lebih dari nol sebelum menyetujui event.", "danger")
         else:
             event.biaya_peserta = biaya_peserta
-            event.biaya_penjual = biaya…15650 tokens truncated…      + (f" + transfer crypto {txh[:16]}…" if txh else ""))
+            event.biaya_penjual = biaya_penjual
+            event.disetujui_pada = datetime.utcnow()
+            event.catatan_admin = request.form.get("catatan_admin", "").strip()[:1000] or None
+            event.status = "menunggu_biaya_penjual" if biaya_penjual > 0 else "terjadwal"
+            event.biaya_penjual_lunas = biaya_penjual <= 0
+            db.session.commit()
+            audit_current("event_lelang_disetujui", "lelang_events", event.id,
+                          f"biaya peserta Rp{biaya_peserta:g}; biaya penjual Rp{biaya_penjual:g}")
+            flash("Pengajuan disetujui. Penjual harus melunasi biaya event sebelum event ditayangkan." if biaya_penjual > 0
+                  else "Pengajuan disetujui dan event ditayangkan.", "success")
+    return redirect(url_for("dashboard_admin") + "#tAuctionAdmin")
+
+
+@app.route("/admin/lelang/<int:event_id>/tolak", methods=["POST"])
+@login_required("admin")
+def reject_auction_event(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    if event.status != "diajukan":
+        flash("Hanya pengajuan event yang menunggu tinjauan yang dapat ditolak.", "warning")
+    else:
+        event.status = "ditolak"
+        event.catatan_admin = request.form.get("catatan_admin", "").strip()[:1000] or "Pengajuan ditolak admin."
+        for item in event.items:
+            if item.product and item.product.status == "lelang":
+                item.product.status = "aktif"
+        db.session.commit()
+        audit_current("event_lelang_ditolak", "lelang_events", event.id, event.catatan_admin)
+        flash("Pengajuan event ditolak dan stok produk dikembalikan ke marketplace.", "info")
+    return redirect(url_for("dashboard_admin") + "#tAuctionAdmin")
+
+
+@app.route("/lelang/<int:event_id>")
+def auction_detail(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    cu = current_user()
+    if event.status in ("diajukan", "ditolak", "menunggu_biaya_penjual") and not (
+        cu and (cu.id == event.seller_id or cu.active_role == "admin")
+    ):
+        abort(404)
+    participant = LelangParticipant.query.filter_by(event_id=event.id, buyer_id=cu.id).first() if cu and cu.active_role == "pembeli" else None
+    seller_view = bool(cu and cu.active_role == "penjual" and cu.id == event.seller_id)
+    highest = event.tawaran_tertinggi
+    winner = event.pemenang or (highest.buyer if highest and event.status == "selesai" else None)
+    is_winner = bool(winner and cu and cu.active_role == "pembeli" and winner.id == cu.id and
+                     event.status in ("menunggu_pembayaran_pemenang", "tenggat_pemenang_lewat", "selesai"))
+    winner_price = event.harga_pemenang or (highest.nominal if highest else 0)
+    next_bidder_candidates = [bid for bid in event.peringkat_tawaran if bid.buyer_id != event.pemenang_id]
+    return render_template("auction_detail.html", event=event, user=cu, participant=participant,
+                           highest=highest, winner=winner, seller_view=seller_view, is_winner=is_winner,
+                           admin_view=bool(cu and cu.active_role == "admin"),
+                           next_bidder_candidates=next_bidder_candidates,
+                           default_next_payment_deadline=(datetime.now(WIB) + timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M"),
+                           winner_price=winner_price,
+                           minimum_bid=int(highest.nominal if highest else event.harga_awal) + 1,
+                           bid_history=sorted(event.bids, key=lambda b: (b.nominal, -b.id), reverse=True),
+                           ticker=ticker_data())
+
+
+@app.route("/lelang/<int:event_id>/hasil")
+def auction_results(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    cu = current_user()
+    if event.status in ("diajukan", "ditolak", "menunggu_biaya_penjual") and not (
+        cu and (cu.id == event.seller_id or cu.active_role == "admin")
+    ):
+        abort(404)
+    bids = sorted(event.bids, key=lambda bid: (bid.nominal, -bid.id), reverse=True)
+    highest = event.tawaran_tertinggi
+    return jsonify({
+        "status": event.status,
+        "bids": [{"id": bid.id, "buyer": bid.buyer.nama, "nominal": bid.nominal,
+                  "catatan": bid.catatan or "", "created_at": wibfmt(bid.created_at)} for bid in bids],
+        "highest": {"nominal": highest.nominal, "buyer": highest.buyer.nama} if highest else None,
+        "minimum_bid": int(highest.nominal if highest else event.harga_awal) + 1,
+    })
+
+
+@app.route("/lelang/<int:event_id>/ikut", methods=["POST"])
+@login_required("pembeli")
+def join_auction(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    now = datetime.utcnow()
+    if event.status not in ("terjadwal", "berlangsung") or event.selesai <= now:
+        flash("Pendaftaran peserta untuk event ini sudah ditutup.", "warning")
+    elif not request.form.get("setuju_syarat"):
+        flash("Anda harus menyetujui syarat dan ketentuan event sebelum mendaftar.", "warning")
+    elif not LelangParticipant.query.filter_by(event_id=event.id, buyer_id=current_user().id).first():
+        fee = max(0, event.biaya_peserta or 0)
+        db.session.add(LelangParticipant(event_id=event.id, buyer_id=current_user().id,
+                                         biaya_administrasi=fee, biaya_lunas=fee == 0,
+                                         dibayar_pada=now if fee == 0 else None))
+        db.session.commit()
+        audit_current("pembeli_mendaftar_lelang", "lelang_events", event.id,
+                      f"setuju syarat; biaya administrasi Rp{fee:g}")
+        flash("Pendaftaran tercatat. Lunasi biaya administrasi sebelum mengajukan tawaran." if fee else
+              "Pendaftaran dan persetujuan syarat berhasil. Anda dapat menawar saat lelang berlangsung.",
+              "warning" if fee else "success")
+    else:
+        flash("Anda sudah terdaftar sebagai peserta event ini.", "info")
+    return redirect(url_for("auction_detail", event_id=event.id))
+
+
+@app.route("/lelang/<int:event_id>/biaya-penjual", methods=["POST"])
+@login_required("penjual")
+def pay_auction_seller_fee(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    if event.seller_id != current_user().id or event.status != "menunggu_biaya_penjual":
+        flash("Pembayaran biaya event ini tidak tersedia.", "warning")
+    elif event.selesai <= datetime.utcnow():
+        flash("Jadwal event sudah lewat. Hubungi admin untuk mengajukan jadwal baru.", "danger")
+    else:
+        method = request.form.get("metode", "qris").strip().lower()
+        if method not in {"qris", "virtual_account", "ewallet", "bank_transfer"}:
+            method = "qris"
+        ref = "AUC-SELLER-" + datetime.now().strftime("%Y%m%d%H%M%S") + "-" + str(random.randint(1000, 9999))
+        event.biaya_penjual_lunas = True
+        event.ref_biaya_penjual = f"{ref}:{method}"
+        now = datetime.utcnow()
+        event.status = "berlangsung" if event.mulai <= now else "terjadwal"
+        db.session.commit()
+        audit_current("biaya_lelang_penjual_dibayar", "lelang_events", event.id, f"Rp{event.biaya_penjual:g}; ref {ref}")
+        flash(f"Biaya event dicatat lunas (simulasi payment gateway), ref {ref}. Event kini tayang.", "success")
+    return redirect(url_for("auction_detail", event_id=event.id))
+
+
+@app.route("/lelang/<int:event_id>/biaya-peserta", methods=["POST"])
+@login_required("pembeli")
+def pay_auction_participant_fee(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    participant = LelangParticipant.query.filter_by(event_id=event.id, buyer_id=current_user().id).first()
+    if not participant:
+        flash("Daftar sebagai peserta dan setujui syarat event terlebih dahulu.", "warning")
+    elif participant.biaya_lunas:
+        flash("Biaya administrasi event sudah lunas.", "info")
+    elif event.status not in ("terjadwal", "berlangsung") or event.selesai <= datetime.utcnow():
+        flash("Pembayaran peserta untuk event ini sudah ditutup.", "warning")
+    else:
+        method = request.form.get("metode", "qris").strip().lower()
+        if method not in {"qris", "virtual_account", "ewallet", "bank_transfer"}:
+            method = "qris"
+        ref = "AUC-BUYER-" + datetime.now().strftime("%Y%m%d%H%M%S") + "-" + str(random.randint(1000, 9999))
+        participant.biaya_lunas = True
+        participant.ref_pembayaran = f"{ref}:{method}"
+        participant.dibayar_pada = datetime.utcnow()
+        db.session.commit()
+        audit_current("biaya_administrasi_lelang_dibayar", "lelang_events", event.id,
+                      f"pembeli #{current_user().id}; Rp{participant.biaya_administrasi:g}; ref {ref}")
+        flash(f"Biaya administrasi dicatat lunas (simulasi payment gateway), ref {ref}.", "success")
+    return redirect(url_for("auction_detail", event_id=event.id))
+
+
+@app.route("/kalender")
+@login_required()
+def calendar_page():
+    u = current_user()
+    entries = []
+    dashboard_endpoint = {"penjual": "dashboard_seller", "pembeli": "dashboard_buyer"}.get(u.active_role, "dashboard_admin")
+    dashboard_url = url_for(dashboard_endpoint)
+
+    def add_entry(when, kind, title, description="", location="", event_url=None):
+        if when:
+            entries.append({"when": when, "kind": kind, "title": title,
+                            "description": description, "location": location, "url": event_url})
+
+    participant_rows = LelangParticipant.query.filter_by(buyer_id=u.id).all() if u.active_role == "pembeli" else []
+    joined_event_ids = {row.event_id for row in participant_rows}
+    if u.active_role == "penjual":
+        auctions = LelangEvent.query.filter_by(seller_id=u.id).all()
+    elif u.active_role == "pembeli":
+        auctions = LelangEvent.query.filter(LelangEvent.id.in_(joined_event_ids or [-1])).all()
+    else:
+        auctions = LelangEvent.query.all()
+
+    for event in auctions:
+        event_url = url_for("auction_detail", event_id=event.id)
+        add_entry(event.mulai, "Lelang", f"Mulai lelang: {event.judul}",
+                  f"Status: {event.status.replace('_', ' ')}", event.alamat_lokasi, event_url)
+        add_entry(event.selesai, "Lelang", f"Penawaran ditutup: {event.judul}",
+                  f"Status: {event.status.replace('_', ' ')}", event.alamat_lokasi, event_url)
+        if event.jadwal_pengambilan:
+            add_entry(event.jadwal_pengambilan, "Pengambilan", f"Pengambilan paket lelang: {event.judul}",
+                      "Jadwal pengambilan yang ditetapkan penjual", event.alamat_lokasi, event_url)
+        for award in event.awards:
+            if u.active_role == "admin" or u.id in (event.seller_id, award.buyer_id):
+                add_entry(award.ditetapkan_pada, "Hasil lelang", f"Pemenang ditetapkan: {event.judul}",
+                          f"{award.buyer.nama} · Rp{award.nominal:,.0f}", event.alamat_lokasi, event_url)
+                add_entry(award.batas_bayar, "Tenggat pembayaran", f"Batas pembayaran pemenang: {event.judul}",
+                          f"{award.buyer.nama} · status {award.status}", event.alamat_lokasi, event_url)
+                if award.dibayar_pada:
+                    add_entry(award.dibayar_pada, "Pembelian lelang", f"Pembayaran pemenang: {event.judul}",
+                              f"{award.buyer.nama} · Rp{award.nominal:,.0f} · lunas", event.alamat_lokasi, event_url)
+        for registration in event.participants:
+            if u.active_role == "admin" or u.id == event.seller_id or registration.buyer_id == u.id:
+                add_entry(registration.created_at, "Pendaftaran lelang", f"Pendaftaran peserta: {event.judul}",
+                          f"{registration.buyer.nama} · biaya administrasi {'lunas' if registration.biaya_lunas else 'menunggu pembayaran'}",
+                          event.alamat_lokasi, event_url)
+        for bid in event.bids:
+            if u.active_role == "admin" or u.id == event.seller_id or bid.buyer_id == u.id:
+                who = "Anda" if bid.buyer_id == u.id else bid.buyer.nama
+                add_entry(bid.created_at, "Penawaran", f"Penawaran lelang: {event.judul}",
+                          f"{who} · Rp{bid.nominal:,.0f}", event.alamat_lokasi, event_url)
+
+    bookings_query = Booking.query.join(Offer, Booking.offer_id == Offer.id)
+    if u.active_role == "pembeli":
+        bookings_query = bookings_query.filter(Offer.buyer_id == u.id)
+    elif u.active_role == "penjual":
+        bookings_query = bookings_query.join(Product, Offer.product_id == Product.id).filter(Product.seller_id == u.id)
+    for booking in bookings_query.all():
+        offer = booking.offer
+        seller = offer.product.seller
+        description = f"{offer.product.nama_produk} · pembeli {offer.buyer.nama} · status {booking.status.replace('_', ' ')}"
+        add_entry(booking.created_at, "Pemesanan", f"Pemesanan #{booking.id}: {offer.product.nama_produk}",
+                  description, seller.alamat if not booking.ekspedisi_id else "", dashboard_url)
+        if booking.jadwal_kirim:
+            shipment_date = datetime.combine(booking.jadwal_kirim, datetime.min.time()).replace(tzinfo=WIB)
+            activity = "Pengiriman" if booking.ekspedisi_id else "Pengambilan"
+            add_entry(shipment_date, activity, f"Jadwal {activity.lower()}: {offer.product.nama_produk}",
+                      f"Pemesanan #{booking.id} · {'ekspedisi ' + booking.ekspedisi.nama if booking.ekspedisi else 'pengambilan langsung'}",
+                      seller.alamat, dashboard_url)
+
+    transactions_query = Transaksi.query
+    if u.active_role == "pembeli":
+        transactions_query = transactions_query.filter_by(buyer_id=u.id)
+    elif u.active_role == "penjual":
+        transactions_query = transactions_query.filter_by(seller_id=u.id)
+    for transaction in transactions_query.all():
+        other_party = transaction.seller.nama if u.active_role == "pembeli" else transaction.buyer.nama
+        add_entry(transaction.created_at, "Pembelian", f"Pembelian #{transaction.id}: {transaction.product_name}",
+                  f"{(transaction.qty or 0):g} unit · Rp{transaction.nilai:,.0f} · {transaction.status} · {'pihak terkait: ' + other_party if u.active_role != 'admin' else ''}",
+                  "", dashboard_url)
+
+    entries.sort(key=lambda row: row["when"])
+    return render_template("calendar.html", user=u, entries=entries, ticker=ticker_data())
+
+
+@app.route("/lelang/<int:event_id>/bayar-pemenang", methods=["POST"])
+@login_required("pembeli")
+def pay_auction_winning_bid(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    now = datetime.utcnow()
+    if (event.pemenang_id != current_user().id or event.status != "menunggu_pembayaran_pemenang"
+            or event.pemenang_bayar_lunas):
+        flash("Pembayaran ini hanya tersedia untuk pemenang aktif event.", "warning")
+    elif not event.batas_bayar_pemenang or event.batas_bayar_pemenang <= now:
+        event.status = "tenggat_pemenang_lewat"
+        if event.penetapan_aktif and event.penetapan_aktif.status == "menunggu":
+            event.penetapan_aktif.status = "kedaluwarsa"
+        db.session.commit()
+        flash("Batas pembayaran sudah lewat. Penjual akan memilih penawar berikutnya atau membatalkan lelang.", "danger")
+    else:
+        method = request.form.get("metode", "qris").strip().lower()
+        if method not in {"qris", "virtual_account", "ewallet", "bank_transfer"}:
+            method = "qris"
+        ref = "AUC-WINNER-" + datetime.now().strftime("%Y%m%d%H%M%S") + "-" + str(random.randint(1000, 9999))
+        event.pemenang_bayar_lunas = True
+        event.ref_bayar_pemenang = f"{ref}:{method}"
+        event.status = "selesai"
+        if event.penetapan_aktif:
+            event.penetapan_aktif.status = "lunas"
+            event.penetapan_aktif.ref_pembayaran = event.ref_bayar_pemenang
+            event.penetapan_aktif.dibayar_pada = now
+        db.session.commit()
+        audit_current("pemenang_lelang_membayar", "lelang_events", event.id,
+                      f"Rp{event.harga_pemenang:g}; ref {ref}")
+        flash(f"Pembayaran pemenang dicatat lunas (simulasi payment gateway), ref {ref}.", "success")
+    return redirect(url_for("auction_detail", event_id=event.id))
+
+
+@app.route("/lelang/<int:event_id>/pilih-penawar-berikutnya", methods=["POST"])
+@login_required("penjual")
+def select_next_auction_bidder(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    if event.seller_id != current_user().id or event.status != "tenggat_pemenang_lewat":
+        flash("Pemilihan penawar berikutnya hanya tersedia untuk event milik Anda yang tenggat pembayarannya terlewat.", "warning")
+    else:
+        try:
+            requested_buyer_id = int(request.form.get("buyer_id", ""))
+        except (TypeError, ValueError):
+            requested_buyer_id = None
+        next_bid = next((bid for bid in event.peringkat_tawaran
+                         if bid.buyer_id == requested_buyer_id and bid.buyer_id != event.pemenang_id), None)
+        new_deadline = parse_wib_deadline(request.form.get("batas_bayar_pemenang"))
+        if not next_bid:
+            flash("Pilih peserta lain yang sudah menawar untuk menetapkan pemenang pengganti.", "warning")
+        elif not new_deadline or new_deadline <= datetime.utcnow():
+            flash("Tentukan batas pembayaran baru di masa depan untuk penawar berikutnya.", "danger")
+        else:
+            event.pemenang_id = next_bid.buyer_id
+            event.harga_pemenang = next_bid.nominal
+            event.batas_bayar_pemenang = new_deadline
+            event.pemenang_bayar_lunas = False
+            event.ref_bayar_pemenang = None
+            event.status = "menunggu_pembayaran_pemenang"
+            event.awards.append(LelangAward(buyer_id=next_bid.buyer_id, nominal=next_bid.nominal,
+                                            batas_bayar=new_deadline, status="menunggu"))
+            db.session.commit()
+            audit_current("penawar_lelang_berikutnya_dipilih", "lelang_events", event.id,
+                          f"pembeli #{next_bid.buyer_id}; Rp{next_bid.nominal:g}; tenggat {new_deadline.isoformat()} UTC")
+            flash(f"Penawar berikutnya, {next_bid.buyer.nama}, dipilih sebagai pemenang baru.", "success")
+    return redirect(url_for("auction_detail", event_id=event.id))
+
+
+@app.route("/lelang/<int:event_id>/batalkan-setelah-tenggat", methods=["POST"])
+@login_required("penjual")
+def cancel_timed_out_auction(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    if event.seller_id != current_user().id or event.status != "tenggat_pemenang_lewat":
+        flash("Lelang hanya dapat dibatalkan dari alur tindak lanjut tenggat pemenang milik Anda.", "warning")
+    else:
+        event.status = "dibatalkan"
+        if event.penetapan_aktif and event.penetapan_aktif.status == "kedaluwarsa":
+            event.penetapan_aktif.status = "dibatalkan"
+        for item in event.items:
+            if item.product and item.product.status == "lelang":
+                item.product.status = "aktif"
+        db.session.commit()
+        audit_current("event_lelang_dibatalkan_tenggat_pemenang", "lelang_events", event.id,
+                      "pemenang tidak membayar sebelum tenggat; stok dikembalikan")
+        flash("Lelang dibatalkan dan stok paket dikembalikan ke marketplace.", "info")
+    return redirect(url_for("auction_detail", event_id=event.id))
+
+
+@app.route("/lelang/<int:event_id>/batal", methods=["POST"])
+@login_required("penjual")
+def cancel_auction_event(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    if event.seller_id != current_user().id:
+        flash("Tidak berwenang.", "danger")
+    elif event.status not in ("diajukan", "menunggu_biaya_penjual", "terjadwal") or event.bids:
+        flash("Event hanya dapat dibatalkan sebelum mulai dan sebelum ada tawaran.", "warning")
+    else:
+        event.status = "dibatalkan"
+        for item in event.items:
+            if item.product and item.product.status == "lelang":
+                item.product.status = "aktif"
+        db.session.commit()
+        audit_current("event_lelang_dibatalkan", "lelang_events", event.id, "stok paket dikembalikan ke marketplace")
+        flash("Event dibatalkan dan stok produk dikembalikan ke marketplace.", "info")
+    return redirect(url_for("auction_detail", event_id=event.id))
+
+
+@app.route("/lelang/<int:event_id>/tawar", methods=["POST"])
+@login_required("pembeli")
+def bid_auction(event_id):
+    event = LelangEvent.query.get_or_404(event_id)
+    now = datetime.utcnow()
+    participant = LelangParticipant.query.filter_by(event_id=event.id, buyer_id=current_user().id).first()
+    if not participant:
+        flash("Daftar sebagai peserta dan setujui syarat lelang sebelum menawar.", "warning")
+    elif not participant.biaya_lunas:
+        flash("Lunasi biaya administrasi peserta sebelum menawar.", "warning")
+    elif event.status != "berlangsung" or not (event.mulai <= now < event.selesai):
+        flash("Penawaran hanya dapat dikirim selama event berlangsung.", "warning")
+    else:
+        amount = _positive_price(request.form.get("nominal"))
+        highest = event.tawaran_tertinggi
+        minimum = highest.nominal if highest else event.harga_awal
+        if amount is None or amount <= minimum:
+            flash(f"Tawaran harus lebih tinggi dari Rp{int(minimum):,}.".replace(",", "."), "danger")
+        else:
+            db.session.add(LelangBid(event_id=event.id, buyer_id=current_user().id,
+                                     nominal=amount, catatan=request.form.get("catatan", "").strip()[:255]))
+            db.session.commit()
+            audit_current("pembeli_menawar_lelang", "lelang_events", event.id, f"tawaran Rp{amount:g}")
+            flash("Tawaran lelang berhasil dikirim.", "success")
+    return redirect(url_for("auction_detail", event_id=event.id))
+
+
+@app.route("/produk/<int:pid>")
+def product_detail(pid):
+    p = Product.query.get_or_404(pid)
+    evidences = Eviden.query.join(Transaksi).filter(Transaksi.offer_id.in_(
+        [o.id for o in p.offers])).limit(6).all()
+    cu = current_user()
+    lelang_item = LelangItem.query.join(LelangEvent).filter(
+        LelangItem.product_id == p.id, LelangEvent.status != "dibatalkan").order_by(LelangEvent.id.desc()).first()
+    fav_count = Favorite.query.filter_by(seller_id=p.seller_id).count()
+    return render_template("product.html", p=p, evidences=evidences, user=cu,
+                           lelang_event=lelang_item.event if lelang_item else None,
+                           ticker=ticker_data(), fav=fav_state(cu, p.seller_id, p.id),
+                           fav_count=fav_count, seller_rating=rating_stats(p.seller_id))
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        username = request.form.get("username", "").strip().lower()
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+            flash("Format email tidak valid.", "danger")
+            return redirect(url_for("register"))
+        if not re.fullmatch(r"[a-z0-9_.-]{3,32}", username):
+            flash("Nama pengguna harus 3–32 karakter: huruf kecil, angka, titik, garis bawah, atau tanda hubung.", "danger")
+            return redirect(url_for("register"))
+        if User.query.filter_by(email=email).first():
+            flash("Email sudah terdaftar.", "danger")
+            return redirect(url_for("register"))
+        if User.query.filter(db.func.lower(User.username) == username).first():
+            flash("Nama pengguna sudah dipakai.", "danger")
+            return redirect(url_for("register"))
+        errs = security.check_password_strength(request.form.get("password", ""))
+        if errs:
+            flash(" | ".join(errs), "danger")
+            return redirect(url_for("register"))
+        u = User(
+            username=username,
+            nama=username,
+            email=email,
+            password=generate_password_hash(request.form.get("password", "")),
+            role="pembeli",
+            tipe=TIPE_PEMBELI[0],
+            roles=["pembeli"],
+            tipe_pembeli=TIPE_PEMBELI[0],
+        )
+        db.session.add(u)
+        db.session.commit()
+        models_api.AuditLog.record("user_terdaftar", actor=email, role="pembeli", user_id=u.id,
+                                   ip=security.client_ip())
+        db.session.commit()
+        # ---- blockchain: dompet AGR Coin otomatis untuk setiap user baru ----
+        if fitur_on("fitur_blockchain"):
+            try:
+                bchain.ensure_wallet(u.id)
+            except Exception as e:
+                print("wallet:", e)
+        session.clear(); session.permanent = True
+        session["uid"] = u.id
+        session["active_role"] = "pembeli"
+        flash("Pendaftaran berhasil. Lengkapi profil di Pengaturan Akun untuk mengaktifkan mode Penjual.", "success")
+        return redirect(url_for("dashboard"))
+    return render_template("register.html", user=current_user())
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        ip = security.client_ip()
+        # rate limit percobaan login per IP
+        if not security.login_limiter.allow(ip):
+            flash("Terlalu banyak percobaan login. Tunggu 1 menit.", "danger")
+            models_api.LoginAttempt(email=email, success=False, ip=ip, ua=request.user_agent.string[:200])
+            db.session.commit()
+            return render_template("login.html", user=current_user())
+        u = User.query.filter_by(email=email).first()
+        if not u:
+            u = User.query.filter(db.func.lower(User.username) == email).first()
+        if u and security.is_locked(u):
+            flash(f"Akun dikunci sementara karena terlalu sering gagal login. "
+                  f"Coba lagi dalam {security.lock_remaining_min(u)} menit.", "danger")
+            return render_template("login.html", user=current_user())
+        if u and check_password_hash(u.password, request.form.get("password", "")):
+            security.clear_failed_login(u)
+            models_api.LoginAttempt(email=email, success=True, ip=ip, ua=request.user_agent.string[:200])
+            models_api.AuditLog.record("login_sukses", actor=email, role=u.active_role, user_id=u.id, ip=ip)
+            db.session.commit()
+            session.clear()
+            session.permanent = True
+            session["uid"] = u.id
+            session["active_role"] = u.active_role
+            return redirect(url_for("dashboard"))
+        if u:
+            security.register_failed_login(u)
+            models_api.LoginAttempt(email=email, success=False, ip=ip, ua=request.user_agent.string[:200])
+            models_api.AuditLog.record("login_gagal", actor=email, user_id=u.id, ip=ip)
+        db.session.commit()
+        flash("Email / password salah.", "danger")
+    return render_template("login.html", user=current_user())
+
+
+def seller_profile_issues(user):
+    """Field profil wajib agar akun bisa memakai hak penjual."""
+    issues = []
+    required = {
+        "nama": "nama lengkap atau nama usaha",
+        "phone": "nomor telepon",
+        "alamat": "alamat lengkap",
+        "kota": "kota/kabupaten",
+        "provinsi": "provinsi",
+    }
+    issues.extend(label for attr, label in required.items() if not (getattr(user, attr, "") or "").strip())
+    if (user.nama or "").strip().lower() == (user.username or "").strip().lower():
+        if "nama lengkap atau nama usaha" not in issues:
+            issues.append("nama lengkap atau nama usaha")
+    if user.lat is None or user.lng is None:
+        issues.append("koordinat lokasi (GPS)")
+    if user.tipe_penjual not in TIPE_PENJUAL:
+        issues.append("tipe penjual")
+    elif user.tipe_penjual != "Perorangan":
+        if not (user.npwp or "").strip():
+            issues.append("NPWP usaha/organisasi")
+        if not (user.nib or "").strip():
+            issues.append("NIB usaha/organisasi")
+    return issues
+
+
+@app.route("/akun", methods=["GET", "POST"])
+@login_required()
+def account_settings():
+    u = current_user()
+    if request.method == "POST":
+        nama = request.form.get("nama", "").strip()
+        phone = request.form.get("phone", "").strip()
+        alamat = request.form.get("alamat", "").strip()
+        kota = request.form.get("kota", "").strip()
+        provinsi = request.form.get("provinsi", "").strip()
+        tipe_penjual = request.form.get("tipe_penjual", "").strip()
+        if tipe_penjual and tipe_penjual not in TIPE_PENJUAL:
+            flash("Tipe penjual tidak valid.", "danger")
+            return redirect(url_for("account_settings"))
+        try:
+            lat = float(request.form.get("lat")) if request.form.get("lat", "").strip() else None
+            lng = float(request.form.get("lng")) if request.form.get("lng", "").strip() else None
+            if lat is not None and not -90 <= lat <= 90 or lng is not None and not -180 <= lng <= 180:
+                raise ValueError
+        except ValueError:
+            flash("Koordinat GPS tidak valid.", "danger")
+            return redirect(url_for("account_settings"))
+        u.nama = nama or u.nama
+        u.phone = phone
+        u.alamat = alamat
+        u.kota = kota
+        u.provinsi = provinsi
+        u.lat = lat
+        u.lng = lng
+        u.npwp = request.form.get("npwp", "").strip()
+        u.nib = request.form.get("nib", "").strip()
+        if tipe_penjual:
+            u.tipe_penjual = tipe_penjual
+        db.session.commit()
+        audit_current("profil_diperbarui", "users", u.id, "pengaturan profil akun")
+        db.session.commit()
+        flash("Informasi profil berhasil disimpan.", "success")
+        return redirect(url_for("account_settings"))
+    return render_template("account_settings.html", user=u, tipe_penjual=TIPE_PENJUAL,
+                           seller_profile_issues=seller_profile_issues(u),
+                           bank_settings=seller_payment_cfg(u))
+
+
+@app.route("/akun/data-bank", methods=["POST"])
+@login_required()
+def account_bank_settings():
+    """Simpan metode dan petunjuk pembayaran penjual untuk akun aktif."""
+    import json
+    u = current_user()
+    allowed = {"Transfer Bank", "QRIS", "Tunai"}
+    metode = [m for m in request.form.getlist("metode_dp") if m in allowed]
+    rekening = request.form.get("rekening", "").strip()
+    qris = request.form.get("qris", "").strip()
+    tujuan_tunai = request.form.get("tujuan_tunai", "").strip()
+    if len(rekening) > 160 or len(qris) > 500 or len(tujuan_tunai) > 300:
+        flash("Data pembayaran terlalu panjang. Periksa kembali isian Anda.", "danger")
+        return redirect(url_for("account_settings") + "#bank")
+    cfg = {"metode_dp": metode or ["Transfer Bank"], "rekening": rekening,
+           "qris": qris, "tujuan_tunai": tujuan_tunai or (u.alamat or "")}
+    set_setting(f"pembayaran_penjual_{u.id}", json.dumps(cfg), f"Pengaturan pembayaran penjual #{u.id}")
+    audit_current("pengaturan_metode_dp", "users", u.id, "data pembayaran diperbarui dari pengaturan akun")
+    flash("Data pembayaran berhasil disimpan.", "success")
+    return redirect(url_for("account_settings") + "#bank")
+
+
+@app.route("/akun/ganti-password", methods=["POST"])
+@login_required()
+def change_account_password():
+    """Ganti password akun setelah memverifikasi password saat ini."""
+    u = current_user()
+    old_password = request.form.get("old_password", "")
+    new_password = request.form.get("new_password", "")
+    confirm_password = request.form.get("confirm_password", "")
+    if not check_password_hash(u.password, old_password):
+        flash("Password saat ini tidak sesuai.", "danger")
+        return redirect(url_for("account_settings") + "#password")
+    if new_password != confirm_password:
+        flash("Konfirmasi password baru tidak sama.", "danger")
+        return redirect(url_for("account_settings") + "#password")
+    issues = security.check_password_strength(new_password)
+    if issues:
+        flash(" ".join(issues), "danger")
+        return redirect(url_for("account_settings") + "#password")
+    if check_password_hash(u.password, new_password):
+        flash("Password baru harus berbeda dari password saat ini.", "warning")
+        return redirect(url_for("account_settings") + "#password")
+    u.password = generate_password_hash(new_password)
+    db.session.commit()
+    audit_current("password_diperbarui", "users", u.id, "password akun diubah dari pengaturan pengguna")
+    flash("Password berhasil diperbarui.", "success")
+    return redirect(url_for("account_settings") + "#password")
+
+
+@app.route("/akun/mode", methods=["POST"])
+@login_required()
+def switch_account_mode():
+    u = current_user()
+    target = request.form.get("role", "").strip()
+    if target not in ("penjual", "pembeli"):
+        flash("Mode akun yang dipilih tidak tersedia.", "warning")
+        return redirect(url_for("dashboard"))
+    if target == "penjual":
+        issues = seller_profile_issues(u)
+        if issues:
+            flash("Lengkapi profil dan informasi usaha sebelum mengaktifkan mode Penjual: " + ", ".join(issues) + ".", "warning")
+            return redirect(url_for("account_settings"))
+        if "penjual" not in u.role_list:
+            u.roles = list(u.role_list) + ["penjual"]
+            db.session.commit()
+    elif target not in u.role_list:
+        flash("Mode akun yang dipilih tidak tersedia.", "warning")
+        return redirect(url_for("account_settings"))
+    session["active_role"] = target
+    session.permanent = True
+    audit_current("mode_akun_diubah", "users", u.id, f"mode aktif: {target}")
+    flash(f"Mode akun beralih ke {target.title()}.", "success")
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/logout")
+def logout():
+    u = current_user()
+    if u:
+        models_api.AuditLog.record("logout", actor=u.email, role=u.active_role, user_id=u.id,
+                                   ip=security.client_ip())
+        db.session.commit()
+    session.clear()
+    return redirect(url_for("home"))
+
+# ----------------------------------------------------------------------------
+# ROUTES: DASHBOARD (penjual / pembeli / admin)
+# ----------------------------------------------------------------------------
+
+@app.route("/dashboard")
+@login_required("penjual", "pembeli", "admin")
+def dashboard():
+    u = current_user()
+    if u.active_role == "penjual":
+        return redirect(url_for("dashboard_seller"))
+    if u.active_role == "admin":
+        return redirect(url_for("dashboard_admin"))
+    return redirect(url_for("dashboard_buyer"))
+
+
+
+def wallet_ctx(u):
+    """Konteks dompet crypto utk template dashboard (aman bila fitur nonaktif)."""
+    try:
+        if not fitur_on("fitur_blockchain"):
+            return {"on": False}
+        addr = bchain.ensure_wallet(u.id)
+        bal = bchain.balance_of(addr)
+        return {"on": True, "address": addr, "balance": bal,
+                "idr": bchain.to_rupiah(bal), "rate": bchain.rate,
+                "history": bchain.history_of(addr, 10), "stats": bchain.stats()}
+    except Exception as e:
+        print("wallet_ctx:", e)
+        return {"on": False}
+
+
+@app.route("/dashboard/penjual")
+@login_required("penjual")
+def dashboard_seller():
+    u = current_user()
+    my_prods = Product.query.filter_by(seller_id=u.id).order_by(Product.created_at.desc()).all()
+    auction_cfg = seller_auction_cfg(u)
+    my_auctions = LelangEvent.query.filter_by(seller_id=u.id).order_by(LelangEvent.created_at.desc()).all()
+    my_offers = Offer.query.filter(Offer.product_id.in_([p.id for p in my_prods] or [-1])).order_by(Offer.created_at.desc()).all()
+    jualan = Transaksi.query.filter_by(seller_id=u.id).order_by(Transaksi.created_at.desc()).all()
+    omzet = sum(t.nilai for t in jualan if t.status in ("paid", "shipped", "delivered", "completed"))
+    pid = [t.id for t in jualan] or [-1]
+    pending_pelunasan = Pelunasan.query.filter(Pelunasan.transaksi_id.in_(pid),
+                                               Pelunasan.status == "menunggu").order_by(Pelunasan.created_at.desc()).all()
+    ratings_received = Rating.query.filter_by(to_user_id=u.id).order_by(Rating.created_at.desc()).all()
+    return render_template("seller_dashboard.html", u=u, products=my_prods, offers=my_offers,
+           penjualan=jualan, omzet=omzet, user=u, ticker=ticker_data(),
+           lelang_events=my_auctions,
+           auction_cfg=auction_cfg,
+           default_deadline=(datetime.now(WIB) + timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M"),
+           minimum_deadline=(datetime.now(WIB) + timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M"),
+           categories=MASTER_PRODUK, biaya=get_biaya_settings(),
+           paycfg=seller_payment_cfg(u), pending_pelunasan=pending_pelunasan,
+           rstats=rating_stats(u.id), rat_in=ratings_received,
+           rat_out=[my_rating_for(t.id, u.id) for t in jualan if my_rating_for(t.id, u.id)],
+           rat_pending=pending_ratings(u.id), wallet=wallet_ctx(u))
+
+
+@app.route("/dashboard/pembeli")
+@login_required("pembeli")
+def dashboard_buyer():
+    u = current_user()
+    my_offers = Offer.query.filter_by(buyer_id=u.id).order_by(Offer.created_at.desc()).all()
+    pembelian = Transaksi.query.filter_by(buyer_id=u.id).order_by(Transaksi.created_at.desc()).all()
+    total_belanja = sum(t.nilai for t in pembelian if t.status in ("paid", "shipped", "delivered", "completed"))
+    bookings = {b.id: b for b in Booking.query.filter(Booking.id.in_([t.booking_id for t in pembelian if t.booking_id] or [-1])).all()}
+    pelunasans = {}
+    for t in pembelian:
+        pl = Pelunasan.query.filter_by(transaksi_id=t.id).order_by(Pelunasan.created_at.desc()).first()
+        if pl:
+            pelunasans[t.id] = pl
+    favs = Favorite.query.filter_by(buyer_id=u.id).order_by(Favorite.created_at.desc()).all()
+    kebutuhan = KebutuhanPembeli.query.filter_by(buyer_id=u.id).order_by(KebutuhanPembeli.created_at.desc()).all()
+    lelang_diikuti = [r.event for r in LelangParticipant.query.filter_by(buyer_id=u.id).order_by(LelangParticipant.created_at.desc()).all()]
+    ratings_received = Rating.query.filter_by(to_user_id=u.id).order_by(Rating.created_at.desc()).all()
+    return render_template("buyer_dashboard.html", u=u, offers=my_offers, pembelian=pembelian,
+                           total=total_belanja, user=u, ticker=ticker_data(),
+                           bookings=bookings, pelunasans=pelunasans, favs=favs, kebutuhan=kebutuhan,
+                           lelang_diikuti=lelang_diikuti,
+                           kategori_list=KATEGORI,
+                           rstats=rating_stats(u.id), rat_in=ratings_received,
+                           rat_out=[my_rating_for(t.id, u.id) for t in pembelian if my_rating_for(t.id, u.id)],
+                           rat_pending=pending_ratings(u.id), wallet=wallet_ctx(u))
+
+
+@app.route("/dashboard/pembeli/kebutuhan", methods=["POST"])
+@login_required("pembeli")
+def tambah_kebutuhan():
+    u = current_user()
+    kategori = request.form.get("kategori", "").strip()
+    nama = request.form.get("nama_produk", "").strip()
+    satuan = request.form.get("satuan", "").strip()
+    try:
+        jumlah = float(request.form.get("jumlah", "0"))
+        harga = float(request.form.get("estimasi_harga", "0"))
+    except (TypeError, ValueError):
+        flash("Jumlah dan estimasi harga harus berupa angka.", "danger")
+        return redirect(url_for("dashboard_buyer") + "#tNeeds")
+    if kategori not in KATEGORI or not nama or len(nama) > 120 or not satuan or len(satuan) > 20 or jumlah <= 0 or harga < 0:
+        flash("Periksa kategori, nama produk, satuan, jumlah, dan estimasi harga.", "danger")
+        return redirect(url_for("dashboard_buyer") + "#tNeeds")
+    db.session.add(KebutuhanPembeli(buyer_id=u.id, kategori=kategori, nama_produk=nama,
+                                    satuan=satuan, jumlah=jumlah, estimasi_harga=harga))
+    db.session.commit()
+    flash("Kebutuhan belanja ditambahkan.", "success")
+    return redirect(url_for("dashboard_buyer") + "#tNeeds")
+
+
+@app.route("/dashboard/pembeli/kebutuhan/<int:kid>/hapus", methods=["POST"])
+@login_required("pembeli")
+def hapus_kebutuhan(kid):
+    item = KebutuhanPembeli.query.filter_by(id=kid, buyer_id=current_user().id).first_or_404()
+    db.session.delete(item)
+    db.session.commit()
+    flash("Kebutuhan dihapus dari rencana belanja.", "success")
+    return redirect(url_for("dashboard_buyer") + "#tNeeds")
+
+
+@app.route("/produk/<int:pid>/kebutuhan", methods=["POST"])
+@login_required("pembeli")
+def tambah_produk_ke_kebutuhan(pid):
+    p = Product.query.filter_by(id=pid, status="aktif").first_or_404()
+    try:
+        jumlah = float(request.form.get("jumlah", "1"))
+    except (TypeError, ValueError):
+        jumlah = 0
+    if jumlah <= 0:
+        flash("Jumlah kebutuhan harus lebih dari nol.", "danger")
+        return redirect(url_for("product_detail", pid=pid))
+    item = KebutuhanPembeli.query.filter_by(buyer_id=current_user().id, product_id=p.id).first()
+    if item:
+        item.jumlah += jumlah
+        item.estimasi_harga = p.harga or 0
+    else:
+        db.session.add(KebutuhanPembeli(buyer_id=current_user().id, product_id=p.id, kategori=p.kategori,
+                                    nama_produk=p.nama_produk, jumlah=jumlah,
+                                    satuan=p.satuan or "unit", estimasi_harga=p.harga or 0))
+    db.session.commit()
+    flash(f"{p.nama_produk} ditambahkan ke Manajemen Kebutuhan dengan harga listing sebagai estimasi." if not item else
+          f"Jumlah rencana {p.nama_produk} diperbarui dan harga estimasinya disegarkan dari listing.", "success")
+    return redirect(url_for("dashboard_buyer") + "#tNeeds")
+
+
+@app.route("/favorit/<int:fqid>/kebutuhan", methods=["POST"])
+@login_required("pembeli")
+def tambah_favorit_ke_kebutuhan(fqid):
+    favorite = Favorite.query.filter_by(id=fqid, buyer_id=current_user().id).first_or_404()
+    product = Product.query.filter_by(id=favorite.product_id, status="aktif").first() if favorite.product_id else None
+    if not product:
+        flash("Listing favorit ini sudah tidak tersedia untuk ditambahkan ke rencana belanja.", "warning")
+        return redirect(url_for("dashboard_buyer") + "#tFav")
+    try:
+        jumlah = float(request.form.get("jumlah", "1"))
+    except (TypeError, ValueError):
+        jumlah = 0
+    if not (0 < jumlah < float("inf")):
+        flash("Jumlah rencana harus lebih dari nol.", "danger")
+        return redirect(url_for("dashboard_buyer") + "#tFav")
+    item = KebutuhanPembeli.query.filter_by(buyer_id=current_user().id, product_id=product.id).first()
+    if item:
+        item.jumlah += jumlah
+        item.estimasi_harga = product.harga or 0
+    else:
+        db.session.add(KebutuhanPembeli(buyer_id=current_user().id, product_id=product.id,
+                                        kategori=product.kategori or KATEGORI[0],
+                                        nama_produk=product.nama_produk, jumlah=jumlah,
+                                        satuan=product.satuan or "unit", estimasi_harga=product.harga or 0))
+    db.session.commit()
+    audit_current("produk_favorit_ditambahkan_ke_kebutuhan", "products", product.id,
+                  f"jumlah rencana +{jumlah:g} {product.satuan or 'unit'}")
+    flash(f"{product.nama_produk} ditambahkan ke Manajemen Kebutuhan menggunakan harga listing terbaru.", "success")
+    return redirect(url_for("dashboard_buyer") + "#tNeeds")
+
+
+@app.route("/dashboard/admin")
+@login_required("admin")
+def dashboard_admin():
+    u = current_user()
+    tx = Transaksi.query.order_by(Transaksi.created_at.desc()).all()
+    revenue = sum((t.biaya_penanganan or 0) for t in tx)
+    pg = PaymentGatewayAPI.query.all()
+    eks = Ekspedisi.query.all()
+    settings = {p.key: p.value for p in Pengaturan.query.all()}
+    auction_requests = LelangEvent.query.filter_by(status="diajukan").order_by(LelangEvent.created_at.asc()).all()
+
+    # ---- Laporan keuangan (rekap per metode pembayaran & status) ----
+    by_method, by_status = {}, {}
+    for t in tx:
+        m = (t.metode_bayar or "-").lower()
+        d = by_method.setdefault(m, {"n": 0, "nilai": 0.0, "dp": 0.0, "pelunasan": 0.0,
+                                     "fee": 0.0, "ongkir": 0.0})
+        d["n"] += 1; d["nilai"] += t.nilai or 0; d["dp"] += t.dp_dibayar or 0
+        d["pelunasan"] += t.pelunasan or 0; d["fee"] += t.biaya_penanganan or 0; d["ongkir"] += t.ongkir or 0
+        s = t.status or "-"
+        r = by_status.setdefault(s, {"n": 0, "nilai": 0.0})
+        r["n"] += 1; r["nilai"] += t.nilai or 0
+    paid_tx = [t for t in tx if t.status in ("paid", "shipped", "delivered", "completed")]
+    keuangan = {
+        "bruto": sum(t.nilai for t in tx),
+        "bersih": sum(t.nilai for t in paid_tx),
+        "dp_masuk": sum(t.dp_dibayar or 0 for t in tx),
+        "pelunasan_masuk": sum(t.pelunasan or 0 for t in tx),
+        "ongkir": sum(t.ongkir or 0 for t in tx),
+        "fee": revenue,
+        "flat": sum(float(get_setting("biaya_tambahan_flat", "0") or 0) for t in tx),
+        "pending": sum(t.nilai for t in tx if t.status not in ("paid", "shipped", "delivered", "completed", "cancelled", "refunded")),
+    }
+
+    # ---- Pembagian laporan penjualan vs pembelian ----
+    penjualan_rows = sorted(tx, key=lambda t: t.created_at, reverse=True)
+    pembelian_rows = penjualan_rows
+    total_nilai_penjualan = sum(t.nilai for t in tx)
+    total_nilai_pembelian = total_nilai_penjualan
+
+    accounts = User.query.all()
+    stats = {
+        "users": len(accounts),
+        "penjual": sum("penjual" in account.role_list for account in accounts),
+        "pembeli": sum("pembeli" in account.role_list for account in accounts),
+        "produk": Product.query.count(),
+        "master": ProdukMaster.query.count(),
+        "transaksi": len(tx),
+        "gmv": sum(t.nilai for t in tx),
+        "revenue": revenue,
+        "favorites": Favorite.query.count(),
+        "ratings": Rating.query.count(),
+    }
+    # ---- Rekap kepuasan dua arah utk monitoring admin ----
+    rat_rows = Rating.query.order_by(Rating.created_at.desc()).all()
+    ke_penjual = [r for r in rat_rows if r.arah == "ke_penjual"]
+    ke_pembeli = [r for r in rat_rows if r.arah == "ke_pembeli"]
+    rating_rekap = {
+        "total": len(rat_rows),
+        "avg_penjual": round(sum(r.score for r in ke_penjual) / len(ke_penjual), 2) if ke_penjual else None,
+        "avg_pembeli": round(sum(r.score for r in ke_pembeli) / len(ke_pembeli), 2) if ke_pembeli else None,
+        "n_penjual": len(ke_penjual), "n_pembeli": len(ke_pembeli),
+        "rendah": [r for r in rat_rows if r.score <= 2],
+    }
+    return render_template("admin_dashboard.html", u=u, stats=stats, tx=tx, pg=pg, eks=eks,
+                           settings=settings, user=u, ticker=ticker_data(),
+                           db_backend=("supabase-postgres" if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgres") else "sqlite"),
+                           cloudinary_on=cloud_media.enabled(),
+                           cloudinary_secret_set=bool(cloud_media.cfg()["api_secret"]),
+                           biaya=get_biaya_settings(), labels=BIAYA_LABEL,
+                           keuangan=keuangan, by_method=by_method, by_status=by_status,
+                           penjualan_rows=penjualan_rows, pembelian_rows=pembelian_rows,
+                           total_penjualan=total_nilai_penjualan, total_pembelian=total_nilai_pembelian,
+                           rating_rekap=rating_rekap, rat_rows=rat_rows[:30],
+                           auction_requests=auction_requests,
+                           wallet=wallet_ctx(u), bstats=bchain.stats(),
+                           feat_cfg=FEATURE_KEYS)
+
+# ----------------------------------------------------------------------------
+# ROUTES: PRODUK (CRUD + auto-add master)
+# ----------------------------------------------------------------------------
+
+@app.route("/produk/baru", methods=["GET", "POST"])
+@feature_required("fitur_marketplace")
+@login_required("penjual")
+def create_product():
+    u = current_user()
+    if request.method == "POST":
+        nama = request.form.get("nama_produk", "").strip()
+        kategori = request.form.get("kategori")
+        sub = request.form.get("subkategori")
+        jenis = request.form.get("jenis", "").strip()
+        non_halal = (kategori == "Peternakan" and sub == "Babi")
+        # === AUTO UPDATE DATABASE PRODUK: simpan nama produk baru ke DB produk master ===
+        pm = ProdukMaster.query.filter(db.func.lower(ProdukMaster.nama) == nama.lower()).first()
+        if not pm:
+            pm = ProdukMaster(nama=nama, kategori=kategori, subkategori=sub,
+                              jenis=jenis, non_halal=non_halal, auto_added=True)
+            db.session.add(pm)
+            db.session.commit()
+            flash(f"Nama produk \"{nama}\" baru pertama kali di AGR.BIZ.ID → otomatis ditambahkan ke Database Produk ✔", "info")
+        p = Product(
+            seller_id=u.id, nama_produk=nama, jenis=jenis, kategori=kategori, subkategori=sub,
+            deskripsi=request.form.get("deskripsi", ""),
+            harga=float(request.form.get("harga") or 0),
+            satuan=request.form.get("satuan", "kg"),
+            stok=float(request.form.get("stok") or 0),
+            foto=request.form.get("foto", ""),
+            alamat_lahan=request.form.get("alamat_lahan", ""),
+            lat=float(request.form.get("lat") or 0) or None,
+            lng=float(request.form.get("lng") or 0) or None,
+            non_halal=non_halal,
+            sertifikasi=request.form.get("sertifikasi", ""),
+        )
+        db.session.add(p)
+        db.session.commit()
+        flash("Produk berhasil diposting ke marketplace 🎉", "success")
+        return redirect(url_for("dashboard_seller"))
+    return render_template("product_form.html", categories=MASTER_PRODUK, user=u, ticker=ticker_data())
+
+
+@app.route("/produk/edit/<int:pid>", methods=["GET", "POST"])
+@login_required("penjual")
+def edit_product(pid):
+    p = Product.query.get_or_404(pid)
+    u = current_user()
+    if p.seller_id != u.id:
+        flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard_seller"))
+    if p.status == "lelang":
+        flash("Produk sedang dicadangkan untuk event lelang dan tidak dapat diubah sampai proses lelang selesai.", "warning")
+        return redirect(url_for("dashboard_seller"))
+    if request.method == "POST":
+        p.nama_produk = request.form.get("nama_produk", p.nama_produk)
+        p.jenis = request.form.get("jenis", p.jenis)
+        p.harga = float(request.form.get("harga") or p.harga)
+        p.satuan = request.form.get("satuan", p.satuan)
+        p.stok = float(request.form.get("stok") or 0)
+        p.deskripsi = request.form.get("deskripsi", p.deskripsi)
+        p.foto = request.form.get("foto", p.foto)
+        p.alamat_lahan = request.form.get("alamat_lahan", p.alamat_lahan)
+        p.lat = float(request.form.get("lat") or 0) or p.lat
+        p.lng = float(request.form.get("lng") or 0) or p.lng
+        p.sertifikasi = request.form.get("sertifikasi", p.sertifikasi)
+        p.status = request.form.get("status", p.status)
+        db.session.commit()
+        flash("Produk diperbarui.", "success")
+        return redirect(url_for("dashboard_seller"))
+    return render_template("product_form.html", categories=MASTER_PRODUK, user=u, p=p, ticker=ticker_data())
+
+
+@app.route("/produk/hapus/<int:pid>")
+@login_required("penjual")
+def delete_product(pid):
+    p = Product.query.get_or_404(pid)
+    if p.seller_id != current_user().id:
+        flash("Tidak berwenang.", "danger")
+    elif p.status == "lelang":
+        flash("Produk sedang dicadangkan untuk event lelang dan tidak dapat diarsipkan.", "warning")
+    else:
+        p.status = "arsip"
+        db.session.commit()
+        flash("Produk diarsipkan.", "info")
+    return redirect(url_for("dashboard_seller"))
+
+
+@app.route("/api/produk-master")
+def api_produk_master():
+    """Autocomplete nama produk dari database produk (termasuk yang auto-added)."""
+    q = request.args.get("q", "").lower()
+    kat = request.args.get("kategori", "")
+    sub = request.args.get("subkategori", "")
+    query = ProdukMaster.query
+    if q:
+        query = query.filter(ProdukMaster.nama.ilike(f"%{q}%"))
+    if kat:
+        query = query.filter(ProdukMaster.kategori == kat)
+    if sub:
+        query = query.filter(ProdukMaster.subkategori == sub)
+    rows = query.limit(30).all()
+    return jsonify([{
+        "id": r.id, "nama": r.nama, "kategori": r.kategori, "subkategori": r.subkategori,
+        "jenis": r.jenis.split(", ") if r.jenis else [], "non_halal": r.non_halal,
+    } for r in rows])
+
+# ----------------------------------------------------------------------------
+# ROUTES: OFFER / BOOKING / TRANSAKSI / EVIFEN
+# ----------------------------------------------------------------------------
+
+@app.route("/offer/buat/<int:pid>", methods=["POST"])
+@feature_required("fitur_penawaran")
+@login_required("pembeli")
+def create_offer(pid):
+    p = Product.query.get_or_404(pid)
+    u = current_user()
+    if p.status != "aktif":
+        flash("Produk ini tidak tersedia untuk penawaran biasa karena sedang dilelang atau diarsipkan.", "warning")
+        return redirect(url_for("auction_list"))
+    qty = float(request.form.get("qty") or 0)
+    harga = float(request.form.get("harga_penawaran") or 0)
+    if qty <= 0 or harga <= 0:
+        flash("Jumlah & harga penawaran harus > 0", "danger")
+        return redirect(url_for("product_detail", pid=pid))
+    o = Offer(product_id=pid, buyer_id=u.id, qty=qty, harga_penawaran=harga,
+              harga_terkini=harga, total=qty * harga, pesan=request.form.get("pesan", ""))
+    db.session.add(o)
+    db.session.commit()
+    flash("Penawaran terkirim ke penjual. Tunggu konfirmasi untuk lanjut ke booking DP 💛", "success")
+    return redirect(url_for("dashboard_buyer"))
+
+
+@app.route("/offer/status/<int:oid>", methods=["POST"])
+@login_required("penjual")
+def respond_offer(oid):
+    o = Offer.query.get_or_404(oid)
+    u = current_user()
+    prod = Product.query.get(o.product_id)
+    if prod.seller_id != u.id:
+        flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard_seller"))
+    act = request.form.get("act")
+    allowed_seller_turn = o.status in ("menunggu", "balasan_penjual")
+    if act == "tawar" and allowed_seller_turn:
+        harga_baru = _positive_price(request.form.get("harga_baru"))
+        if harga_baru is None:
+            flash("Harga balasan harus berupa angka lebih dari nol.", "danger")
+            return redirect(url_for("dashboard_seller"))
+        o.harga_terkini = harga_baru
+        o.total = o.qty * harga_baru
+        o.status = "balasan_pembeli"
+        db.session.commit()
+        audit_current("penjual_mengajukan_harga_balik", "offers", oid, f"harga per unit {harga_baru:g}")
+        flash("Harga balasan dikirim ke pembeli.", "success")
+    elif act == "terima" and allowed_seller_turn:
+        due = _validated_payment_deadline(request.form.get("batas_pembayaran"))
+        if due is None:
+            flash("Tentukan batas waktu pembayaran DP di masa mendatang (WIB).", "danger")
+            return redirect(url_for("dashboard_seller"))
+        _finalize_offer_agreement(o, due)
+        db.session.commit()
+        audit_current("penawaran_disepakati", "offers", oid, f"batas pembayaran {due.isoformat()} UTC")
+        flash("Harga disepakati. Pembeli harus membayar DP sebelum batas waktu yang ditentukan.", "success")
+    elif act == "finalisasi" and o.status == "menunggu_konfirmasi":
+        due = _validated_payment_deadline(request.form.get("batas_pembayaran"))
+        if due is None:
+            flash("Tentukan batas waktu pembayaran DP di masa mendatang (WIB).", "danger")
+            return redirect(url_for("dashboard_seller"))
+        _finalize_offer_agreement(o, due)
+        db.session.commit()
+        audit_current("penawaran_disepakati", "offers", oid, f"batas pembayaran {due.isoformat()} UTC")
+        flash("Kesepakatan dikonfirmasi. Tenggat pembayaran DP sudah dikirim ke pembeli.", "success")
+    elif act == "tolak" and (allowed_seller_turn or o.status == "menunggu_konfirmasi"):
+        o.status = "ditolak"
+        db.session.commit()
+        audit_current("penawaran_ditutup_penjual", "offers", oid, "penjual menolak dan menutup negosiasi")
+        flash("Penawaran ditolak dan negosiasi ditutup.", "info")
+    else:
+        flash("Penawaran ini tidak sedang menunggu tindakan Anda.", "warning")
+    return redirect(url_for("dashboard_seller"))
+
+
+def _positive_price(value):
+    try:
+        price = float(value)
+        return price if price > 0 and price < float("inf") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _nonnegative_amount(value):
+    try:
+        amount = float(value)
+        return amount if 0 <= amount < float("inf") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _validated_payment_deadline(value):
+    due = parse_wib_deadline(value)
+    return due if due and due > datetime.utcnow() else None
+
+
+def _finalize_offer_agreement(offer, due):
+    price = offer.harga_terkini or offer.harga_penawaran
+    offer.harga_terkini = price
+    offer.harga_disepakati = price
+    offer.total = offer.qty * price
+    offer.batas_pembayaran = due
+    offer.status = "diterima"
+
+
+@app.route("/offer/balasan/<int:oid>", methods=["POST"])
+@login_required("pembeli")
+def buyer_respond_offer(oid):
+    offer = Offer.query.get_or_404(oid)
+    if offer.buyer_id != current_user().id:
+        flash("Tidak berwenang.", "danger")
+        return redirect(url_for("dashboard_buyer"))
+    if offer.status != "balasan_pembeli":
+        flash("Penawaran ini tidak sedang menunggu balasan Anda.", "warning")
+        return redirect(url_for("dashboard_buyer"))
+    act = request.form.get("act")
+    if act == "terima":
+        offer.status = "menunggu_konfirmasi"
+        offer.harga_terkini = offer.harga_terkini or offer.harga_penawaran
+        offer.total = offer.qty * offer.harga_terkini
+        flash("Harga balasan disetujui. Penjual akan menetapkan tenggat pembayaran DP.", "success")
+    elif act == "tawar":
+        price = _positive_price(request.form.get("harga_baru"))
+        if price is None:
+            flash("Harga balasan harus berupa angka lebih dari nol.", "danger")
+            return redirect(url_for("dashboard_buyer"))
+        offer.harga_terkini = price
+        offer.total = offer.qty * price
+        offer.status = "balasan_penjual"
+        flash("Tawaran harga Anda dikirim kembali ke penjual.", "success")
+    elif act == "tolak":
+        offer.status = "ditolak"
+        flash("Anda menolak harga balasan dan menutup penawaran ini.", "info")
+    else:
+        flash("Aksi tidak dikenali.", "danger")
+        return redirect(url_for("dashboard_buyer"))
+    db.session.commit()
+    audit_current("pembeli_membalas_negosiasi", "offers", oid, f"aksi {act}")
+    return redirect(url_for("dashboard_buyer"))
+
+
+@app.route("/booking/<int:oid>", methods=["GET", "POST"])
+@feature_required("fitur_booking_dp")
+@login_required("pembeli")
+def show_booking_form(oid):
+    o = Offer.query.get_or_404(oid)
+    if o.buyer_id != current_user().id:
+        flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard_buyer"))
+    if o.status not in ("diterima", "booking"):
+        flash("Penawaran belum disepakati atau sudah ditutup/kedaluwarsa.", "warning")
+        return redirect(url_for("dashboard_buyer"))
+    if o.status == "booking":
+        pending_booking = Booking.query.filter_by(offer_id=o.id, status="dp_pending").order_by(Booking.id.desc()).first()
+        if pending_booking:
+            return redirect(url_for("pay_booking", bid=pending_booking.id))
+        flash("Penawaran ini sudah diproses menjadi booking.", "info")
+        return redirect(url_for("dashboard_buyer"))
+    dp_persen = float(get_setting("dp_persen", "20"))
+    fee_persen = float(get_setting("biaya_penanganan_persen", "2"))
+    dp_amount = round(o.total * dp_persen / 100, 0)
+    fee = round(o.total * fee_persen / 100, 0)
+    sisa = round(o.total - dp_amount, 0)
+    eks_list = Ekspedisi.query.filter_by(enabled=True).all()
+    seller_cfg = seller_payment_cfg(o.product.seller)
+    if request.method == "POST":
+        jadwal = request.form.get("jadwal_kirim")
+        eks_id = request.form.get("ekspedisi_id") or None
+        metode_dp = request.form.get("metode_dp") or (seller_cfg["metode_dp"][0] if seller_cfg["metode_dp"] else "Transfer Bank")
+        b = Booking(offer_id=o.id, dp_persen=dp_persen, dp_amount=dp_amount,
+                    sisa_bayar=sisa, biaya_penanganan=fee, metode_dp=metode_dp,
+                    jadwal_kirim=datetime.strptime(jadwal, "%Y-%m-%d").date() if jadwal else None,
+                    ekspedisi_id=eks_id, status="dp_pending")
+        db.session.add(b)
+        o.status = "booking"
+        db.session.commit()
+        return redirect(url_for("pay_booking", bid=b.id))
+    return render_template("booking_form.html", o=o, dp_persen=dp_persen, fee_persen=fee_persen,
+                           dp_amount=dp_amount, fee=fee, sisa=sisa, eks_list=eks_list,
+                           metode_dp=seller_cfg["metode_dp"], rekening=seller_cfg["rekening"],
+                           tujuan_tunai=seller_cfg["tujuan_tunai"],
+                           user=current_user(), ticker=ticker_data())
+
+
+@app.route("/booking/<int:bid>/bayar", methods=["GET", "POST"])
+@feature_required("fitur_payment_gateway")
+@login_required("pembeli")
+def pay_booking(bid):
+    """Simulasi payment gateway: QRIS/VA/E-wallet/Bank Transfer."""
+    b = Booking.query.get_or_404(bid)
+    o = b.offer
+    if o.buyer_id != current_user().id:
+        flash("Tidak berwenang.", "danger"); return redirect(url_for("dashboard_buyer"))
+    if o.status != "booking" or b.status != "dp_pending":
+        flash("Pembayaran DP tidak tersedia. Penawaran mungkin sudah kedaluwarsa atau DP telah dibayar.", "warning")
+        return redirect(url_for("dashboard_buyer"))
+    if o.batas_pembayaran and o.batas_pembayaran <= datetime.utcnow():
+        o.status = "kedaluwarsa"
+        b.status = "batal"
+        db.session.commit()
+        flash("Batas pembayaran telah lewat. Penawaran otomatis ditutup.", "danger")
+        return redirect(url_for("dashboard_buyer"))
+    pg_active = PaymentGatewayAPI.query.filter_by(enabled=True).first()
+    channels = (pg_active.channels.split(",") if pg_active else ["qris", "virtual_account", "ewallet", "bank_transfer"])
+    ref = "PGX-" + datetime.now().strftime("%Y%m%d%H%M%S") + "-" + str(random.randint(1000, 9999))
+    if request.method == "POST":
+        method = request.form.get("metode")
+        b.status = "dp_lunas"
+        o.status = "booking"
+        eks = Ekspedisi.query.get(b.ekspedisi_id) if b.ekspedisi_id else None
+        ongkir = round((eks.tarif_per_kg or 0) * (o.qty if o.qty <= 500 else o.qty), 0) if eks else 0
+        t = Transaksi(offer_id=o.id, booking_id=b.id, seller_id=Product.query.get(o.product_id).seller_id,
+                      buyer_id=o.buyer_id, product_name=o.product.nama_produk, qty=o.qty,
+                      nilai=o.total, dp_dibayar=b.dp_amount, biaya_penanganan=b.biaya_penanganan,
+                      ongkir=ongkir, metode_bayar=f"{b.metode_dp} via {method}" if b.metode_dp else method,
+                      ref_payment=ref, status="processing")
+        db.session.add(t)
+        db.session.commit()
+        # ---- blockchain: distribusi pembayaran DP on-chain ke dompet penjual ----
+        txh = bchain.settle_payment(o.buyer_id, t.seller_id, b.dp_amount,
+                                    ref=f"BOOKING-{b.id}", memo=f"DP booking {o.product.nama_produk}")
+        if txh:
+            t.ref_payment = f"{ref} | AGR-ONCHAIN:{txh[:16]}"
+            db.session.commit()
+        flash(f"DP {int(b.dp_amount):,} ({b.metode_dp}) berhasil dibayar via payment gateway {method.upper()} 🎉 Ref: {ref}"
+              + (" — tercatat on-chain ⛓️" if txh else ""), "success")
+        audit_current("dp_dibayar_pg", "bookings", bid, "pembayaran DP via payment gateway"
+                      + (f" + transfer crypto {txh[:16]}…" if txh else ""))
         return redirect(url_for("dashboard_buyer"))
     return render_template("payment.html", b=b, o=o, channels=channels, ref=ref,
                            pg=pg_active, user=current_user(), ticker=ticker_data())
@@ -2227,4 +3433,3 @@ if __name__ == "__main__":
     print(f"AGR.BIZ.ID berjalan pada http://0.0.0.0:{port} "
           f"[env={os.environ.get('AGR_ENV', 'development')}, debug={debug}]")
     app.run(host="0.0.0.0", port=port, debug=debug, threaded=threaded)
-

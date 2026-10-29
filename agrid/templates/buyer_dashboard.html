@@ -2,11 +2,12 @@
 {% block title %}Dashboard Pembeli — AGR.BIZ.ID{% endblock %}
 {% block content %}
 <div class="container-fluid my-4 px-4">
-  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div class="dashboard-heading d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <h4 class="fw-bold mb-0"><i class="bi bi-bag text-success"></i> Dashboard Pembeli — {{ u.nama }}
       <span class="badge bg-warning text-dark">{{ u.tipe }}</span></h4>
-    <div>
+    <div class="dashboard-shortcuts">
       <a href="{{ url_for('marketplace') }}" class="btn btn-agrid fw-bold"><i class="bi bi-shop-window"></i> Cari Produk</a>
+      <a href="{{ url_for('auction_list') }}" class="btn btn-outline-warning fw-bold"><i class="bi bi-hammer"></i> Lelang</a>
       <a href="{{ url_for('calendar_page') }}" class="btn btn-outline-primary fw-bold"><i class="bi bi-calendar3"></i> Kalender</a>
       <a href="{{ url_for('chat_page') }}" class="btn btn-outline-success"><i class="bi bi-robot"></i> Minta AI carikan produk</a>
     </div>
@@ -21,7 +22,7 @@
       <div class="small text-muted">Total Belanja (Rp)</div><h3 class="mb-0 text-primary">{{ total|rp }}</h3></div></div></div>
   </div>
 
-  <ul class="nav nav-tabs mb-3">
+  <ul class="nav nav-tabs dashboard-action-tabs buyer-action-tabs mb-3" role="tablist" aria-label="Menu dashboard pembeli">
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tNeeds">🧮 Manajemen Kebutuhan</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tAuction">🔨 Lelang Diikuti ({{ lelang_diikuti|length }})</button></li>
     <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tOff">💬 Penawaran Saya ({{ offers|length }})</button></li>

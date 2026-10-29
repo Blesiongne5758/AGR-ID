@@ -2,9 +2,9 @@
 {% block title %}Dashboard Penjual — AGR.BIZ.ID{% endblock %}
 {% block content %}
 <div class="container-fluid my-4 px-4">
-  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div class="dashboard-heading d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <h4 class="fw-bold mb-0"><i class="bi bi-shop text-success"></i> Dashboard Penjual — {{ u.nama }}</h4>
-    <div>
+    <div class="dashboard-shortcuts">
       <a href="{{ url_for('create_product') }}" class="btn btn-agrid fw-bold"><i class="bi bi-plus-circle"></i> Posting Produk Baru</a>
       <a href="{{ url_for('create_auction_event') }}" class="btn btn-outline-success fw-bold"><i class="bi bi-hammer"></i> Buat Event Lelang</a>
       <a href="{{ url_for('calendar_page') }}" class="btn btn-outline-primary fw-bold"><i class="bi bi-calendar3"></i> Kalender</a>
@@ -22,7 +22,7 @@
       <div class="small text-muted">Omzet (Rp)</div><h3 class="mb-0 text-success">{{ omzet|rp }}</h3></div></div></div>
   </div>
 
-  <ul class="nav nav-tabs mb-3" role="tablist">
+  <ul class="nav nav-tabs dashboard-action-tabs seller-action-tabs mb-3" role="tablist" aria-label="Menu dashboard penjual">
     <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tProd">📦 Produk Saya ({{ products|length }})</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tAuction">🔨 Lelang Saya ({{ lelang_events|length }})</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tAuctionSettings">⚙️ Pengaturan Lelang</button></li>

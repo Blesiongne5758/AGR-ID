@@ -11,8 +11,8 @@
 <!-- shadcn/ui theme layer dimuat TERAKHIR agar token & komponen shadcn
      (Card/Button/Badge/Input/Table/Tabs/Dialog/Dropdown/Accordion/
       Tooltip/Skeleton/Switch/Avatar/Progress) mengalahkan Bootstrap -->
-<link href="{{ url_for('static', filename='shadcn.css') }}?v=4" rel="stylesheet">
-<link href="{{ url_for('static', filename='mobile-nav.css') }}?v=1" rel="stylesheet">
+<link href="{{ url_for('static', filename='shadcn.css') }}?v=5" rel="stylesheet">
+<link href="{{ url_for('static', filename='mobile-nav.css') }}?v=2" rel="stylesheet">
 <link href="{{ url_for('static', filename='auction.css') }}?v=1" rel="stylesheet">
 <script>/* anti-FOUC dark mode: pasang class sebelum render */
 (function(){try{var t=localStorage.getItem('agrid-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
@@ -52,7 +52,7 @@
       {% elif user.active_role == 'pembeli' %}
       <a class="btn btn-outline-success btn-sm me-2" href="{{ url_for('account_settings') }}"><i class="bi bi-shop"></i> Aktifkan Mode Penjual</a>
       {% endif %}
-      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Keluar</a>
+      <a class="btn btn-outline-secondary btn-sm nav-logout-button" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Keluar</a>
       {% else %}
       <button class="btn btn-outline-secondary btn-sm me-2" onclick="openSknj('login')"><i class="bi bi-box-arrow-in-right"></i> Login</button>
       <button class="btn btn-agrid btn-sm fw-semibold" onclick="openSknj('register')"><i class="bi bi-person-plus"></i> Daftar</button>
@@ -144,7 +144,8 @@
   {% elif user and user.active_role == 'pembeli' %}{% set profile_url = url_for('dashboard_buyer') %}
   {% elif user and user.active_role == 'admin' %}{% set profile_url = url_for('dashboard_admin') %}
   {% else %}{% set profile_url = url_for('login') %}{% endif %}
-  <a class="mobile-nav-item {{ 'is-active' if request.endpoint in ('dashboard', 'dashboard_seller', 'dashboard_buyer', 'dashboard_admin') }}" href="{{ profile_url }}">
+  {% if user %}{% set profile_url = url_for('account_settings') %}{% endif %}
+  <a class="mobile-nav-item {{ 'is-active' if request.endpoint in ('account_settings', 'dashboard', 'dashboard_seller', 'dashboard_buyer', 'dashboard_admin') }}" href="{{ profile_url }}" {% if request.endpoint == 'account_settings' %}aria-current="page"{% endif %}>
     <i class="bi bi-person-circle" aria-hidden="true"></i><span>Saya</span>
   </a>
 </nav>

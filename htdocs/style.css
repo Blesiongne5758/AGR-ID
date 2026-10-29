@@ -1,6 +1,6 @@
 /* ================= AGR.BIZ.ID — tema hijau (Jawa) ================= */
 :root{ --green:#45695b; --green2:#527766; --lime:#d6ad68; --bg:#f7f7f2; --card:#fff; --txt:#27332e; --muted:#66716a; --line:#e0e3db; --red:#b84d4d; --gold-soft:#f5edd9; --shadow:0 8px 24px rgba(39,51,46,.07); }
-*{box-sizing:border-box} body{margin:0;font:400 16px/1.55 Inter,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box} body{margin:0;font:400 16px/1.55 Inter,'Segoe UI',system-ui,sans-serif;background-color:var(--bg);background-image:url('agri-ecosystem.svg');background-repeat:no-repeat;background-position:right 3vw bottom 2rem;background-size:min(46vw,620px);background-attachment:fixed;color:var(--txt);-webkit-font-smoothing:antialiased}
 a{color:var(--green2);text-decoration:none} img{max-width:100%}
 .wrap{max-width:1150px;margin:0 auto;padding:0 18px}
 /* topbar + ticker */
@@ -136,5 +136,30 @@ footer h4{color:#fff}footer a{color:#bcd8bc}footer a:hover{color:#fff}
 
 @media(max-width:760px){.hero{padding:40px 22px;border-radius:17px}.nav-in{height:62px}.wrap{padding:0 16px}.grid{gap:14px}}
 .btn:focus-visible,.input:focus-visible,a:focus-visible{outline:3px solid rgba(214,173,104,.55);outline-offset:2px}
+
+/* Responsive mobile navigation and distinct rectangular dashboard actions */
+.mobile-bottom-nav{display:none}
+.user-action-tabs{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0;border-bottom:0}
+.user-action-tabs button{--tab:#45695b;display:flex;align-items:center;justify-content:flex-start;min-height:48px;padding:10px 14px;border:1px solid color-mix(in srgb,var(--tab) 32%,#e0e3db);border-left:4px solid var(--tab);border-radius:9px;background:color-mix(in srgb,var(--tab) 11%,#fff);color:#27332e;font-weight:700;white-space:normal;text-align:left}
+.user-action-tabs button[data-t="ofr"]{--tab:#45695b}.user-action-tabs button[data-t="trx"]{--tab:#617d91}.user-action-tabs button[data-t="rpt"]{--tab:#bd9659}.user-action-tabs button[data-t="fav"]{--tab:#92758c}
+.user-action-tabs button:nth-child(2){--tab:#bd9659}.user-action-tabs button:nth-child(3){--tab:#617d91}.user-action-tabs button:nth-child(4){--tab:#92758c}.user-action-tabs button:nth-child(5){--tab:#789386}.user-action-tabs button:nth-child(6){--tab:#b9825b}.user-action-tabs button:nth-child(7){--tab:#6c8582}.user-action-tabs button:nth-child(8){--tab:#8a7896}
+.user-action-tabs button[data-panel="profile"]{--tab:#45695b}.user-action-tabs button[data-panel="bank"]{--tab:#bd9659}.user-action-tabs button[data-panel="password"]{--tab:#617d91}.user-action-tabs button[data-panel="seller"]{--tab:#92758c}
+.user-action-tabs button.on{background:color-mix(in srgb,var(--tab) 16%,#fff);border-color:var(--tab);box-shadow:0 3px 12px color-mix(in srgb,var(--tab) 16%,transparent)}
+.user-action-tabs button:focus-visible{outline:3px solid color-mix(in srgb,var(--tab) 38%,transparent);outline-offset:2px}
+@media(max-width:760px){
+  .nav-in{height:auto;min-height:62px;flex-wrap:wrap;gap:8px}
+  #navAuth{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;width:100%;max-width:100%;padding:0 0 9px}
+  #navAuth .btn{width:100%;min-width:0;min-height:42px;padding:8px 7px;font-size:.82rem;text-align:center;white-space:normal;overflow-wrap:anywhere}
+  .logo{font-size:1.25rem;max-width:calc(100% - 10px)}
+  body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  .mobile-bottom-nav{position:fixed;z-index:1050;inset:auto 0 0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));min-height:calc(66px + env(safe-area-inset-bottom,0px));padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:rgba(255,255,255,.97);backdrop-filter:blur(14px);box-shadow:0 -8px 22px rgba(39,51,46,.08)}
+  .mobile-nav-item{display:flex;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;border-radius:10px;background:transparent;color:var(--muted);font:600 .68rem/1.1 Inter,'Segoe UI',sans-serif;text-decoration:none;white-space:nowrap}
+  .mobile-nav-item>i{font-style:normal;font-size:1.35rem;line-height:1.05}
+  .mobile-nav-item.is-active{color:var(--green);background:rgba(69,105,91,.08)}
+  .mobile-nav-add>i{display:grid;place-items:center;width:36px;height:36px;margin-top:-14px;border:3px solid #fff;border-radius:12px;background:var(--green);color:white;box-shadow:0 4px 12px rgba(69,105,91,.24)}
+  .user-action-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .user-action-tabs button{width:100%;min-width:0;min-height:54px;padding:9px 10px;font-size:.8rem}
+}
+@media(max-width:359px){.user-action-tabs{grid-template-columns:1fr}}
 .brand-tagline{margin:.15rem 0 .8rem;color:#f1e5cc;font-size:clamp(1rem,2vw,1.25rem);font-weight:600;letter-spacing:.025em}
 .hero h2{font-size:clamp(1.25rem,2.7vw,1.8rem);margin:0 0 12px}

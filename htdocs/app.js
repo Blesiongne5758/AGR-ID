@@ -43,6 +43,7 @@ const routes = { '#/beranda':'home', '#/marketplace':'market', '#/login':'login'
   '#/dashboard':'dash', '#/dashboard/penjual':'dashPenjual', '#/dashboard/pembeli':'dashPembeli', '#/dashboard/admin':'dashAdmin',
   '#/produk-baru':'formProduk' };
 function resolve(){
+  updateMobileNav();
   if(window._productChatTimer){ clearInterval(window._productChatTimer); window._productChatTimer=null; }
   const raw = location.hash.split('?')[0];
   const chatMatch = raw.match(/^#\/pesan\/(\d+)$/);
@@ -85,10 +86,24 @@ function updateNav(){
     ? `<button class="btn btn-outline" id="btnSwitchRole" data-role="${u.role==='penjual'?'pembeli':'penjual'}">Mode ${u.role==='penjual'?'Pembeli':'Penjual'}</button>`
     : `<a class="btn btn-outline" href="#/akun">Aktifkan Mode Penjual</a>`);
   $('#navAuth').innerHTML = u
-    ? `<a class="btn btn-ghost" href="#/dashboard/${u.role}">Dashboard</a>${modeControl}<a class="btn btn-ghost" href="#/akun" title="Pengaturan pengguna">⚙️ Akun</a><button class="btn btn-outline" id="btnLogout">Keluar</button>`
+    ? `<a class="btn btn-ghost" href="#/dashboard/${u.role}">Dashboard</a>${modeControl}<a class="btn btn-ghost" href="#/akun" title="Pengaturan pengguna">⚙️ Akun</a><button class="btn btn-outline" id="btnLogout"><span aria-hidden="true">↪</span> Keluar</button>`
     : `<a class="btn btn-ghost" href="#/login">Masuk</a><a class="btn btn-primary" href="#/daftar">Daftar</a>`;
   const bs=$('#btnSwitchRole'); if(bs) bs.onclick=async()=>{try{const r=await api('switch-role',{method:'POST',body:{role:bs.dataset.role}});S.user=r.user;updateNav();toast('Mode akun beralih ke '+r.user.role+'.');location.hash='#/dashboard/'+r.user.role;}catch(e){toast(e.message);if(/lengkapi informasi/i.test(e.message))location.hash='#/akun';} };
   const bl=$('#btnLogout'); if(bl) bl.onclick=async()=>{ try{await api('logout',{method:'POST'})}catch(e){} S.token='';S.user=null;updateNav();location.hash='#/beranda'; };
+  updateMobileNav();
+}
+
+function updateMobileNav(){
+  const nav=$('#mobileBottomNav'); if(!nav)return;
+  const u=S.user, hash=(location.hash||'#/beranda').split('?')[0];
+  const links={home:'#/beranda',search:'#/marketplace',messages:u?'#/pesan':'#/login',profile:u?'#/akun':'#/login',add:u?.role==='penjual'?'#/produk-baru':u?.role==='admin'?'#/dashboard/admin':u?'#/dashboard/pembeli':'#/daftar'};
+  nav.querySelectorAll('[data-nav]').forEach(item=>{
+    const key=item.dataset.nav; item.href=links[key]||'#/beranda';
+    const active=(key==='home'&&hash==='#/beranda')||(key==='search'&&hash.startsWith('#/marketplace'))||(key==='messages'&&hash.startsWith('#/pesan'))||(key==='profile'&&['#/akun','#/dashboard','#/dashboard/pembeli','#/dashboard/penjual','#/dashboard/admin'].includes(hash))||(key==='add'&&hash==='#/produk-baru');
+    item.classList.toggle('is-active',active);
+    if(active)item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');
+    if(key==='add')item.setAttribute('aria-label',u?.role==='penjual'?'Tambah produk jualan':u?.role==='pembeli'?'Buka daftar belanja':'Buat akun');
+  });
 }
 
 /* ==================== VIEWS ==================== */
@@ -228,9 +243,10 @@ renderers.register = () => {
 };
 
 /* ---- Pengaturan profil, mode akun dan kata sandi ---- */
-renderers.akun = () => {
+renderers.akun = async () => {
   if(!S.user){ location.hash='#/login'; return; }
   const u=S.user, roles=Array.isArray(u.roles)?u.roles:[u.role];
+  const bank=await api('seller-payment-settings').catch(()=>({metode_dp:['Transfer Bank'],rekening:'',qris:'',tujuan_tunai:''}));
   const sellerTypes=['Perorangan','Kelompok/Paguyuban','Koperasi','Perusahaan'];
   const missing=[];
   if(!u.nama||u.nama===u.username)missing.push('nama lengkap/nama usaha');
@@ -239,34 +255,50 @@ renderers.akun = () => {
   if(u.lat==null||u.lng==null)missing.push('koordinat lokasi (GPS)');
   if(!sellerTypes.includes(u.tipe_penjual))missing.push('tipe penjual');
   if(u.tipe_penjual&&u.tipe_penjual!=='Perorangan'){if(!u.npwp)missing.push('NPWP');if(!u.nib)missing.push('NIB');}
-  $('#app').innerHTML = `<div class="auth card-form"><h2>Pengaturan Pengguna — ${esc(u.nama||u.username)}</h2>
-    <p class="muted small">Email: <b>${esc(u.email)}</b> · Nama pengguna: <b>${esc(u.username||'')}</b></p>
-    <h3>Profil pengguna dan informasi usaha</h3><p class="muted small">Lengkapi data di bawah sebelum mengaktifkan mode Penjual.</p>
-    <label>Nama Lengkap / Nama Usaha<input id="pNama" class="input" value="${esc(u.nama||'')}"></label>
-    <label>Nomor Telepon / WhatsApp<input id="pPhone" class="input" value="${esc(u.no_hp||'')}" autocomplete="tel"></label>
-    <label>Alamat Lengkap<textarea id="pAlamat" class="input" rows="2">${esc(u.alamat||'')}</textarea></label>
-    <div class="grid2"><label>Kota/Kabupaten<input id="pKota" class="input" value="${esc(u.kota||'')}"></label><label>Provinsi<input id="pProvinsi" class="input" value="${esc(u.provinsi||'')}"></label></div>
-    <label>Tipe Penjual<select id="pTipe" class="input"><option value="">Pilih tipe penjual</option>${sellerTypes.map(t=>`<option ${u.tipe_penjual===t?'selected':''}>${t}</option>`).join('')}</select></label>
-    <div id="pOrgFields"><label>NPWP Usaha / Organisasi<input id="pNpwp" class="input" value="${esc(u.npwp||'')}"></label><label>NIB Usaha / Organisasi<input id="pNib" class="input" value="${esc(u.nib||'')}"></label><small class="muted">Wajib untuk Kelompok/Paguyuban, Koperasi, atau Perusahaan.</small></div>
-    <div class="grid2"><label>Latitude<input id="pLat" class="input" type="number" step="0.000001" value="${u.lat??''}"></label><label>Longitude<input id="pLng" class="input" type="number" step="0.000001" value="${u.lng??''}"></label></div>
-    <button class="btn btn-outline btn-sm" id="pGps">📍 Isi lokasi dari GPS</button>
-    <button class="btn btn-primary wide" id="pSave">Simpan Profil</button>
-    ${u.role==='admin'?'':u.role==='penjual'?`<button class="btn btn-outline wide" id="pBuyerMode">Beralih ke Mode Pembeli</button>`:`<button class="btn btn-primary wide" id="pSellerMode">Aktifkan Mode Penjual</button><p class="muted small">${missing.length?'Masih perlu dilengkapi: '+esc(missing.join(', '))+'.':'Profil tampak lengkap. Simpan profil sebelum mengaktifkan mode.'}</p>`}
-    <hr><h3>Ganti Kata Sandi</h3>
-    <label>Password Lama<div class="rel"><input id="kOld" class="input" type="password" autocomplete="current-password"><button type="button" class="btn btn-outline btn-sm pwd-eye" data-for="kOld">👁</button></div></label>
-    <label>Password Baru (min. 8 karakter)<div class="rel"><input id="kNew" class="input" type="password" autocomplete="new-password"><button type="button" class="btn btn-outline btn-sm pwd-eye" data-for="kNew">👁</button></div></label>
-    <div class="pw-meter"><i id="kBar"></i></div>
-    <label>Konfirmasi Password Baru<input id="kNew2" class="input" type="password" autocomplete="new-password"></label>
-    <button class="btn btn-primary wide" id="kSave">Simpan Password</button></div>`;
+  $('#app').innerHTML = `<section class="auth card-form account-settings-card"><h2>Pengaturan Pengguna</h2>
+    <p class="muted small account-summary">${esc(u.nama||u.username)} · ${esc(u.email)} · @${esc(u.username||'')}</p>
+    <div class="user-action-tabs settings-menu" id="settingsMenu" role="tablist" aria-label="Menu pengaturan">
+      <button class="on" data-panel="profile" role="tab" aria-selected="true">Ubah Data Profil</button><button data-panel="bank" role="tab" aria-selected="false">Data Bank</button><button data-panel="password" role="tab" aria-selected="false">Ganti Password</button><button data-panel="seller" role="tab" aria-selected="false">Mode Penjual</button>
+    </div>
+    <section class="settings-panel" id="settings-profile"><h3>Data Profil &amp; Usaha</h3><p class="muted small">Lengkapi profil sebelum mengaktifkan mode Penjual.</p>
+      <label>Nama Lengkap / Nama Usaha<input id="pNama" class="input" value="${esc(u.nama||'')}" autocomplete="name"></label>
+      <label>Nomor Telepon / WhatsApp<input id="pPhone" class="input" value="${esc(u.no_hp||'')}" autocomplete="tel"></label>
+      <label>Alamat Lengkap<textarea id="pAlamat" class="input" rows="2" autocomplete="street-address">${esc(u.alamat||'')}</textarea></label>
+      <div class="grid2"><label>Kota/Kabupaten<input id="pKota" class="input" value="${esc(u.kota||'')}"></label><label>Provinsi<input id="pProvinsi" class="input" value="${esc(u.provinsi||'')}"></label></div>
+      <label>Tipe Penjual<select id="pTipe" class="input"><option value="">Pilih tipe penjual</option>${sellerTypes.map(t=>`<option ${u.tipe_penjual===t?'selected':''}>${t}</option>`).join('')}</select></label>
+      <div id="pOrgFields"><label>NPWP Usaha / Organisasi<input id="pNpwp" class="input" value="${esc(u.npwp||'')}"></label><label>NIB Usaha / Organisasi<input id="pNib" class="input" value="${esc(u.nib||'')}"></label><small class="muted">Wajib untuk Kelompok/Paguyuban, Koperasi, atau Perusahaan.</small></div>
+      <div class="grid2"><label>Latitude<input id="pLat" class="input" type="number" step="0.000001" value="${u.lat??''}"></label><label>Longitude<input id="pLng" class="input" type="number" step="0.000001" value="${u.lng??''}"></label></div>
+      <button class="btn btn-outline" id="pGps">📍 Isi lokasi dari GPS</button><button class="btn btn-primary wide" id="pSave">Simpan Profil</button>
+    </section>
+    <section class="settings-panel" id="settings-bank" hidden><h3>Data Pembayaran / Bank</h3><p class="muted small">Atur informasi pembayaran yang ditampilkan kepada pembeli.</p>
+      <label>Metode Pembayaran</label><div class="settings-methods">${['Transfer Bank','QRIS','Tunai'].map(m=>`<label class="settings-method"><input type="checkbox" name="payMethod" value="${m}" ${(bank.metode_dp||[]).includes(m)?'checked':''}> ${m}</label>`).join('')}</div>
+      <label>Nama bank, nomor rekening, dan nama pemilik<input id="bankAccount" class="input" maxlength="160" value="${esc(bank.rekening||'')}" placeholder="Bank ABC · 1234567890 · Nama Pemilik"></label>
+      <label>Informasi QRIS (opsional)<input id="bankQris" class="input" maxlength="500" value="${esc(bank.qris||'')}" placeholder="URL gambar QRIS atau petunjuk pembayaran"></label>
+      <label>Petunjuk tunai (opsional)<textarea id="bankCash" class="input" rows="2" maxlength="300">${esc(bank.tujuan_tunai||'')}</textarea></label>
+      <button class="btn btn-primary wide" id="bankSave">Simpan Data Bank</button>
+    </section>
+    <section class="settings-panel" id="settings-password" hidden><h3>Keamanan Akun</h3><label>Password Lama<input id="kOld" class="input" type="password" autocomplete="current-password"></label>
+      <label>Password Baru (min. 8 karakter)<input id="kNew" class="input" type="password" autocomplete="new-password"></label><div class="pw-meter"><i id="kBar"></i></div>
+      <label>Konfirmasi Password Baru<input id="kNew2" class="input" type="password" autocomplete="new-password"></label><button class="btn btn-primary wide" id="kSave">Simpan Password</button>
+    </section>
+    <section class="settings-panel" id="settings-seller" hidden><h3>Mode Penjual</h3>${u.role==='penjual'?'<p class="panel">Mode Penjual sedang aktif.</p><button class="btn btn-outline wide" id="pBuyerMode">Beralih ke Mode Pembeli</button>':u.role==='admin'?'<p class="panel">Mode penjual tidak tersedia untuk admin.</p>':`<p class="muted small">${missing.length?'Lengkapi: '+esc(missing.join(', '))+'.':'Profil tampak lengkap. Simpan profil sebelum mengaktifkan mode.'}</p><button class="btn btn-primary wide" id="pSellerMode" ${missing.length?'disabled':''}>Aktifkan Mode Penjual</button>`}</section>
+    </section>`;
+  $('#settingsMenu').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    $('#settingsMenu').querySelectorAll('button').forEach(x=>{const active=x===b;x.classList.toggle('on',active);x.setAttribute('aria-selected',String(active));});
+    document.querySelectorAll('.settings-panel').forEach(p=>p.hidden=p.id!=='settings-'+b.dataset.panel);
+    history.replaceState(null,'','#/akun?tab='+b.dataset.panel);
+  });
+  const initialTab=new URLSearchParams(location.hash.split('?')[1]||'').get('tab');
+  const initialBtn=$(`#settingsMenu [data-panel="${initialTab}"]`); if(initialBtn)initialBtn.click();
   const profileData=()=>({nama:$('#pNama').value,no_hp:$('#pPhone').value,alamat:$('#pAlamat').value,kota:$('#pKota').value,provinsi:$('#pProvinsi').value,tipe_penjual:$('#pTipe').value,npwp:$('#pNpwp').value,nib:$('#pNib').value,lat:$('#pLat').value||null,lng:$('#pLng').value||null});
   const toggleOrg=()=>$('#pOrgFields').style.display=$('#pTipe').value&&$('#pTipe').value!=='Perorangan'?'':'none';
   $('#pTipe').onchange=toggleOrg;toggleOrg();
   $('#pGps').onclick=()=>{if(!navigator.geolocation){toast('Browser tidak mendukung geolokasi');return;}navigator.geolocation.getCurrentPosition(pos=>{$('#pLat').value=pos.coords.latitude.toFixed(6);$('#pLng').value=pos.coords.longitude.toFixed(6);},()=>toast('Izin lokasi tidak tersedia'));};
   $('#pSave').onclick=async()=>{try{const r=await api('update-profile',{method:'POST',body:profileData()});S.user=r.user;updateNav();toast('Profil berhasil disimpan');renderers.akun();}catch(e){toast(e.message);}};
+  $('#bankSave').onclick=async()=>{try{const metode_dp=[...document.querySelectorAll('[name="payMethod"]:checked')].map(x=>x.value);await api('seller-payment-settings',{method:'POST',body:{metode_dp,rekening:$('#bankAccount').value,qris:$('#bankQris').value,tujuan_tunai:$('#bankCash').value}});toast('Data pembayaran berhasil disimpan');}catch(e){toast(e.message);}};
   const activate=async(target)=>{try{const saved=await api('update-profile',{method:'POST',body:profileData()});S.user=saved.user;const r=await api('switch-role',{method:'POST',body:{role:target}});S.user=r.user;updateNav();toast(target==='penjual'?'Mode Penjual aktif':'Mode Pembeli aktif');location.hash='#/dashboard/'+target;}catch(e){toast(e.message);}};
   const pSeller=$('#pSellerMode');if(pSeller)pSeller.onclick=()=>activate('penjual');
   const pBuyer=$('#pBuyerMode');if(pBuyer)pBuyer.onclick=()=>activate('pembeli');
-  document.querySelectorAll('.pwd-eye').forEach(b=>b.onclick=()=>{ const i=$('#'+b.dataset.for); i.type=i.type==='password'?'text':'password'; });
   const score=v=>{ let s=0; if(v.length>=8)s++; if(/[a-z]/.test(v)&&/[A-Z]/.test(v))s++; if(/\d/.test(v))s++; if(/[^A-Za-z0-9]/.test(v))s++; if(v.length>=12)s++; return Math.min(s,5); };
   $('#kNew').oninput=()=>{ const v=$('#kNew').value,s=score(v); $('#kBar').style.width=(s*20)+'%'; $('#kBar').className='lvl'+s; };
   $('#kSave').onclick=async()=>{
@@ -335,7 +367,7 @@ renderers.dashPenjual = async () => {
   const omzet = tx.filter(t=>['lunas','completed'].includes(t.status)).reduce((a,t)=>a+ +t.harga_total,0);
   $('#app').innerHTML = `<h2>Dashboard Penjual</h2>
    <div class="stats"><div class="stat"><b>${prods.length}</b>Produk aktif</div><div class="stat"><b>${offers.filter(o=>o.status==='menunggu').length}</b>Penawaran masuk</div><div class="stat"><b>${pel.length}</b>Antrean approval</div><div class="stat"><b>${rp(omzet)}</b>Omzet lunas</div></div>
-   <div class="tabs" id="tabsP"><button class="on" data-t="prod">Produk Saya</button><button data-t="ofr">Penawaran</button><button data-t="pln">Approval Pelunasan</button><button data-t="rpt">Laporan Penjualan</button></div>
+   <div class="tabs user-action-tabs" id="tabsP" role="tablist" aria-label="Menu dashboard penjual"><button class="on" data-t="prod">Produk Saya</button><button data-t="ofr">Penawaran</button><button data-t="pln">Approval Pelunasan</button><button data-t="rpt">Laporan Penjualan</button></div>
    <div id="tabP"></div>`;
   const show=t=>{ $('#tabsP').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
     const box=$('#tabP');
@@ -360,7 +392,7 @@ renderers.dashPembeli = async () => {
   const [ofr,tx,favs] = await Promise.all([api('offers-mine').catch(()=>[]),api('transactions',{qs:'side=pembelian'}).catch(()=>[]),api('favorites').catch(()=>[])]);
   $('#app').innerHTML = `<h2>Dashboard Pembeli</h2>
    <div class="stats"><div class="stat"><b>${ofr.filter(o=>o.status==='diterima').length}</b>Penawaran diterima</div><div class="stat"><b>${tx.filter(t=>t.status==='menunggu_approval').length}</b>Menunggu penjual</div><div class="stat"><b>${tx.filter(t=>t.status==='completed').length}</b>Selesai</div><div class="stat"><b>${favs.length}</b>Favorit</div></div>
-   <div class="tabs" id="tabsB"><button class="on" data-t="ofr">Penawaran Saya</button><button data-t="trx">Transaksi & Pelunasan</button><button data-t="rpt">Laporan Pembelian</button><button data-t="fav">Favorit</button></div><div id="tabB"></div>`;
+   <div class="tabs user-action-tabs" id="tabsB" role="tablist" aria-label="Menu dashboard pembeli"><button class="on" data-t="ofr">Penawaran Saya</button><button data-t="trx">Transaksi & Pelunasan</button><button data-t="rpt">Laporan Pembelian</button><button data-t="fav">Favorit</button></div><div id="tabB"></div>`;
   const show=t=>{ $('#tabsB').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); const box=$('#tabB');
     if(t==='ofr') box.innerHTML=tbl(['ID','Tawaran','Jumlah','Status','Aksi'],ofr.map(o=>[o.id,rp(o.harga_tawar),o.jumlah,badge(o.status),
       o.status==='diterima'?`<button class="btn btn-sm btn-primary bk" data-id="${o.id}" data-h="${o.harga_tawar}" data-j="${o.jumlah}">Booking + DP</button>`:''])) || '<p class="muted">Belum ada penawaran. Kirim penawaran dari halaman produk.</p>';
@@ -511,4 +543,3 @@ async function uploadCloud(file, visibility='public', purpose=''){
 /* ---- helper tabel ---- */
 function tbl(heads,rows){ if(!rows||!rows.length) return null;
   return `<div class="tw"><table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c??''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`; }
-
