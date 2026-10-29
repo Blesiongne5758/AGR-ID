@@ -254,84 +254,84 @@ html.dark .brand-dot {
   transform: translateY(-4px);
 }
 
-/* 1. Pertanian (Lembut Mint / Hijau Muda) */
+/* Pertanian — Hijau Tani */
 .card-cat-pertanian, .cat-card.cat-pertanian {
-  background: linear-gradient(145deg, #f0fdf4 0%, #dcfce7 100%) !important;
-  border: 1px solid #bbf7d0 !important;
+  background: linear-gradient(145deg, #e8f5ee 0%, #d0ecdc 100%) !important;
+  border: 1px solid #a3d4bb !important;
 }
 .card-cat-pertanian .cat-title, .cat-card.cat-pertanian h3 {
-  color: #166534 !important;
+  color: #007849 !important;
 }
 .card-cat-pertanian:hover, .cat-card.cat-pertanian:hover {
-  box-shadow: 0 10px 24px rgba(22, 101, 52, 0.14) !important;
-  border-color: #86efac !important;
+  box-shadow: 0 10px 24px rgba(0, 120, 73, 0.18) !important;
+  border-color: #4db38a !important;
 }
 
-/* 2. Perkebunan (Lembut Kuning Madu / Amber) */
+/* Perkebunan — Cokelat Tanah */
 .card-cat-perkebunan, .cat-card.cat-perkebunan {
-  background: linear-gradient(145deg, #fffbeb 0%, #fef3c7 100%) !important;
-  border: 1px solid #fde68a !important;
+  background: linear-gradient(145deg, #fdf3ea 0%, #f7e0c7 100%) !important;
+  border: 1px solid #ddb98a !important;
 }
 .card-cat-perkebunan .cat-title, .cat-card.cat-perkebunan h3 {
-  color: #92400e !important;
+  color: #8a5a2f !important;
 }
 .card-cat-perkebunan:hover, .cat-card.cat-perkebunan:hover {
-  box-shadow: 0 10px 24px rgba(180, 83, 9, 0.14) !important;
-  border-color: #fcd34d !important;
+  box-shadow: 0 10px 24px rgba(179, 125, 78, 0.18) !important;
+  border-color: #c49260 !important;
 }
 
-/* 3. Perikanan (Lembut Biru Akuatik / Bahari) */
+/* Perikanan — Biru Bahari */
 .card-cat-perikanan, .cat-card.cat-perikanan {
-  background: linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 100%) !important;
-  border: 1px solid #bae6fd !important;
+  background: linear-gradient(145deg, #eaf2fc 0%, #d0e5f8 100%) !important;
+  border: 1px solid #9ac2e8 !important;
 }
 .card-cat-perikanan .cat-title, .cat-card.cat-perikanan h3 {
-  color: #075985 !important;
+  color: #2160a0 !important;
 }
 .card-cat-perikanan:hover, .cat-card.cat-perikanan:hover {
-  box-shadow: 0 10px 24px rgba(7, 89, 133, 0.14) !important;
-  border-color: #7dd3fc !important;
+  box-shadow: 0 10px 24px rgba(68, 132, 206, 0.18) !important;
+  border-color: #5b9bd5 !important;
 }
 
-/* 4. Peternakan (Lembut Peach / Terracotta Hangat) */
+/* Peternakan — Merah Bata Hangat */
 .card-cat-peternakan, .cat-card.cat-peternakan {
-  background: linear-gradient(145deg, #fff7ed 0%, #ffedd5 100%) !important;
-  border: 1px solid #fed7aa !important;
+  background: linear-gradient(145deg, #faf0ef 0%, #f3d8d5 100%) !important;
+  border: 1px solid #d99b97 !important;
 }
 .card-cat-peternakan .cat-title, .cat-card.cat-peternakan h3 {
-  color: #9a3412 !important;
+  color: #7a3530 !important;
 }
 .card-cat-peternakan:hover, .cat-card.cat-peternakan:hover {
-  box-shadow: 0 10px 24px rgba(154, 52, 18, 0.14) !important;
-  border-color: #fdba74 !important;
+  box-shadow: 0 10px 24px rgba(152, 75, 67, 0.18) !important;
+  border-color: #b0655f !important;
 }
 
-/* Mode gelap: saturasi warna lembut yang nyaman di mata */
+/* Mode gelap: saturasi warna sesuai brand */
 html.dark .card-cat-pertanian, html.dark .cat-card.cat-pertanian {
-  background: linear-gradient(145deg, rgba(22, 101, 52, 0.24) 0%, rgba(20, 83, 45, 0.36) 100%) !important;
-  border-color: rgba(74, 222, 128, 0.35) !important;
+  background: linear-gradient(145deg, rgba(0, 120, 73, 0.22) 0%, rgba(0, 95, 58, 0.34) 100%) !important;
+  border-color: rgba(0, 180, 110, 0.35) !important;
 }
 html.dark .card-cat-pertanian .cat-title, html.dark .cat-card.cat-pertanian h3 {
-  color: #86efac !important;
+  color: #4db38a !important;
 }
 html.dark .card-cat-perkebunan, html.dark .cat-card.cat-perkebunan {
-  background: linear-gradient(145deg, rgba(146, 64, 14, 0.24) 0%, rgba(120, 53, 15, 0.36) 100%) !important;
-  border-color: rgba(251, 191, 36, 0.35) !important;
+  background: linear-gradient(145deg, rgba(179, 125, 78, 0.22) 0%, rgba(140, 95, 55, 0.34) 100%) !important;
+  border-color: rgba(200, 155, 105, 0.35) !important;
 }
 html.dark .card-cat-perkebunan .cat-title, html.dark .cat-card.cat-perkebunan h3 {
-  color: #fde047 !important;
+  color: #ddb98a !important;
 }
 html.dark .card-cat-perikanan, html.dark .cat-card.cat-perikanan {
-  background: linear-gradient(145deg, rgba(7, 89, 133, 0.24) 0%, rgba(3, 105, 161, 0.36) 100%) !important;
-  border-color: rgba(56, 189, 248, 0.35) !important;
+  background: linear-gradient(145deg, rgba(68, 132, 206, 0.22) 0%, rgba(40, 100, 170, 0.34) 100%) !important;
+  border-color: rgba(100, 170, 230, 0.35) !important;
 }
 html.dark .card-cat-perikanan .cat-title, html.dark .cat-card.cat-perikanan h3 {
-  color: #7dd3fc !important;
+  color: #9ac2e8 !important;
 }
 html.dark .card-cat-peternakan, html.dark .cat-card.cat-peternakan {
-  background: linear-gradient(145deg, rgba(154, 52, 18, 0.24) 0%, rgba(124, 45, 18, 0.36) 100%) !important;
-  border-color: rgba(251, 146, 60, 0.35) !important;
+  background: linear-gradient(145deg, rgba(152, 75, 67, 0.22) 0%, rgba(120, 55, 48, 0.34) 100%) !important;
+  border-color: rgba(195, 115, 108, 0.35) !important;
 }
 html.dark .card-cat-peternakan .cat-title, html.dark .cat-card.cat-peternakan h3 {
-  color: #fdba74 !important;
+  color: #d99b97 !important;
 }
