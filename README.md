@@ -1,6 +1,6 @@
 # 🌾 AGR.ID — Marketplace Pertanian, Perkebunan, Perikanan & Peternakan
 
-**AGR.ID** adalah webapp marketplace B2B/B2C yang mempertemukan **penjual** (petani, nelayan, peternak, koperasi, kelompok tani/paguyuban) langsung dengan **pembeli** (perorangan, yayasan, koperasi, maupun perusahaan) — dilengkapi **AI Chat Agent**, alur **penawaran harga → booking dengan DP → payment gateway → jadwal pengiriman → verifikasi eviden (foto + GPS)**, serta **laporan transaksi** untuk penjual, pembeli, dan admin.
+**AGR.ID** adalah marketplace B2B/B2C yang mempertemukan **penjual** (petani, nelayan, peternak, koperasi, kelompok tani/paguyuban) langsung dengan **pembeli** (perorangan, yayasan, koperasi, maupun perusahaan) — dilengkapi **AI Chat Agent**, alur **penawaran harga → booking dengan DP → payment gateway → jadwal pengiriman → verifikasi eviden (foto + GPS)**, serta **laporan transaksi** untuk penjual, pembeli, dan admin.
 
 Dibangun dengan **Python Flask + SQLAlchemy** untuk aplikasi lokal/server dan frontend statis **HTML/CSS/JavaScript + PHP API gateway** untuk hosting InfinityFree. Database produksi memakai **Supabase (PostgreSQL/PostgREST)**; SQLite digunakan untuk pengembangan Flask lokal.
 
