@@ -967,3 +967,108 @@ html.dark .cat-sub-chip:hover {
     height: 44px;
   }
 }
+
+/* ============================================================
+   NAVBAR ALIGNMENT & SPACING: LOGO, BRAND TITLE & MENU TABS
+   ============================================================ */
+.navbar-agrid {
+  min-height: 68px;
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+.navbar-agrid > .container {
+  display: flex !important;
+  align-items: center !important;
+  min-height: 52px;
+}
+.navbar-agrid .navbar-brand {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 0 !important;
+  margin: 0 1.75rem 0 0 !important;
+  line-height: 1 !important;
+  text-decoration: none !important;
+}
+.navbar-agrid .navbar-logo-img {
+  width: 46px !important;
+  height: 46px !important;
+  object-fit: contain !important;
+  display: block !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+  border-radius: 6px;
+}
+.navbar-agrid .navbar-brand .brand-text {
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: 1 !important;
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.navbar-agrid .navbar-brand .brand-text span {
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: 1 !important;
+}
+.navbar-agrid .navbar-collapse {
+  display: flex !important;
+  align-items: center !important;
+}
+.navbar-agrid .navbar-nav {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  margin: 0 auto 0 0 !important;
+  padding: 0 !important;
+}
+.navbar-agrid .navbar-nav .nav-item {
+  display: flex !important;
+  align-items: center !important;
+  margin: 0 !important;
+}
+.navbar-agrid .navbar-nav .nav-link {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  height: 42px !important;
+  padding: 0.4rem 0.85rem !important;
+  line-height: 1 !important;
+  font-size: 0.9rem !important;
+  font-weight: 550 !important;
+  border-radius: 8px !important;
+  margin: 0 !important;
+  transition: all 0.15s ease;
+}
+.navbar-agrid .navbar-nav .nav-link i {
+  font-size: 1.05rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+.navbar-agrid #themeToggle {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 38px !important;
+  width: 38px !important;
+  padding: 0 !important;
+  margin: 0 0.5rem 0 0 !important;
+  line-height: 1 !important;
+}
+.navbar-agrid .navbar-text {
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: 1 !important;
+  margin-bottom: 0 !important;
+}
+.navbar-agrid .btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 38px !important;
+  line-height: 1 !important;
+  margin-bottom: 0 !important;
+}

@@ -26,7 +26,7 @@
   .mobile-add-modal .modal-content{border-radius:1.15rem 1.15rem 0 0;padding-bottom:env(safe-area-inset-bottom,0px)}
   .mobile-add-modal .modal-body{padding-bottom:1.1rem}
   .navbar-agrid>.container{max-width:100%;padding-inline:1rem;gap:.5rem}
-  .navbar-agrid .navbar-brand{max-width:calc(100% - 4.25rem);font-size:1.12rem;white-space:nowrap}
+  .navbar-agrid .navbar-brand{display:inline-flex;align-items:center;gap:8px;max-width:calc(100% - 145px);font-size:1.12rem;white-space:nowrap}
   .navbar-agrid .navbar-toggler{flex:0 0 auto;padding:.4rem .55rem}
   .navbar-agrid .navbar-collapse.show{width:100%;max-width:100%;min-width:0;padding:.75rem 0 .25rem;overflow-x:hidden;border-top:1px solid hsl(var(--border));margin-top:.4rem}
   .navbar-agrid .navbar-collapse.show .navbar-nav{width:100%;gap:.1rem}

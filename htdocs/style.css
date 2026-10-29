@@ -841,3 +841,75 @@ html.dark .cat-sub-chip:hover {
     height: 44px;
   }
 }
+
+/* ============================================================
+   NAVBAR ALIGNMENT & SPACING: LOGO, BRAND TITLE & MENU TABS (HTDOCS)
+   ============================================================ */
+.nav-in {
+  display: flex !important;
+  align-items: center !important;
+  gap: 28px !important;
+  height: 70px !important;
+}
+.logo {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  font-weight: 800 !important;
+  font-size: 1.35rem !important;
+  color: var(--green) !important;
+  text-decoration: none !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.logo .navbar-logo-img {
+  width: 46px !important;
+  height: 46px !important;
+  object-fit: contain !important;
+  border-radius: 6px;
+  flex-shrink: 0 !important;
+  display: block !important;
+  margin: 0 !important;
+}
+.logo .brand-text {
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: 1 !important;
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+  margin: 0 !important;
+}
+.logo .brand-text span {
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: 1 !important;
+}
+.links {
+  display: flex !important;
+  align-items: center !important;
+  gap: 20px !important;
+  flex: 1 !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.links a {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 42px !important;
+  padding: 0 8px !important;
+  line-height: 1 !important;
+  color: var(--txt) !important;
+  text-decoration: none !important;
+  transition: color 0.18s ease;
+}
+.links a:hover {
+  color: var(--green2) !important;
+}
+#navAuth {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin: 0 !important;
+}
