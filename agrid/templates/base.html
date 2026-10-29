@@ -5,6 +5,7 @@
 <meta name="google-site-verification" content="KJotVkKjV28_4eeuAF0uZE98ZVNw78GHty8LfqGSC7Q">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}AGR.BIZ.ID — Agrikultur Bisnis Indonesia{% endblock %}</title>
+<link rel="icon" href="{{ url_for('static', filename='logo-agr.png') }}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
@@ -23,7 +24,7 @@
 <!-- ================= NAVBAR (shadcn header) ================= -->
 <nav class="navbar navbar-expand-lg navbar-agrid sticky-top">
   <div class="container">
-    <a class="navbar-brand fw-bold d-inline-flex align-items-center" href="{{ url_for('home') }}"><span class="me-1">🌾</span><span class="brand-text"><span class="brand-agr">AGR</span><span class="brand-dot">.</span><span class="brand-biz">BIZ</span><span class="brand-dot">.</span><span class="brand-id">ID</span></span></a>
+    <a class="navbar-brand fw-bold d-inline-flex align-items-center gap-2" href="{{ url_for('home') }}"><img src="{{ url_for('static', filename='logo-agr.png') }}" alt="AGR.BIZ.ID Logo" class="navbar-logo-img" width="38" height="38" style="object-fit:contain;"><span class="brand-text"><span class="brand-agr">AGR</span><span class="brand-dot">.</span><span class="brand-biz">BIZ</span><span class="brand-dot">.</span><span class="brand-id">ID</span></span></a>
 
     <!-- Dropdown Menu User Mobile (Sebelah Kanan Atas) -->
     <div class="d-flex align-items-center gap-2 ms-auto d-lg-none">
@@ -158,7 +159,7 @@
 <footer class="footer mt-5 py-4">
   <div class="container row gx-3">
     <div class="col-md-5">
-      <h5 class="text-white d-inline-flex align-items-center"><span class="me-1">&#127806;</span><span class="brand-text"><span class="brand-agr">AGR</span><span class="brand-dot">.</span><span class="brand-biz">BIZ</span><span class="brand-dot">.</span><span class="brand-id">ID</span></span></h5>
+      <h5 class="text-white d-inline-flex align-items-center gap-2"><img src="{{ url_for('static', filename='logo-agr.png') }}" alt="AGR.BIZ.ID Logo" width="32" height="32" style="object-fit:contain;filter:brightness(1.1);"><span class="brand-text"><span class="brand-agr">AGR</span><span class="brand-dot">.</span><span class="brand-biz">BIZ</span><span class="brand-dot">.</span><span class="brand-id">ID</span></span></h5>
       <p class="small mb-1">{{ f_tentang }}</p>
     </div>
     <div class="col-md-3 small">

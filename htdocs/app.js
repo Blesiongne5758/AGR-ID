@@ -196,7 +196,7 @@ renderers.home = async () => {
     </div>
     <div class="hero-overlay" aria-hidden="true"></div>
     <div class="hero-content">
-      <h1>🌾 <span class="brand-text"><span class="brand-agr">AGR</span><span class="brand-dot">.</span><span class="brand-biz">BIZ</span><span class="brand-dot">.</span><span class="brand-id">ID</span></span></h1><p class="brand-tagline">Agrikultur Bisnis Indonesia</p><h2>Marketplace Pertanian, Perkebunan, Perikanan &amp; Peternakan</h2>
+      <h1 class="d-inline-flex align-items-center gap-2"><img src="logo-agr.png" alt="AGR" class="hero-logo-img" width="52" height="52" style="object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.35));"><span class="brand-text"><span class="brand-agr">AGR</span><span class="brand-dot">.</span><span class="brand-biz">BIZ</span><span class="brand-dot">.</span><span class="brand-id">ID</span></span></h1><p class="brand-tagline">Agrikultur Bisnis Indonesia</p><h2>Marketplace Pertanian, Perkebunan, Perikanan &amp; Peternakan</h2>
       <p>Langsung dari petani dan peternak — penawaran harga, booking dengan DP pengikat, pengiriman terjadwal, dan ketelusuran berbasis bukti foto + GPS. Didukung AI assistant.</p>
       <div class="hero-actions"><a class="btn btn-primary btn-lg" href="#/marketplace">Jelajahi Produk</a><a class="btn btn-outline btn-lg" href="#/daftar">Jadi Penjual</a></div>
     </div>
