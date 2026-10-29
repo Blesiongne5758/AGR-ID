@@ -182,13 +182,13 @@ footer h4{color:#fff}footer a{color:#bcd8bc}footer a:hover{color:#fff}
   align-items: baseline;
 }
 .brand-agr {
-  color: #10b981; /* Hijau Segar */
+  color: #E8F5E9; /* Hijau Muda Lembut */
 }
 .brand-biz {
-  color: #f59e0b; /* Kuning Amber / Emas */
+  color: #388E3C; /* Hijau Sedang */
 }
 .brand-id {
-  color: #0ea5e9; /* Biru Langit / Bahari */
+  color: #1B5E20; /* Hijau Gelap */
 }
 .brand-dot {
   color: #94a3b8;
@@ -203,21 +203,21 @@ footer h4{color:#fff}footer a{color:#bcd8bc}footer a:hover{color:#fff}
 .navbar-agrid .brand-agr,
 .navbar-brand .brand-agr,
 html.dark .brand-agr {
-  color: #34d399;
+  color: #E8F5E9; /* Hijau Muda Lembut */
 }
 .hero-content .brand-biz,
 .hero .brand-biz,
 .navbar-agrid .brand-biz,
 .navbar-brand .brand-biz,
 html.dark .brand-biz {
-  color: #fbbf24;
+  color: #388E3C; /* Hijau Sedang */
 }
 .hero-content .brand-id,
 .hero .brand-id,
 .navbar-agrid .brand-id,
 .navbar-brand .brand-id,
 html.dark .brand-id {
-  color: #38bdf8;
+  color: #1B5E20; /* Hijau Gelap */
 }
 .hero-content .brand-dot,
 .hero .brand-dot,
