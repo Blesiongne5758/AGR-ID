@@ -1075,7 +1075,7 @@ html.dark .cat-sub-chip:hover {
 
 
 /* ============================================================
-   UNIFIED NAVBAR MENU DROPDOWN (DESKTOP & MOBILE)
+   UNIFIED NAVBAR MENU DROPDOWN - SOFT GREEN FRAME (DESKTOP & MOBILE)
    ============================================================ */
 .navbar-unified-dropdown {
   position: relative;
@@ -1084,34 +1084,117 @@ html.dark .cat-sub-chip:hover {
   margin-left: 0.35rem;
   vertical-align: 0.15em;
 }
-.navbar-unified-dropdown .dropdown-menu {
-  border-radius: 14px !important;
-  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.18) !important;
-  border: 1px solid hsl(var(--border)) !important;
-  padding: 0.5rem 0 !important;
+
+/* Frame Background Warna Hijau Lembut */
+.navbar-unified-dropdown .dropdown-menu,
+.dropdown-menu-softgreen {
+  background: linear-gradient(175deg, #f2faf5 0%, #e3f3ea 100%) !important;
+  border: 1.5px solid #a3d4bb !important;
+  border-radius: 16px !important;
+  box-shadow: 0 18px 45px rgba(27, 94, 32, 0.16), 0 4px 14px rgba(0, 0, 0, 0.04) !important;
+  padding: 0.75rem 0.65rem !important;
+  min-width: 265px !important;
+  z-index: 1070 !important;
+  display: none;
 }
+.navbar-unified-dropdown .dropdown-menu.show,
+.dropdown-menu-softgreen.show {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  animation: fadeInDown 0.18s ease;
+}
+
+/* User Profile Header Card inside Dropdown */
+.navbar-unified-dropdown .dropdown-menu > li:first-child.border-bottom {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid #bce1ce !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  margin-bottom: 8px !important;
+  box-shadow: 0 2px 6px rgba(27, 94, 32, 0.05) !important;
+}
+
+/* Section Header Badges */
 .navbar-unified-dropdown .dropdown-header {
   font-size: 0.72rem !important;
-  font-weight: 700 !important;
-  color: hsl(var(--muted-foreground)) !important;
+  font-weight: 750 !important;
+  color: #2e7d32 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.04em !important;
+  letter-spacing: 0.05em !important;
+  padding: 8px 10px 4px !important;
+  margin-top: 2px !important;
 }
+
+/* List Menu Kebawah Berurutan */
 .navbar-unified-dropdown .dropdown-item {
-  display: flex;
-  align-items: center;
-  font-size: 0.88rem;
-  font-weight: 550;
-  padding: 0.55rem 1.1rem;
-  transition: all 0.15s ease;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  font-size: 0.9rem !important;
+  font-weight: 550 !important;
+  color: #1e3a29 !important;
+  padding: 0.62rem 0.95rem !important;
+  border-radius: 10px !important;
+  margin-bottom: 2px !important;
+  text-decoration: none !important;
+  transition: all 0.16s ease !important;
+  background: transparent !important;
 }
+.navbar-unified-dropdown .dropdown-item i {
+  font-size: 1.05rem !important;
+  width: 22px !important;
+  text-align: center !important;
+  flex-shrink: 0 !important;
+}
+
+/* Hover Effect: Soft highlight card with forward shift */
 .navbar-unified-dropdown .dropdown-item:hover,
 .navbar-unified-dropdown .dropdown-item:focus {
-  background-color: hsl(var(--accent));
-  color: hsl(var(--foreground));
+  background: #ffffff !important;
+  color: #1b5e20 !important;
+  transform: translateX(4px) !important;
+  box-shadow: 0 3px 10px rgba(27, 94, 32, 0.1) !important;
 }
-html.dark .navbar-unified-dropdown .dropdown-menu {
-  background: hsl(var(--card)) !important;
-  border-color: hsl(var(--border)) !important;
-  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.45) !important;
+
+.navbar-unified-dropdown .dropdown-item.text-danger:hover {
+  background: #fff5f5 !important;
+  color: #dc2626 !important;
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.12) !important;
 }
+
+/* Dividers */
+.navbar-unified-dropdown .dropdown-divider {
+  border-top: 1px solid rgba(46, 125, 50, 0.18) !important;
+  margin: 6px 4px !important;
+  opacity: 1 !important;
+}
+
+/* Mode Gelap (Dark Mode) */
+html.dark .navbar-unified-dropdown .dropdown-menu,
+html.dark .dropdown-menu-softgreen {
+  background: linear-gradient(175deg, #182e22 0%, #11241a 100%) !important;
+  border-color: rgba(94, 186, 137, 0.35) !important;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55), 0 0 24px rgba(46, 125, 50, 0.22) !important;
+}
+html.dark .navbar-unified-dropdown .dropdown-menu > li:first-child.border-bottom {
+  background: rgba(23, 45, 33, 0.88) !important;
+  border-color: rgba(94, 186, 137, 0.3) !important;
+}
+html.dark .navbar-unified-dropdown .dropdown-header {
+  color: #86efac !important;
+}
+html.dark .navbar-unified-dropdown .dropdown-item {
+  color: #d1fae5 !important;
+}
+html.dark .navbar-unified-dropdown .dropdown-item:hover,
+html.dark .navbar-unified-dropdown .dropdown-item:focus {
+  background: #234432 !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35) !important;
+}
+html.dark .navbar-unified-dropdown .dropdown-divider {
+  border-color: rgba(94, 186, 137, 0.24) !important;
+}
+
+

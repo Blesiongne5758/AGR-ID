@@ -134,7 +134,7 @@ function updateNav(){
     btnToggle.onclick=(e)=>{
       e.stopPropagation();
       const isOpen = ddMenu.style.display !== 'none';
-      ddMenu.style.display = isOpen ? 'none' : 'block';
+      ddMenu.style.display = isOpen ? 'none' : 'flex';
       btnToggle.setAttribute('aria-expanded', !isOpen);
     };
     ddMenu.onclick=(e)=>{

@@ -940,3 +940,149 @@ html.dark .cat-sub-chip:hover {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+
+/* ============================================================
+   UNIFIED NAVBAR MENU DROPDOWN - SOFT GREEN FRAME (HTDOCS)
+   ============================================================ */
+.navbar-unified-dropdown {
+  position: relative !important;
+}
+
+/* Frame Background Warna Hijau Lembut */
+.dropdown-menu-box {
+  position: absolute !important;
+  top: calc(100% + 10px) !important;
+  right: 0 !important;
+  min-width: 265px !important;
+  background: linear-gradient(175deg, #f2faf5 0%, #e3f3ea 100%) !important;
+  border: 1.5px solid #a3d4bb !important;
+  border-radius: 16px !important;
+  box-shadow: 0 18px 45px rgba(27, 94, 32, 0.16), 0 4px 14px rgba(0, 0, 0, 0.04) !important;
+  padding: 0.75rem 0.65rem !important;
+  z-index: 1070 !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  animation: fadeInDown 0.18s ease;
+}
+.dropdown-menu-box[style*="display: none"],
+.dropdown-menu-box[style*="display:none"] {
+  display: none !important;
+}
+
+/* User Profile Header Card */
+.dd-user-header {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid #bce1ce !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  margin-bottom: 8px !important;
+  box-shadow: 0 2px 6px rgba(27, 94, 32, 0.05) !important;
+}
+.dd-user-header strong {
+  display: block;
+  font-size: 0.88rem;
+  color: #1e3a29;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dd-user-header .badge-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.dd-user-header .b-role {
+  background: var(--green2);
+  color: #fff;
+  font-size: 0.68rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: capitalize;
+}
+.dd-user-header .b-tipe {
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 0.68rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Section Header */
+.dd-sec-title {
+  padding: 8px 10px 4px !important;
+  font-size: 0.72rem !important;
+  font-weight: 750 !important;
+  color: #2e7d32 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  margin-top: 2px !important;
+}
+
+/* List Menu Kebawah Berurutan */
+.dd-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  padding: 0.62rem 0.95rem !important;
+  font-size: 0.9rem !important;
+  font-weight: 550 !important;
+  color: #1e3a29 !important;
+  text-decoration: none !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 10px !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  transition: all 0.16s ease !important;
+  margin-bottom: 2px !important;
+}
+.dd-item:hover, .dd-item:focus {
+  background: #ffffff !important;
+  color: #1b5e20 !important;
+  transform: translateX(4px) !important;
+  box-shadow: 0 3px 10px rgba(27, 94, 32, 0.1) !important;
+}
+.dd-logout {
+  color: #dc2626 !important;
+}
+.dd-logout:hover {
+  background: #fff5f5 !important;
+  color: #dc2626 !important;
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.12) !important;
+}
+.dd-divider {
+  border-top: 1px solid rgba(46, 125, 50, 0.18) !important;
+  margin: 6px 4px !important;
+  height: 0 !important;
+}
+
+/* Dark Mode Support for Static Site */
+html.dark .dropdown-menu-box {
+  background: linear-gradient(175deg, #182e22 0%, #11241a 100%) !important;
+  border-color: rgba(94, 186, 137, 0.35) !important;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55), 0 0 24px rgba(46, 125, 50, 0.22) !important;
+}
+html.dark .dd-user-header {
+  background: rgba(23, 45, 33, 0.88) !important;
+  border-color: rgba(94, 186, 137, 0.3) !important;
+}
+html.dark .dd-user-header strong {
+  color: #f1f5f9;
+}
+html.dark .dd-sec-title {
+  color: #86efac !important;
+}
+html.dark .dd-item {
+  color: #d1fae5 !important;
+}
+html.dark .dd-item:hover, html.dark .dd-item:focus {
+  background: #234432 !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35) !important;
+}
+html.dark .dd-divider {
+  border-color: rgba(94, 186, 137, 0.24) !important;
+}
