@@ -913,3 +913,30 @@ html.dark .cat-sub-chip:hover {
   gap: 10px !important;
   margin: 0 !important;
 }
+
+
+/* Unified Right-Side Dropdown Navigation (Desktop & Mobile) */
+.nav-in {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  height: 70px !important;
+  gap: 16px !important;
+}
+#navAuth {
+  display: flex !important;
+  align-items: center !important;
+  margin-left: auto !important;
+  position: relative !important;
+}
+.navbar-unified-dropdown {
+  position: relative !important;
+}
+.dd-sec-title {
+  padding: 6px 14px 2px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

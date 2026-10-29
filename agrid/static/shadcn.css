@@ -1072,3 +1072,46 @@ html.dark .cat-sub-chip:hover {
   line-height: 1 !important;
   margin-bottom: 0 !important;
 }
+
+
+/* ============================================================
+   UNIFIED NAVBAR MENU DROPDOWN (DESKTOP & MOBILE)
+   ============================================================ */
+.navbar-unified-dropdown {
+  position: relative;
+}
+.navbar-unified-dropdown .dropdown-toggle::after {
+  margin-left: 0.35rem;
+  vertical-align: 0.15em;
+}
+.navbar-unified-dropdown .dropdown-menu {
+  border-radius: 14px !important;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.18) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  padding: 0.5rem 0 !important;
+}
+.navbar-unified-dropdown .dropdown-header {
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  color: hsl(var(--muted-foreground)) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+.navbar-unified-dropdown .dropdown-item {
+  display: flex;
+  align-items: center;
+  font-size: 0.88rem;
+  font-weight: 550;
+  padding: 0.55rem 1.1rem;
+  transition: all 0.15s ease;
+}
+.navbar-unified-dropdown .dropdown-item:hover,
+.navbar-unified-dropdown .dropdown-item:focus {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+html.dark .navbar-unified-dropdown .dropdown-menu {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.45) !important;
+}

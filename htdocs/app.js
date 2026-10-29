@@ -83,57 +83,53 @@ function updateNav(){
   const u=S.user;
   const roles=Array.isArray(u?.roles)?u.roles:(u?[u.role]:[]);
   const modeControl=!u||u.role==='admin'?'':(roles.includes('penjual')
-    ? `<button class="btn btn-outline" id="btnSwitchRole" data-role="${u.role==='penjual'?'pembeli':'penjual'}">Mode ${u.role==='penjual'?'Pembeli':'Penjual'}</button>`
-    : `<a class="btn btn-outline" href="#/akun">Aktifkan Mode Penjual</a>`);
-  const modeControlMob=!u||u.role==='admin'?'':(roles.includes('penjual')
-    ? `<button class="dd-item dd-btn" id="btnSwitchRoleMob" data-role="${u.role==='penjual'?'pembeli':'penjual'}">⇄ Mode ${u.role==='penjual'?'Pembeli':'Penjual'}</button>`
+    ? `<button class="dd-item dd-btn" id="btnSwitchRole" data-role="${u.role==='penjual'?'pembeli':'penjual'}">⇄ Mode ${u.role==='penjual'?'Pembeli':'Penjual'}</button>`
     : `<a class="dd-item" href="#/akun">🛍️ Aktifkan Mode Penjual</a>`);
 
   $('#navAuth').innerHTML = `
-    <div class="nav-auth-desktop">
-      ${u
-        ? `<a class="btn btn-ghost" href="#/dashboard/${u.role}">Dashboard</a>${modeControl}<a class="btn btn-ghost" href="#/akun" title="Pengaturan pengguna">⚙️ Akun</a><button class="btn btn-outline" id="btnLogout"><span aria-hidden="true">↪</span> Keluar</button>`
-        : `<a class="btn btn-ghost" href="#/login">Masuk</a><a class="btn btn-primary" href="#/daftar">Daftar</a>`
-      }
-    </div>
-    <div class="nav-auth-mobile dropdown">
-      <button class="btn btn-outline btn-sm user-dropdown-toggle" id="btnUserMenuMobile" aria-haspopup="true" aria-expanded="false" aria-label="Menu Pengguna">
+    <div class="dropdown navbar-unified-dropdown">
+      <button class="btn btn-outline btn-sm user-dropdown-toggle" id="btnUserMenu" aria-haspopup="true" aria-expanded="false" aria-label="Menu Navigasi">
         ${u
           ? `<span class="u-avatar">${u.nama ? u.nama[0].toUpperCase() : 'U'}</span><span class="u-shortname">${esc(u.nama?.split(' ')[0]||'Akun')}</span> ▾`
-          : `<span>Menu</span> ▾`
+          : `<span>☰ Menu</span> ▾`
         }
       </button>
-      <div class="dropdown-menu-box" id="userMenuDropdownMobile" style="display:none;">
+      <div class="dropdown-menu-box" id="userMenuDropdown" style="display:none;">
         ${u ? `
           <div class="dd-user-header">
             <strong>${esc(u.nama||'Pengguna')}</strong>
             <div class="badge-row"><span class="badge b-role">${esc(u.role||'')}</span> ${u.tipe?`<span class="badge b-tipe">${esc(u.tipe)}</span>`:''}</div>
           </div>
-          <a class="dd-item" href="#/dashboard/${u.role}">📊 Dashboard</a>
-          ${modeControlMob}
-          <a class="dd-item" href="#/akun">⚙️ Pengaturan Pengguna</a>
+          <div class="dd-sec-title">Navigasi Tab Menu</div>
+          <a class="dd-item" href="#/beranda">🏠 Beranda</a>
           <a class="dd-item" href="#/marketplace">🛒 Marketplace</a>
           <a class="dd-item" href="#/pesan">✉️ Pesan</a>
           <a class="dd-item" href="#/chat">🤖 AI Agent</a>
           <div class="dd-divider"></div>
-          <button class="dd-item dd-logout" id="btnLogoutMob">🚪 Keluar</button>
-        ` : `
-          <a class="dd-item" href="#/login">🔑 Masuk</a>
-          <a class="dd-item" href="#/daftar">✨ Daftar Akun</a>
+          <div class="dd-sec-title">Dashboard &amp; Akun</div>
+          <a class="dd-item" href="#/dashboard/${u.role}">📊 Dashboard</a>
+          ${modeControl}
+          <a class="dd-item" href="#/akun">⚙️ Pengaturan Pengguna</a>
           <div class="dd-divider"></div>
+          <button class="dd-item dd-logout" id="btnLogout">🚪 Keluar</button>
+        ` : `
+          <div class="dd-sec-title">Navigasi Tab Menu</div>
+          <a class="dd-item" href="#/beranda">🏠 Beranda</a>
           <a class="dd-item" href="#/marketplace">🛒 Marketplace</a>
           <a class="dd-item" href="#/chat">🤖 AI Agent</a>
+          <div class="dd-divider"></div>
+          <div class="dd-sec-title">Akun Pengguna</div>
+          <a class="dd-item" href="#/login">🔑 Masuk</a>
+          <a class="dd-item" href="#/daftar">✨ Daftar Akun</a>
         `}
       </div>
     </div>
   `;
 
   const bs=$('#btnSwitchRole'); if(bs) bs.onclick=async()=>{try{const r=await api('switch-role',{method:'POST',body:{role:bs.dataset.role}});S.user=r.user;updateNav();toast('Mode akun beralih ke '+r.user.role+'.');location.hash='#/dashboard/'+r.user.role;}catch(e){toast(e.message);if(/lengkapi informasi/i.test(e.message))location.hash='#/akun';} };
-  const bsm=$('#btnSwitchRoleMob'); if(bsm) bsm.onclick=async()=>{try{const r=await api('switch-role',{method:'POST',body:{role:bsm.dataset.role}});S.user=r.user;updateNav();toast('Mode akun beralih ke '+r.user.role+'.');location.hash='#/dashboard/'+r.user.role;}catch(e){toast(e.message);if(/lengkapi informasi/i.test(e.message))location.hash='#/akun';} };
   const bl=$('#btnLogout'); if(bl) bl.onclick=async()=>{ try{await api('logout',{method:'POST'})}catch(e){} S.token='';S.user=null;updateNav();location.hash='#/beranda'; };
-  const blm=$('#btnLogoutMob'); if(blm) blm.onclick=async()=>{ try{await api('logout',{method:'POST'})}catch(e){} S.token='';S.user=null;updateNav();location.hash='#/beranda'; };
 
-  const btnToggle=$('#btnUserMenuMobile'), ddMenu=$('#userMenuDropdownMobile');
+  const btnToggle=$('#btnUserMenu'), ddMenu=$('#userMenuDropdown');
   if(btnToggle && ddMenu){
     btnToggle.onclick=(e)=>{
       e.stopPropagation();
@@ -152,8 +148,8 @@ function updateNav(){
 }
 
 document.addEventListener('click', (e)=>{
-  const dd = document.getElementById('userMenuDropdownMobile');
-  const btn = document.getElementById('btnUserMenuMobile');
+  const dd = document.getElementById('userMenuDropdown');
+  const btn = document.getElementById('btnUserMenu');
   if(dd && dd.style.display !== 'none' && !dd.contains(e.target) && (!btn || !btn.contains(e.target))){
     dd.style.display = 'none';
     if(btn) btn.setAttribute('aria-expanded', 'false');
