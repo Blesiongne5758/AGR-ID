@@ -454,7 +454,7 @@ body{line-height:1.6;letter-spacing:0;-webkit-font-smoothing:antialiased}
 .dashboard-action-tabs .nav-item:nth-child(8) .nav-link{--tab-color:260 12% 50%}
 .dashboard-action-tabs .nav-link:hover,.dashboard-action-tabs .nav-link.active{border-color:hsl(var(--tab-color)/.4);border-left-color:hsl(var(--tab-color));background:hsl(var(--tab-color)/.11);color:hsl(var(--foreground));box-shadow:var(--shadow-xs)}
 /* A subtle transparent illustration unifies farming, plantations, fisheries and livestock. */
-body{background-image:url("agri-ecosystem.svg");background-repeat:no-repeat;background-position:right 3vw bottom 2rem;background-size:min(46vw,620px);background-attachment:fixed}
+body{background-image:url("agri-categories-bg.svg");background-repeat:no-repeat;background-position:right 3vw bottom 2rem;background-size:min(46vw,620px);background-attachment:fixed}
 @media(max-width:991.98px){
   .navbar-agrid .navbar-collapse.show{align-items:stretch}
   .navbar-agrid .navbar-collapse.show .navbar-nav .nav-link{padding:.65rem .25rem}

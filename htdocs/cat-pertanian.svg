@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="bgPertanian" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2d6a4f" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#c8963e" stop-opacity="0.18"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Badge -->
+  <rect x="6" y="6" width="108" height="108" rx="28" fill="url(#bgPertanian)"/>
+  
+  <!-- Sun / Sunrise in background -->
+  <circle cx="78" cy="40" r="14" fill="#c8963e" fill-opacity="0.25" stroke="#c8963e" stroke-width="2"/>
+  
+  <!-- Soil Furrows / Pematang Sawah -->
+  <path d="M22 96 C 45 88, 75 92, 98 88" stroke="#2d6a4f" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M30 102 C 50 96, 70 98, 90 96" stroke="#2d6a4f" stroke-width="2" stroke-linecap="round" stroke-opacity="0.5"/>
+
+  <!-- Batang Padi Utama -->
+  <path d="M42 94 C 44 72, 54 52, 74 34" stroke="#c8963e" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Bulir Padi / Rice Grains -->
+  <path d="M74 34 C 82 28, 90 34, 86 42 C 82 46, 76 42, 74 34 Z" fill="#c8963e" stroke="#b08030" stroke-width="1.5"/>
+  <path d="M66 45 C 75 40, 81 47, 77 54 C 72 58, 66 54, 66 45 Z" fill="#c8963e" stroke="#b08030" stroke-width="1.5"/>
+  <path d="M58 56 C 67 52, 72 59, 68 66 C 63 70, 58 66, 58 56 Z" fill="#c8963e" stroke="#b08030" stroke-width="1.5"/>
+  <path d="M51 68 C 60 64, 65 71, 61 78 C 56 81, 51 77, 51 68 Z" fill="#c8963e" stroke="#b08030" stroke-width="1.5"/>
+
+  <!-- Daun Padi Segar -->
+  <path d="M44 80 C 30 70, 24 54, 28 42 C 34 56, 42 68, 45 74" fill="#2d6a4f" stroke="#2d6a4f" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M44 64 C 52 50, 60 40, 66 32 C 60 46, 52 58, 44 64" fill="#2d6a4f" stroke="#2d6a4f" stroke-width="1.5" stroke-linejoin="round" fill-opacity="0.8"/>
+</svg>

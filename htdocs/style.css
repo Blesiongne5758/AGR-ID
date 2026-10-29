@@ -1,6 +1,6 @@
 ﻿/* ================= AGR.BIZ.ID — tema hijau (Jawa) ================= */
 :root{ --green:#45695b; --green2:#527766; --lime:#d6ad68; --bg:#f7f7f2; --card:#fff; --txt:#27332e; --muted:#66716a; --line:#e0e3db; --red:#b84d4d; --gold-soft:#f5edd9; --shadow:0 8px 24px rgba(39,51,46,.07); }
-*{box-sizing:border-box} body{margin:0;font:400 16px/1.55 Inter,'Segoe UI',system-ui,sans-serif;background-color:var(--bg);background-image:url('agri-ecosystem.svg');background-repeat:no-repeat;background-position:right 3vw bottom 2rem;background-size:min(46vw,620px);background-attachment:fixed;color:var(--txt);-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box} body{margin:0;font:400 16px/1.55 Inter,'Segoe UI',system-ui,sans-serif;background-color:var(--bg);background-image:url('agri-categories-bg.svg');background-repeat:no-repeat;background-position:right 3vw bottom 2rem;background-size:min(46vw,620px);background-attachment:fixed;color:var(--txt);-webkit-font-smoothing:antialiased}
 a{color:var(--green2);text-decoration:none} img{max-width:100%}
 .wrap{max-width:1150px;margin:0 auto;padding:0 18px}
 /* topbar + ticker */

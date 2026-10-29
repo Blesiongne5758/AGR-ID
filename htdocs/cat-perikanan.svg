@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="bgPerikanan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.18"/>
+    </linearGradient>
+    <linearGradient id="fishGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Badge -->
+  <rect x="6" y="6" width="108" height="108" rx="28" fill="url(#bgPerikanan)"/>
+
+  <!-- Water Bubbles -->
+  <circle cx="88" cy="30" r="4" fill="#38bdf8" fill-opacity="0.5"/>
+  <circle cx="98" cy="22" r="2.5" fill="#38bdf8" fill-opacity="0.6"/>
+
+  <!-- Ombak / Gelombang Air -->
+  <path d="M18 84 C 30 76, 42 76, 54 84 C 66 92, 78 92, 90 84 C 96 80, 100 80, 104 82" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M14 96 C 28 88, 42 88, 56 96 C 70 104, 84 104, 98 96 C 102 93, 105 93, 108 95" stroke="#0284c7" stroke-width="2" stroke-linecap="round" stroke-opacity="0.5"/>
+
+  <!-- Siluet Ikan Melengkung Anggun -->
+  <g transform="translate(14, 18)">
+    <!-- Sirip Punggung -->
+    <path d="M42 26 C 52 14, 66 18, 70 30" fill="#0369a1" stroke="#0284c7" stroke-width="1.5"/>
+    
+    <!-- Badan Ikan Utama -->
+    <path d="M18 52 C 22 36, 44 26, 74 34 C 88 38, 92 48, 86 54 C 74 66, 46 64, 22 52 Z" fill="url(#fishGrad)" stroke="#0284c7" stroke-width="2" stroke-linejoin="round"/>
+    
+    <!-- Sirip Perut -->
+    <path d="M46 59 C 52 70, 62 68, 64 57" fill="#0369a1" stroke="#0284c7" stroke-width="1.5"/>
+
+    <!-- Ekor Mengembang -->
+    <path d="M20 52 L 2 34 C 10 46, 10 58, 2 70 Z" fill="#0284c7" stroke="#0369a1" stroke-width="1.5" stroke-linejoin="round"/>
+
+    <!-- Mata Ikan & Insang -->
+    <circle cx="80" cy="42" r="2.5" fill="#ffffff"/>
+    <circle cx="80.5" cy="42" r="1.2" fill="#0f172a"/>
+    <path d="M70 38 C 66 43, 66 49, 70 53" stroke="#e0f2fe" stroke-width="1.8" stroke-linecap="round"/>
+  </g>
+</svg>

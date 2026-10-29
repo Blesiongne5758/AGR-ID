@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="bgPeternakan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#a16207" stop-opacity="0.18"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Badge -->
+  <rect x="6" y="6" width="108" height="108" rx="28" fill="url(#bgPeternakan)"/>
+
+  <!-- Siluet Lumbung Ternak (Barn) di Kejauhan -->
+  <g transform="translate(74, 38) scale(0.65)">
+    <path d="M 5 28 L 25 8 L 45 28 Z" fill="#b45309" stroke="#92400e" stroke-width="2"/>
+    <rect x="9" y="28" width="32" height="24" fill="#fef3c7" stroke="#92400e" stroke-width="2"/>
+    <line x1="20" y1="34" x2="30" y2="46" stroke="#b45309" stroke-width="1.8"/>
+    <line x1="30" y1="34" x2="20" y2="46" stroke="#b45309" stroke-width="1.8"/>
+  </g>
+
+  <!-- Padang Rumput / Rolling Meadow -->
+  <path d="M16 88 C 42 74, 76 80, 104 74" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/>
+  <path d="M14 98 C 44 88, 74 94, 106 88" stroke="#15803d" stroke-width="2" stroke-linecap="round" stroke-opacity="0.4"/>
+
+  <!-- Siluet Sapi Ternak (Cattle) -->
+  <g transform="translate(24, 46) scale(0.68)">
+    <!-- Badan & Kaki Sapi -->
+    <path d="M 12 40 C 12 24, 28 22, 54 22 C 64 22, 70 16, 76 8 C 80 10, 84 14, 84 22 C 90 22, 94 28, 92 34 C 88 40, 82 40, 76 40 L 74 68 L 65 68 L 67 43 L 34 43 L 32 68 L 24 68 L 26 42 C 16 42, 12 44, 12 40 Z" fill="#451a03" stroke="#291002" stroke-width="2"/>
+    
+    <!-- Corak Tutul Putih Lembut Khas Sapi -->
+    <path d="M 34 26 C 42 24, 48 28, 44 34 C 40 38, 32 36, 34 26 Z" fill="#ffffff" fill-opacity="0.85"/>
+    <path d="M 56 27 C 62 25, 66 29, 64 35 C 60 38, 54 36, 56 27 Z" fill="#ffffff" fill-opacity="0.85"/>
+
+    <!-- Tanduk Sapi -->
+    <path d="M 78 8 C 80 2, 85 2, 85 6" stroke="#ca8a04" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    <!-- Telinga -->
+    <path d="M 74 12 L 68 10" stroke="#451a03" stroke-width="2" stroke-linecap="round"/>
+    <!-- Ekor -->
+    <path d="M 13 32 C 8 40, 8 50, 11 58" stroke="#451a03" stroke-width="2" fill="none"/>
+  </g>
+</svg>

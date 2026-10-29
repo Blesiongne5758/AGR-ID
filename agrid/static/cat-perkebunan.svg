@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="bgPerkebunan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#45695b" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#8a5a36" stop-opacity="0.18"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Badge -->
+  <rect x="6" y="6" width="108" height="108" rx="28" fill="url(#bgPerkebunan)"/>
+
+  <!-- Perkebunan Hills Silhouette -->
+  <path d="M18 92 C 40 78, 65 86, 102 78" stroke="#45695b" stroke-width="2.5" stroke-linecap="round" stroke-opacity="0.5"/>
+  <path d="M18 98 C 50 88, 80 94, 102 92" stroke="#45695b" stroke-width="2" stroke-linecap="round" stroke-opacity="0.3"/>
+
+  <!-- Ranting Kopi / Teh -->
+  <path d="M30 92 C 45 78, 60 62, 78 40" stroke="#795548" stroke-width="3" stroke-linecap="round"/>
+  <path d="M52 70 C 65 66, 75 58, 86 52" stroke="#795548" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Daun Kopi / Teh Utama Atas -->
+  <path d="M78 40 C 95 32, 100 42, 94 54 C 85 62, 75 50, 78 40 Z" fill="#2d6a4f" stroke="#1b4332" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M80 43 L 88 50" stroke="#a3b18a" stroke-width="1.2" stroke-linecap="round"/>
+
+  <!-- Daun Samping Kiri -->
+  <path d="M48 64 C 32 58, 30 46, 42 42 C 54 42, 54 54, 48 64 Z" fill="#2d6a4f" stroke="#1b4332" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M47 58 L 38 48" stroke="#a3b18a" stroke-width="1.2" stroke-linecap="round"/>
+
+  <!-- Daun Kanan -->
+  <path d="M86 52 C 98 48, 104 58, 96 66 C 88 72, 82 62, 86 52 Z" fill="#40916c" stroke="#1b4332" stroke-width="1.5" stroke-linejoin="round"/>
+
+  <!-- Buah Kopi Merah Matang (Ripe Coffee Cherries) -->
+  <circle cx="56" cy="68" r="6" fill="#c93838" stroke="#8e2020" stroke-width="1.2"/>
+  <circle cx="65" cy="74" r="5.5" fill="#e76f51" stroke="#b84020" stroke-width="1.2"/>
+  <circle cx="64" cy="62" r="5" fill="#c93838" stroke="#8e2020" stroke-width="1.2"/>
+  <circle cx="74" cy="54" r="4.5" fill="#e76f51" stroke="#b84020" stroke-width="1.2"/>
+</svg>

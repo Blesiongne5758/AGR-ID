@@ -42,16 +42,16 @@
   <h4 class="border-start border-4 border-success ps-2 fw-bold">Kategori Utama</h4>
   <div class="row g-3 mt-2 mb-5">
     {% set meta = {
-      'Pertanian': ('🥬','Sayuran & Buah-buahan — cabai, bawang, tomat, pisang, durian, dll.'),
-      'Perkebunan': ('☕','Kopi, kakao, sawit, karet, rempah ekspor, vanili, gula aren.'),
-      'Perikanan': ('🐟','Air Tawar (lele, nila, gurame) & Air Laut (udang, tuna, kerapuh, rumput laut).'),
-      'Peternakan': ('🐄','Sapi, kambing & domba, unggas, kelinci — Babi ditandai ⚠️ Non Halal.')} %}
+      'Pertanian': ('cat-pertanian.svg','Sayuran & Buah-buahan — cabai, bawang, tomat, pisang, durian, dll.'),
+      'Perkebunan': ('cat-perkebunan.svg','Kopi, kakao, sawit, karet, rempah ekspor, vanili, gula aren.'),
+      'Perikanan': ('cat-perikanan.svg','Air Tawar (lele, nila, gurame) & Air Laut (udang, tuna, kerapuh, rumput laut).'),
+      'Peternakan': ('cat-peternakan.svg','Sapi, kambing & domba, unggas, kelinci — Babi ditandai ⚠️ Non Halal.')} %}
     {% for c in categories %}
     <div class="col-md-3">
       <a class="text-decoration-none" href="{{ url_for('marketplace', kategori=c) }}">
       <div class="card card-prod h-100 text-dark p-3">
-        <div style="font-size:2.2rem">{{ meta[c][0] }}</div>
-        <h5 class="mt-1">{{ c }}</h5><p class="small text-muted mb-0">{{ meta[c][1] }}</p>
+        <div class="mb-2"><img src="{{ url_for('static', filename=meta[c][0]) }}" alt="{{ c }}" width="56" height="56" style="object-fit:contain;"></div>
+        <h5 class="mt-1 fw-bold">{{ c }}</h5><p class="small text-muted mb-0">{{ meta[c][1] }}</p>
       </div></a>
     </div>
     {% endfor %}

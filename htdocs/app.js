@@ -135,7 +135,10 @@ renderers.home = async () => {
     </div>
   </section>
   <section class="cats">
-    ${Object.keys(SUBS).map(k=>`<a class="cat-card" href="#/marketplace?kategori=${encodeURIComponent(k)}"><h3>${k}</h3><p>${(SUBS[k]||[]).join(' · ')}</p></a>`).join('')}
+    ${Object.keys(SUBS).map(k=>{
+      const icons = {'Pertanian':'cat-pertanian.svg','Perkebunan':'cat-perkebunan.svg','Perikanan':'cat-perikanan.svg','Peternakan':'cat-peternakan.svg'};
+      return `<a class="cat-card" href="#/marketplace?kategori=${encodeURIComponent(k)}"><img src="${icons[k]||'cat-pertanian.svg'}" alt="${k}" width="48" height="48" style="object-fit:contain;margin-bottom:8px;display:block;"><h3>${k}</h3><p>${(SUBS[k]||[]).join(' · ')}</p></a>`;
+    }).join('')}
   </section>
   <section><h2 class="sec-title">Produk Terbaru</h2><div class="grid">${prods.map(cardProduk).join('')||'<p class="muted">Belum ada produk — jalankan supabase-schema.sql + seed-supabase.sql di Supabase terlebih dahulu.</p>'}</div></section>`;
   bindKartu();
