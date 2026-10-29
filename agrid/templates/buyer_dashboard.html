@@ -5,11 +5,24 @@
   <div class="dashboard-heading d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <h4 class="fw-bold mb-0"><i class="bi bi-bag text-success"></i> Dashboard Pembeli — {{ u.nama }}
       <span class="badge bg-warning text-dark">{{ u.tipe }}</span></h4>
-    <div class="dashboard-shortcuts">
+    <!-- Desktop action buttons -->
+    <div class="dashboard-shortcuts d-none d-md-flex">
       <a href="{{ url_for('marketplace') }}" class="btn btn-agrid fw-bold"><i class="bi bi-shop-window"></i> Cari Produk</a>
       <a href="{{ url_for('auction_list') }}" class="btn btn-outline-warning fw-bold"><i class="bi bi-hammer"></i> Lelang</a>
       <a href="{{ url_for('calendar_page') }}" class="btn btn-outline-primary fw-bold"><i class="bi bi-calendar3"></i> Kalender</a>
       <a href="{{ url_for('chat_page') }}" class="btn btn-outline-success"><i class="bi bi-robot"></i> Minta AI carikan produk</a>
+    </div>
+    <!-- Mobile action dropdown on top right -->
+    <div class="dropdown d-md-none ms-auto dashboard-mobile-action-dropdown">
+      <button class="btn btn-agrid btn-sm dropdown-toggle fw-bold d-flex align-items-center gap-1 shadow-sm" type="button" id="buyerActionMenu" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-lightning-charge-fill"></i> Menu Aksi
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-2 mt-1" aria-labelledby="buyerActionMenu" style="min-width: 200px; border-radius: 12px; z-index: 1060;">
+        <li><a class="dropdown-item py-2 fw-semibold" href="{{ url_for('marketplace') }}"><i class="bi bi-shop-window text-success me-2"></i> Cari Produk</a></li>
+        <li><a class="dropdown-item py-2 fw-semibold" href="{{ url_for('auction_list') }}"><i class="bi bi-hammer text-warning me-2"></i> Lelang Terbuka</a></li>
+        <li><a class="dropdown-item py-2" href="{{ url_for('calendar_page') }}"><i class="bi bi-calendar3 text-primary me-2"></i> Buka Kalender</a></li>
+        <li><a class="dropdown-item py-2" href="{{ url_for('chat_page') }}"><i class="bi bi-robot text-info me-2"></i> Minta AI Carikan Produk</a></li>
+      </ul>
     </div>
   </div>
 

@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    AGR.BIZ.ID — shadcn/ui Theme Layer v3 (update template shadcn)
    Mengikuti gaya shadcn "new-york" terbaru: radius lg (0.625rem),
    ring 3px, shadow-xs/sm/md, font Inter variable, Lucide icons,
@@ -659,9 +659,9 @@ html.dark .card-cat-peternakan .cat-title, html.dark .cat-card.cat-peternakan h3
   .hero {
     margin: 0.75rem 1rem 1.75rem 1rem !important; /* Jarak kiri dan kanan untuk frame hero */
     border-radius: 1.25rem !important;            /* Sudut membulat modern */
-    background-image: url("hero-mobile-agro.svg") !important; /* Latar sawah, ternak, kebun buah & kolam ikan */
+    background-image: url("hero-mobile-realistic.jpg") !important; /* Ilustrasi realistik: sawah, perkebunan, ternak & kolam ikan */
     background-size: cover !important;
-    background-position: center bottom !important;
+    background-position: center center !important;
     box-shadow: 0 10px 28px rgba(18, 30, 24, 0.22) !important;
     padding-top: 2.25rem !important;
     padding-bottom: 2.25rem !important;
@@ -670,7 +670,7 @@ html.dark .card-cat-peternakan .cat-title, html.dark .cat-card.cat-peternakan h3
     display: none !important; /* Sembunyikan grid 4 mosaik di mobile agar latar terpadu terlihat jelas */
   }
   .hero-overlay {
-    background: linear-gradient(180deg, rgba(16, 28, 22, 0.74) 0%, rgba(16, 28, 22, 0.88) 100%) !important;
+    background: linear-gradient(180deg, rgba(16, 28, 22, 0.60) 0%, rgba(16, 28, 22, 0.80) 100%) !important;
     border-radius: 1.25rem !important;
   }
   .hero .container {
@@ -854,5 +854,88 @@ html.dark .card-cat-peternakan .cat-title, html.dark .cat-card.cat-peternakan h3
   .settings-tabs,
   .user-action-tabs {
     grid-template-columns: 1fr !important;
+  }
+}
+
+/* ============================================================
+   SUB-KATEGORI CHIPS & MOBILE USER DROPDOWN MENU (FLASK)
+   ============================================================ */
+
+.cat-subs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.cat-sub-chip {
+  display: inline-block;
+  padding: 0.3rem 0.58rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  color: #1e293b;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  line-height: 1.25;
+  transition: all 0.16s ease;
+}
+.cat-sub-chip:hover {
+  background: #ffffff;
+  color: #0f172a;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+.cat-sub-chip-alert {
+  background: rgba(239, 68, 68, 0.14) !important;
+  color: #b91c1c !important;
+  border-color: rgba(239, 68, 68, 0.28) !important;
+}
+html.dark .cat-sub-chip {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+html.dark .cat-sub-chip:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.cat-link-all {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: inherit;
+  opacity: 0.88;
+}
+.cat-link-all:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* User Menu Mobile Dropdown Top-Right */
+.user-menu-mobile-dropdown .dropdown-toggle::after {
+  margin-left: 0.25rem;
+  vertical-align: 0.15em;
+}
+.user-menu-mobile-dropdown .dropdown-menu {
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+}
+.dashboard-mobile-action-dropdown .dropdown-menu {
+  border-radius: 12px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 767.98px) {
+  .navbar-agrid > .container {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    padding-inline: 0.85rem !important;
+  }
+  .navbar-agrid .navbar-brand {
+    max-width: calc(100% - 145px) !important;
+  }
+  .user-menu-mobile-dropdown {
+    margin-left: auto;
   }
 }

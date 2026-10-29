@@ -85,13 +85,80 @@ function updateNav(){
   const modeControl=!u||u.role==='admin'?'':(roles.includes('penjual')
     ? `<button class="btn btn-outline" id="btnSwitchRole" data-role="${u.role==='penjual'?'pembeli':'penjual'}">Mode ${u.role==='penjual'?'Pembeli':'Penjual'}</button>`
     : `<a class="btn btn-outline" href="#/akun">Aktifkan Mode Penjual</a>`);
-  $('#navAuth').innerHTML = u
-    ? `<a class="btn btn-ghost" href="#/dashboard/${u.role}">Dashboard</a>${modeControl}<a class="btn btn-ghost" href="#/akun" title="Pengaturan pengguna">⚙️ Akun</a><button class="btn btn-outline" id="btnLogout"><span aria-hidden="true">↪</span> Keluar</button>`
-    : `<a class="btn btn-ghost" href="#/login">Masuk</a><a class="btn btn-primary" href="#/daftar">Daftar</a>`;
+  const modeControlMob=!u||u.role==='admin'?'':(roles.includes('penjual')
+    ? `<button class="dd-item dd-btn" id="btnSwitchRoleMob" data-role="${u.role==='penjual'?'pembeli':'penjual'}">⇄ Mode ${u.role==='penjual'?'Pembeli':'Penjual'}</button>`
+    : `<a class="dd-item" href="#/akun">🛍️ Aktifkan Mode Penjual</a>`);
+
+  $('#navAuth').innerHTML = `
+    <div class="nav-auth-desktop">
+      ${u
+        ? `<a class="btn btn-ghost" href="#/dashboard/${u.role}">Dashboard</a>${modeControl}<a class="btn btn-ghost" href="#/akun" title="Pengaturan pengguna">⚙️ Akun</a><button class="btn btn-outline" id="btnLogout"><span aria-hidden="true">↪</span> Keluar</button>`
+        : `<a class="btn btn-ghost" href="#/login">Masuk</a><a class="btn btn-primary" href="#/daftar">Daftar</a>`
+      }
+    </div>
+    <div class="nav-auth-mobile dropdown">
+      <button class="btn btn-outline btn-sm user-dropdown-toggle" id="btnUserMenuMobile" aria-haspopup="true" aria-expanded="false" aria-label="Menu Pengguna">
+        ${u
+          ? `<span class="u-avatar">${u.nama ? u.nama[0].toUpperCase() : 'U'}</span><span class="u-shortname">${esc(u.nama?.split(' ')[0]||'Akun')}</span> ▾`
+          : `<span>Menu</span> ▾`
+        }
+      </button>
+      <div class="dropdown-menu-box" id="userMenuDropdownMobile" style="display:none;">
+        ${u ? `
+          <div class="dd-user-header">
+            <strong>${esc(u.nama||'Pengguna')}</strong>
+            <div class="badge-row"><span class="badge b-role">${esc(u.role||'')}</span> ${u.tipe?`<span class="badge b-tipe">${esc(u.tipe)}</span>`:''}</div>
+          </div>
+          <a class="dd-item" href="#/dashboard/${u.role}">📊 Dashboard</a>
+          ${modeControlMob}
+          <a class="dd-item" href="#/akun">⚙️ Pengaturan Pengguna</a>
+          <a class="dd-item" href="#/marketplace">🛒 Marketplace</a>
+          <a class="dd-item" href="#/pesan">✉️ Pesan</a>
+          <a class="dd-item" href="#/chat">🤖 AI Agent</a>
+          <div class="dd-divider"></div>
+          <button class="dd-item dd-logout" id="btnLogoutMob">🚪 Keluar</button>
+        ` : `
+          <a class="dd-item" href="#/login">🔑 Masuk</a>
+          <a class="dd-item" href="#/daftar">✨ Daftar Akun</a>
+          <div class="dd-divider"></div>
+          <a class="dd-item" href="#/marketplace">🛒 Marketplace</a>
+          <a class="dd-item" href="#/chat">🤖 AI Agent</a>
+        `}
+      </div>
+    </div>
+  `;
+
   const bs=$('#btnSwitchRole'); if(bs) bs.onclick=async()=>{try{const r=await api('switch-role',{method:'POST',body:{role:bs.dataset.role}});S.user=r.user;updateNav();toast('Mode akun beralih ke '+r.user.role+'.');location.hash='#/dashboard/'+r.user.role;}catch(e){toast(e.message);if(/lengkapi informasi/i.test(e.message))location.hash='#/akun';} };
+  const bsm=$('#btnSwitchRoleMob'); if(bsm) bsm.onclick=async()=>{try{const r=await api('switch-role',{method:'POST',body:{role:bsm.dataset.role}});S.user=r.user;updateNav();toast('Mode akun beralih ke '+r.user.role+'.');location.hash='#/dashboard/'+r.user.role;}catch(e){toast(e.message);if(/lengkapi informasi/i.test(e.message))location.hash='#/akun';} };
   const bl=$('#btnLogout'); if(bl) bl.onclick=async()=>{ try{await api('logout',{method:'POST'})}catch(e){} S.token='';S.user=null;updateNav();location.hash='#/beranda'; };
+  const blm=$('#btnLogoutMob'); if(blm) blm.onclick=async()=>{ try{await api('logout',{method:'POST'})}catch(e){} S.token='';S.user=null;updateNav();location.hash='#/beranda'; };
+
+  const btnToggle=$('#btnUserMenuMobile'), ddMenu=$('#userMenuDropdownMobile');
+  if(btnToggle && ddMenu){
+    btnToggle.onclick=(e)=>{
+      e.stopPropagation();
+      const isOpen = ddMenu.style.display !== 'none';
+      ddMenu.style.display = isOpen ? 'none' : 'block';
+      btnToggle.setAttribute('aria-expanded', !isOpen);
+    };
+    ddMenu.onclick=(e)=>{
+      if(e.target.tagName === 'A' || e.target.tagName === 'BUTTON'){
+        ddMenu.style.display = 'none';
+      }
+    };
+  }
+
   updateMobileNav();
 }
+
+document.addEventListener('click', (e)=>{
+  const dd = document.getElementById('userMenuDropdownMobile');
+  const btn = document.getElementById('btnUserMenuMobile');
+  if(dd && dd.style.display !== 'none' && !dd.contains(e.target) && (!btn || !btn.contains(e.target))){
+    dd.style.display = 'none';
+    if(btn) btn.setAttribute('aria-expanded', 'false');
+  }
+});
 
 function updateMobileNav(){
   const nav=$('#mobileBottomNav'); if(!nav)return;
@@ -143,7 +210,20 @@ renderers.home = async () => {
         'Peternakan': {icon:'cat-peternakan.svg', cls:'cat-peternakan'}
       };
       const m = meta[k] || {icon:'cat-pertanian.svg', cls:''};
-      return `<a class="cat-card ${m.cls}" href="#/marketplace?kategori=${encodeURIComponent(k)}"><img src="${m.icon}" alt="${k}" width="48" height="48" style="object-fit:contain;margin-bottom:8px;display:block;"><h3 class="cat-title">${k}</h3><p>${(SUBS[k]||[]).join(' · ')}</p></a>`;
+      const subs = SUBS[k] || [];
+      return `<div class="cat-card ${m.cls}">
+        <a class="cat-card-header" href="#/marketplace?kategori=${encodeURIComponent(k)}">
+          <img src="${m.icon}" alt="${k}" width="48" height="48" style="object-fit:contain;margin-bottom:8px;display:block;">
+          <h3 class="cat-title">${k}</h3>
+        </a>
+        <div class="cat-subs-list">
+          ${subs.map(s=>`<a class="cat-sub-chip ${s.includes('Non Halal')?'cat-sub-chip-alert':''}" href="#/marketplace?kategori=${encodeURIComponent(k)}&sub=${encodeURIComponent(s)}">${esc(s)}</a>`).join('')}
+        </div>
+        <div class="cat-card-foot">
+          <a href="#/marketplace?kategori=${encodeURIComponent(k)}" class="cat-link-all">Lihat Semua ${k} →</a>
+          <span class="muted small">${subs.length} sub</span>
+        </div>
+      </div>`;
     }).join('')}
   </section>
   <section><h2 class="sec-title">Produk Terbaru</h2><div class="grid">${prods.map(cardProduk).join('')||'<p class="muted">Belum ada produk — jalankan supabase-schema.sql + seed-supabase.sql di Supabase terlebih dahulu.</p>'}</div></section>`;
