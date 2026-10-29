@@ -817,8 +817,8 @@ html.dark .cat-sub-chip:hover {
    NAVBAR LOGO IMAGE (Replaces emoji icon) 
    ============================================================ */
 .navbar-logo-img {
-  width: 36px;
-  height: 36px;
+  width: 46px;
+  height: 46px;
   object-fit: contain;
   border-radius: 6px;
   flex-shrink: 0;
