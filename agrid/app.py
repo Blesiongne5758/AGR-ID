@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 AGR.BIZ.ID - Marketplace Pertanian, Perkebunan, Perikanan & Peternakan
 Dukungan AI Chat Agent, penawaran harga, booking DP, payment gateway,
@@ -1492,6 +1492,13 @@ def bid_auction(event_id):
                                      nominal=amount, catatan=request.form.get("catatan", "").strip()[:255]))
             db.session.commit()
             audit_current("pembeli_menawar_lelang", "lelang_events", event.id, f"tawaran Rp{amount:g}")
+            try:
+                import urllib.request, json as _json
+                _payload = _json.dumps({"buyer_id": current_user().id, "buyer_name": current_user().nama, "nominal": float(amount), "catatan": request.form.get("catatan", "").strip()[:255]}).encode("utf-8")
+                _req = urllib.request.Request(f"http://127.0.0.1:8081/api/auction/{event.id}/bid", data=_payload, headers={"Content-Type": "application/json"})
+                urllib.request.urlopen(_req, timeout=0.3)
+            except Exception:
+                pass
             flash("Tawaran lelang berhasil dikirim.", "success")
     return redirect(url_for("auction_detail", event_id=event.id))
 

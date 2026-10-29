@@ -1,4 +1,4 @@
-/* ================= AGR.BIZ.ID — tema hijau (Jawa) ================= */
+﻿/* ================= AGR.BIZ.ID — tema hijau (Jawa) ================= */
 :root{ --green:#45695b; --green2:#527766; --lime:#d6ad68; --bg:#f7f7f2; --card:#fff; --txt:#27332e; --muted:#66716a; --line:#e0e3db; --red:#b84d4d; --gold-soft:#f5edd9; --shadow:0 8px 24px rgba(39,51,46,.07); }
 *{box-sizing:border-box} body{margin:0;font:400 16px/1.55 Inter,'Segoe UI',system-ui,sans-serif;background-color:var(--bg);background-image:url('agri-ecosystem.svg');background-repeat:no-repeat;background-position:right 3vw bottom 2rem;background-size:min(46vw,620px);background-attachment:fixed;color:var(--txt);-webkit-font-smoothing:antialiased}
 a{color:var(--green2);text-decoration:none} img{max-width:100%}
@@ -27,7 +27,14 @@ header.nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.96);bor
 label{display:block;font-weight:600;font-size:.9rem;margin-bottom:10px;position:relative}
 .muted{color:var(--muted)}.small{font-size:.8rem}.center{text-align:center}
 /* hero & cards */
-.hero{background:linear-gradient(135deg,#354d43 0%,var(--green) 65%,#648574 100%);color:#fff;border-radius:22px;padding:58px 36px;margin:26px 0;text-align:center;box-shadow:var(--shadow)}
+.hero{position:relative;overflow:hidden;background:#1b2620;color:#fff;border-radius:22px;padding:58px 36px;margin:26px 0;text-align:center;box-shadow:var(--shadow)}
+.hero-mosaic{position:absolute;top:0;left:0;width:100%;height:100%;display:grid;grid-template-columns:repeat(4,1fr);z-index:1}
+.hero-mosaic-item{position:relative;width:100%;height:100%;background-size:cover;background-position:center;filter:brightness(0.68) saturate(1.2);transition:all 0.5s ease}
+.hero-mosaic-item:hover{filter:brightness(0.92) saturate(1.35);transform:scale(1.04);z-index:2}
+.hero-mosaic-tag{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(18,30,24,0.75);backdrop-filter:blur(6px);color:#fff;font-size:0.75rem;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);white-space:nowrap;pointer-events:none;opacity:0.9}
+.hero-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(180deg,rgba(20,32,26,0.70) 0%,rgba(20,32,26,0.88) 100%);z-index:2;pointer-events:none}
+.hero-content{position:relative;z-index:3}
+@media(max-width:760px){.hero-mosaic{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,1fr)}.hero-mosaic-tag{display:none}}
 .hero h1{font-size:2rem;margin:0 0 12px}.hero p{opacity:.92;max-width:640px;margin:0 auto 22px}
 .cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin:24px 0}
 .cat-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;color:var(--txt)}

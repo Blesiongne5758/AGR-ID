@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    AGR.BIZ.ID — Frontend SPA statis (InfinityFree htdocs)
    Backend : api.php (gateway) -> Supabase PostgREST + Cloudinary
    Token sesi disimpan localStorage, dikirim via header X-Agr-Token.
@@ -113,9 +113,26 @@ renderers.home = async () => {
   let prods=[]; try{ prods = await api('products',{qs:'limit=8'}); }catch(e){}
   $('#app').innerHTML = `
   <section class="hero">
-    <h1>AGR.BIZ.ID</h1><p class="brand-tagline">Agrikultur Bisnis Indonesia</p><h2>Marketplace Pertanian, Perkebunan, Perikanan &amp; Peternakan</h2>
-    <p>Langsung dari petani dan peternak — penawaran harga, booking dengan DP pengikat, pengiriman terjadwal, dan ketelusuran berbasis bukti foto + GPS. Didukung AI assistant.</p>
-    <div class="hero-actions"><a class="btn btn-primary btn-lg" href="#/marketplace">Jelajahi Produk</a><a class="btn btn-outline btn-lg" href="#/daftar">Jadi Penjual</a></div>
+    <div class="hero-mosaic" aria-hidden="true">
+      <div class="hero-mosaic-item" style="background-image:url('https://images.unsplash.com/photo-1586771107445-d3ca888129ff?w=1000&auto=format&fit=crop&q=80')" title="Pertanian">
+        <span class="hero-mosaic-tag">🌾 Pertanian</span>
+      </div>
+      <div class="hero-mosaic-item" style="background-image:url('https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=1000&auto=format&fit=crop&q=80')" title="Perkebunan">
+        <span class="hero-mosaic-tag">☕ Perkebunan</span>
+      </div>
+      <div class="hero-mosaic-item" style="background-image:url('https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1000&auto=format&fit=crop&q=80')" title="Perikanan">
+        <span class="hero-mosaic-tag">🐟 Perikanan</span>
+      </div>
+      <div class="hero-mosaic-item" style="background-image:url('https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=1000&auto=format&fit=crop&q=80')" title="Peternakan">
+        <span class="hero-mosaic-tag">🐄 Peternakan</span>
+      </div>
+    </div>
+    <div class="hero-overlay" aria-hidden="true"></div>
+    <div class="hero-content">
+      <h1>AGR.BIZ.ID</h1><p class="brand-tagline">Agrikultur Bisnis Indonesia</p><h2>Marketplace Pertanian, Perkebunan, Perikanan &amp; Peternakan</h2>
+      <p>Langsung dari petani dan peternak — penawaran harga, booking dengan DP pengikat, pengiriman terjadwal, dan ketelusuran berbasis bukti foto + GPS. Didukung AI assistant.</p>
+      <div class="hero-actions"><a class="btn btn-primary btn-lg" href="#/marketplace">Jelajahi Produk</a><a class="btn btn-outline btn-lg" href="#/daftar">Jadi Penjual</a></div>
+    </div>
   </section>
   <section class="cats">
     ${Object.keys(SUBS).map(k=>`<a class="cat-card" href="#/marketplace?kategori=${encodeURIComponent(k)}"><h3>${k}</h3><p>${(SUBS[k]||[]).join(' · ')}</p></a>`).join('')}

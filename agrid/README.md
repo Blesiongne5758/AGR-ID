@@ -136,13 +136,6 @@ Buka **http://127.0.0.1:5000**. Server bind ke `0.0.0.0` sehingga juga bisa diak
 
 ## 🔑 Akun Demo
 
-| Peran | Email | Password |
-|---|---|---|
-| Penjual (Perorangan) | `penjual@agr.id` | `penjual123` |
-| Penjual (Koperasi) | `koperasi@agr.id` | `penjual123` |
-| Pembeli (Perorangan) | `pembeli@agr.id` | `pembeli123` |
-| Pembeli (Perusahaan) | `corporate@agr.id` | `corporate123` |
-| Admin | `admin@agr.id` | `admin123` |
 
 ---
 

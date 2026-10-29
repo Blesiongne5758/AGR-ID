@@ -34,3 +34,13 @@ agrid/shots/
 # InfinityFree (htdocs)
 htdocs/config.php
 htdocs/mock_sb.php
+
+
+# IDE & runtime
+.idea/
+.vscode/
+data/
+supabase/.temp/
+
+# Binaries
+*.exe

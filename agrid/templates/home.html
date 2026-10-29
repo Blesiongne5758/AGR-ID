@@ -1,9 +1,24 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block content %}
-<section class="hero py-5">
-  <div class="container py-4 text-center">
-    <h1 class="fw-bold">🌾 AGR.BIZ.ID</h1><p class="brand-tagline mb-3">Agrikultur Bisnis Indonesia</p>
-    <p class="lead">Marketplace <b>Pertanian · Perkebunan · Perikanan · Peternakan</b><br>
+<section class="hero py-5 position-relative overflow-hidden">
+  <div class="hero-mosaic" aria-hidden="true">
+    <div class="hero-mosaic-item" style="background-image:url('https://images.unsplash.com/photo-1586771107445-d3ca888129ff?w=1000&auto=format&fit=crop&q=80');" title="Pertanian: Padi & Sayuran">
+      <span class="hero-mosaic-tag">🌾 Pertanian</span>
+    </div>
+    <div class="hero-mosaic-item" style="background-image:url('https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=1000&auto=format&fit=crop&q=80');" title="Perkebunan: Teh & Kopi">
+      <span class="hero-mosaic-tag">☕ Perkebunan</span>
+    </div>
+    <div class="hero-mosaic-item" style="background-image:url('https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1000&auto=format&fit=crop&q=80');" title="Perikanan: Nelayan & Tambak">
+      <span class="hero-mosaic-tag">🐟 Perikanan</span>
+    </div>
+    <div class="hero-mosaic-item" style="background-image:url('https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=1000&auto=format&fit=crop&q=80');" title="Peternakan: Sapi & Domba">
+      <span class="hero-mosaic-tag">🐄 Peternakan</span>
+    </div>
+  </div>
+  <div class="hero-overlay" aria-hidden="true"></div>
+  <div class="container py-4 text-center position-relative" style="z-index:3;">
+    <h1 class="fw-bold text-white">🌾 AGR.BIZ.ID</h1><p class="brand-tagline mb-3 text-warning fw-semibold">Agrikultur Bisnis Indonesia</p>
+    <p class="lead text-white">Marketplace <b>Pertanian · Perkebunan · Perikanan · Peternakan</b><br>
     Langsung dari petani, nelayan & peternak — dengan penawaran harga, booking DP,<br class="d-none d-md-block">
     pembayaran payment gateway, ekspedisi, dan ketelusuran eviden foto + GPS. Didukung <b>AI Chat Agent</b> 🤖</p>
     <a href="{{ url_for('marketplace') }}" class="btn btn-warning btn-lg fw-bold me-2"><i class="bi bi-shop-window"></i> Jelajahi Marketplace</a>

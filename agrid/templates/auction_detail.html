@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}{{ event.judul }} — Lelang AGR.BIZ.ID{% endblock %}
 {% block content %}
 <div class="container my-4" style="max-width:1100px">
@@ -27,7 +27,7 @@
     <div class="col-lg-5">
       <div class="card shadow-sm mb-3"><div class="card-body">
         <div class="small text-muted">Jadwal lelang · WIB</div><div class="fw-semibold">Mulai {{ event.mulai|wib }}</div><div class="fw-semibold">Tutup {{ event.selesai|wib }}</div>
-        <div class="auction-price-panel p-3 mt-3"><div class="small text-muted">Harga pembukaan untuk seluruh paket</div><div class="fs-4 text-success fw-bold">Rp{{ event.harga_awal|rp }}</div>
+        <div class="auction-price-panel p-3 mt-3"><div class="d-flex justify-content-between align-items-center mb-1"><span class="small text-muted">Harga pembukaan untuk seluruh paket</span><span id="auctionWsBadge" class="badge bg-secondary-subtle text-secondary border small" title="Status koneksi sinkronisasi data"><i class="bi bi-arrow-repeat"></i> Sync Aktif</span></div><div class="fs-4 text-success fw-bold">Rp{{ event.harga_awal|rp }}</div>
           <div id="auctionLiveHighest" class="mt-2">{% if highest %}<div class="small text-muted">{{ 'Tawaran tertinggi saat ini' if event.status=='berlangsung' else 'Tawaran tertinggi yang masuk' }}</div><div class="fs-5 fw-bold">Rp{{ highest.nominal|rp }}</div><div class="small">Penawar: <b>{{ highest.buyer.nama }}</b></div>{% else %}<div class="small text-muted">Belum ada tawaran. Peserta terdaftar dapat menawar saat event berlangsung.</div>{% endif %}</div>
         </div>
         {% if seller_view and event.status=='diajukan' %}<div class="alert alert-warning small mt-3 mb-0">Pengajuan menunggu tinjauan admin. Stok produk dicadangkan sementara.</div>{% endif %}
@@ -67,33 +67,177 @@
 </div>
 <script>
 (() => {
-  const card=document.getElementById('auctionBidCard');
-  if(!card) return;
-  const results=document.getElementById('auctionBidResults');
-  const terminal=['selesai','dibatalkan','ditolak','tenggat_pemenang_lewat'];
-  const refresh=async()=>{
-    try{
-      const response=await fetch(card.dataset.resultsUrl,{cache:'no-store'});
-      if(!response.ok) return;
-      const data=await response.json();
-      if(data.status!==card.dataset.status){window.location.reload();return;}
-      const count=document.getElementById('auctionBidCount');
-      count.textContent=data.bids.length;
-      results.replaceChildren();
-      if(!data.bids.length){const empty=document.createElement('div');empty.className='list-group-item small text-muted';empty.textContent='Belum ada tawaran.';results.appendChild(empty);}
-      data.bids.forEach(bid=>{
-        const row=document.createElement('div');row.className='list-group-item d-flex justify-content-between gap-3';
-        const person=document.createElement('div'), name=document.createElement('b');name.textContent=bid.buyer;person.appendChild(name);
-        if(bid.catatan){const note=document.createElement('div');note.className='small text-muted';note.textContent=bid.catatan;person.appendChild(note);}
-        const amount=document.createElement('div');amount.className='text-end';const value=document.createElement('b');value.textContent='Rp'+new Intl.NumberFormat('id-ID').format(bid.nominal);const time=document.createElement('div');time.className='small text-muted';time.textContent=bid.created_at;amount.append(value,time);row.append(person,amount);results.appendChild(row);
-      });
-      const live=document.getElementById('auctionLiveHighest');
-      if(data.highest){live.innerHTML='';const label=document.createElement('div');label.className='small text-muted';label.textContent=data.status==='berlangsung'?'Tawaran tertinggi saat ini':'Tawaran tertinggi yang masuk';const value=document.createElement('div');value.className='fs-5 fw-bold';value.textContent='Rp'+new Intl.NumberFormat('id-ID').format(data.highest.nominal);const bidder=document.createElement('div');bidder.className='small';bidder.textContent='Penawar: '+data.highest.buyer;live.append(label,value,bidder);}
-      const input=document.getElementById('auctionBid');if(input){input.min=data.minimum_bid;if(Number(input.value)<data.minimum_bid)input.value=data.minimum_bid;}
-      if(terminal.includes(data.status))clearInterval(timer);
-    }catch(_error){}
+  const card = document.getElementById('auctionBidCard');
+  if (!card) return;
+  const results = document.getElementById('auctionBidResults');
+  const wsBadge = document.getElementById('auctionWsBadge');
+  const terminal = ['selesai', 'dibatalkan', 'ditolak', 'tenggat_pemenang_lewat'];
+  const eventId = {{ event.id }};
+  const currentUserId = {{ user.id if user else 0 }};
+  const currentUserName = "{{ (user.nama if user else 'Tamu') | replace('"', '\"') }}";
+
+  const renderHighest = (highestNominal, highestBuyer, status) => {
+    const live = document.getElementById('auctionLiveHighest');
+    if (!live) return;
+    live.innerHTML = '';
+    const label = document.createElement('div');
+    label.className = 'small text-muted';
+    label.textContent = (status === 'berlangsung') ? 'Tawaran tertinggi saat ini' : 'Tawaran tertinggi yang masuk';
+    const value = document.createElement('div');
+    value.className = 'fs-5 fw-bold text-success';
+    value.textContent = 'Rp' + new Intl.NumberFormat('id-ID').format(highestNominal);
+    const bidder = document.createElement('div');
+    bidder.className = 'small';
+    bidder.innerHTML = 'Penawar: <b>' + (highestBuyer || '-') + '</b>';
+    live.append(label, value, bidder);
+
+    const input = document.getElementById('auctionBid');
+    if (input) {
+      const minBid = Math.floor(highestNominal) + 1;
+      input.min = minBid;
+      if (Number(input.value) < minBid) input.value = minBid;
+    }
   };
-  const timer=setInterval(refresh,5000);refresh();
+
+  const prependBidRow = (bid, animate = true) => {
+    if (!results) return;
+    // Hapus placeholder 'Belum ada tawaran' jika ada
+    const emptyRow = results.querySelector('.text-muted:only-child');
+    if (emptyRow && emptyRow.textContent.includes('Belum ada')) emptyRow.remove();
+
+    const row = document.createElement('div');
+    row.className = 'list-group-item d-flex justify-content-between gap-3' + (animate ? ' bg-success-subtle' : '');
+    const person = document.createElement('div');
+    const name = document.createElement('b');
+    name.textContent = bid.buyer || bid.buyer_name;
+    person.appendChild(name);
+    if (bid.catatan) {
+      const note = document.createElement('div');
+      note.className = 'small text-muted';
+      note.textContent = bid.catatan;
+      person.appendChild(note);
+    }
+    const amount = document.createElement('div');
+    amount.className = 'text-end';
+    const val = document.createElement('b');
+    val.textContent = 'Rp' + new Intl.NumberFormat('id-ID').format(bid.nominal);
+    const time = document.createElement('div');
+    time.className = 'small text-muted';
+    time.textContent = bid.created_at || (new Date()).toLocaleTimeString('id-ID');
+    amount.append(val, time);
+    row.append(person, amount);
+
+    results.insertBefore(row, results.firstChild);
+
+    if (animate) {
+      setTimeout(() => {
+        row.classList.remove('bg-success-subtle');
+        row.style.transition = 'background-color 1.5s ease';
+      }, 1200);
+    }
+
+    const count = document.getElementById('auctionBidCount');
+    if (count) {
+      count.textContent = results.querySelectorAll('.list-group-item:not(.text-muted)').length;
+    }
+  };
+
+  // 1. WebSocket Handler ke Golang Auction Server
+  let wsConnected = false;
+  let socket = null;
+
+  const initWebSocket = () => {
+    const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.AUCTION_WS_HOST || (location.hostname + ':8081');
+    const wsUrl = `${wsProto}//${wsHost}/ws/auction/${eventId}?buyer_id=${currentUserId}&buyer_name=${encodeURIComponent(currentUserName)}`;
+
+    try {
+      socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        wsConnected = true;
+        if (wsBadge) {
+          wsBadge.className = 'badge bg-success-subtle text-success border border-success small';
+          wsBadge.innerHTML = '<i class="bi bi-broadcast"></i> Golang Realtime <span id="auctionOnlineUsers">(1 online)</span>';
+        }
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'NEW_BID' && msg.payload) {
+            const p = msg.payload;
+            renderHighest(p.nominal, p.buyer_name, 'berlangsung');
+            prependBidRow({
+              buyer: p.buyer_name,
+              nominal: p.nominal,
+              catatan: p.catatan,
+              created_at: new Date(p.timestamp).toLocaleTimeString('id-ID')
+            }, true);
+          } else if (msg.type === 'AUDIENCE_UPDATE' && msg.payload) {
+            const countElem = document.getElementById('auctionOnlineUsers');
+            if (countElem) countElem.textContent = `(${msg.payload.connected_users} online)`;
+          } else if (msg.type === 'BID_ERROR' && msg.error) {
+            alert(msg.error);
+          }
+        } catch (e) {
+          console.warn('WS parse error', e);
+        }
+      };
+
+      socket.onclose = () => {
+        wsConnected = false;
+        if (wsBadge) {
+          wsBadge.className = 'badge bg-secondary-subtle text-secondary border small';
+          wsBadge.innerHTML = '<i class="bi bi-clock"></i> Polling 5s (Fallback)';
+        }
+        // Coba sambung ulang setelah 5 detik
+        setTimeout(initWebSocket, 5000);
+      };
+
+      socket.onerror = () => {
+        socket.close();
+      };
+    } catch (_e) {
+      wsConnected = false;
+    }
+  };
+
+  initWebSocket();
+
+  // 2. HTTP Polling Fallback (Memastikan sinkronisasi data tetap berjalan andai WebSocket putus)
+  const refresh = async () => {
+    try {
+      const response = await fetch(card.dataset.resultsUrl, { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.status !== card.dataset.status) {
+        window.location.reload();
+        return;
+      }
+      const count = document.getElementById('auctionBidCount');
+      if (count) count.textContent = data.bids.length;
+
+      // Jika websocket tidak sedang terhubung, update daftar secara penuh dari HTTP polling
+      if (!wsConnected) {
+        results.replaceChildren();
+        if (!data.bids.length) {
+          const empty = document.createElement('div');
+          empty.className = 'list-group-item small text-muted';
+          empty.textContent = 'Belum ada tawaran.';
+          results.appendChild(empty);
+        }
+        data.bids.forEach(bid => prependBidRow(bid, false));
+        if (data.highest) {
+          renderHighest(data.highest.nominal, data.highest.buyer, data.status);
+        }
+      }
+      if (terminal.includes(data.status)) clearInterval(timer);
+    } catch (_error) {}
+  };
+
+  const timer = setInterval(refresh, 5000);
+  refresh();
 })();
 </script>
 {% endblock %}
