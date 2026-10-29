@@ -17,12 +17,14 @@
   </div>
   <div class="hero-overlay" aria-hidden="true"></div>
   <div class="container py-4 text-center position-relative" style="z-index:3;">
-    <h1 class="fw-bold text-white">🌾 AGR.BIZ.ID</h1><p class="brand-tagline mb-3 text-warning fw-semibold">Agrikultur Bisnis Indonesia</p>
+    <h1 class="fw-bold text-white d-inline-flex align-items-center justify-content-center"><span class="me-2">🌾</span><span class="brand-text"><span class="brand-agr">AGR</span><span class="brand-dot">.</span><span class="brand-biz">BIZ</span><span class="brand-dot">.</span><span class="brand-id">ID</span></span></h1><p class="brand-tagline mb-3 text-warning fw-semibold">Agrikultur Bisnis Indonesia</p>
     <p class="lead text-white">Marketplace <b>Pertanian · Perkebunan · Perikanan · Peternakan</b><br>
     Langsung dari petani, nelayan & peternak — dengan penawaran harga, booking DP,<br class="d-none d-md-block">
     pembayaran payment gateway, ekspedisi, dan ketelusuran eviden foto + GPS. Didukung <b>AI Chat Agent</b> 🤖</p>
-    <a href="{{ url_for('marketplace') }}" class="btn btn-warning btn-lg fw-bold me-2"><i class="bi bi-shop-window"></i> Jelajahi Marketplace</a>
-    <button class="btn btn-outline-light btn-lg" onclick="openSknj('register')"><i class="bi bi-person-plus"></i> Daftar Penjual / Pembeli</button>
+    <div class="hero-actions">
+      <a href="{{ url_for('marketplace') }}" class="btn btn-warning btn-lg fw-bold px-4 shadow-sm"><i class="bi bi-shop-window me-1"></i> Jelajahi Produk</a>
+      <button class="btn btn-outline-light btn-lg px-4" onclick="openSknj('register')"><i class="bi bi-person-plus me-1"></i> Jadi Penjual</button>
+    </div>
   </div>
 </section>
 
@@ -42,16 +44,16 @@
   <h4 class="border-start border-4 border-success ps-2 fw-bold">Kategori Utama</h4>
   <div class="row g-3 mt-2 mb-5">
     {% set meta = {
-      'Pertanian': ('cat-pertanian.svg','Sayuran & Buah-buahan — cabai, bawang, tomat, pisang, durian, dll.'),
-      'Perkebunan': ('cat-perkebunan.svg','Kopi, kakao, sawit, karet, rempah ekspor, vanili, gula aren.'),
-      'Perikanan': ('cat-perikanan.svg','Air Tawar (lele, nila, gurame) & Air Laut (udang, tuna, kerapuh, rumput laut).'),
-      'Peternakan': ('cat-peternakan.svg','Sapi, kambing & domba, unggas, kelinci — Babi ditandai ⚠️ Non Halal.')} %}
+      'Pertanian': ('cat-pertanian.svg','Sayuran & Buah-buahan — cabai, bawang, tomat, pisang, durian, dll.', 'card-cat-pertanian'),
+      'Perkebunan': ('cat-perkebunan.svg','Kopi, kakao, sawit, karet, rempah ekspor, vanili, gula aren.', 'card-cat-perkebunan'),
+      'Perikanan': ('cat-perikanan.svg','Air Tawar (lele, nila, gurame) & Air Laut (udang, tuna, kerapuh, rumput laut).', 'card-cat-perikanan'),
+      'Peternakan': ('cat-peternakan.svg','Sapi, kambing & domba, unggas, kelinci — Babi ditandai ⚠️ Non Halal.', 'card-cat-peternakan')} %}
     {% for c in categories %}
     <div class="col-md-3">
       <a class="text-decoration-none" href="{{ url_for('marketplace', kategori=c) }}">
-      <div class="card card-prod h-100 text-dark p-3">
+      <div class="card card-prod card-category {{ meta[c][2] }} h-100 p-3">
         <div class="mb-2"><img src="{{ url_for('static', filename=meta[c][0]) }}" alt="{{ c }}" width="56" height="56" style="object-fit:contain;"></div>
-        <h5 class="mt-1 fw-bold">{{ c }}</h5><p class="small text-muted mb-0">{{ meta[c][1] }}</p>
+        <h5 class="mt-1 fw-bold cat-title">{{ c }}</h5><p class="small text-muted mb-0">{{ meta[c][1] }}</p>
       </div></a>
     </div>
     {% endfor %}

@@ -129,15 +129,21 @@ renderers.home = async () => {
     </div>
     <div class="hero-overlay" aria-hidden="true"></div>
     <div class="hero-content">
-      <h1>AGR.BIZ.ID</h1><p class="brand-tagline">Agrikultur Bisnis Indonesia</p><h2>Marketplace Pertanian, Perkebunan, Perikanan &amp; Peternakan</h2>
+      <h1>🌾 <span class="brand-text"><span class="brand-agr">AGR</span><span class="brand-dot">.</span><span class="brand-biz">BIZ</span><span class="brand-dot">.</span><span class="brand-id">ID</span></span></h1><p class="brand-tagline">Agrikultur Bisnis Indonesia</p><h2>Marketplace Pertanian, Perkebunan, Perikanan &amp; Peternakan</h2>
       <p>Langsung dari petani dan peternak — penawaran harga, booking dengan DP pengikat, pengiriman terjadwal, dan ketelusuran berbasis bukti foto + GPS. Didukung AI assistant.</p>
       <div class="hero-actions"><a class="btn btn-primary btn-lg" href="#/marketplace">Jelajahi Produk</a><a class="btn btn-outline btn-lg" href="#/daftar">Jadi Penjual</a></div>
     </div>
   </section>
   <section class="cats">
     ${Object.keys(SUBS).map(k=>{
-      const icons = {'Pertanian':'cat-pertanian.svg','Perkebunan':'cat-perkebunan.svg','Perikanan':'cat-perikanan.svg','Peternakan':'cat-peternakan.svg'};
-      return `<a class="cat-card" href="#/marketplace?kategori=${encodeURIComponent(k)}"><img src="${icons[k]||'cat-pertanian.svg'}" alt="${k}" width="48" height="48" style="object-fit:contain;margin-bottom:8px;display:block;"><h3>${k}</h3><p>${(SUBS[k]||[]).join(' · ')}</p></a>`;
+      const meta = {
+        'Pertanian': {icon:'cat-pertanian.svg', cls:'cat-pertanian'},
+        'Perkebunan': {icon:'cat-perkebunan.svg', cls:'cat-perkebunan'},
+        'Perikanan': {icon:'cat-perikanan.svg', cls:'cat-perikanan'},
+        'Peternakan': {icon:'cat-peternakan.svg', cls:'cat-peternakan'}
+      };
+      const m = meta[k] || {icon:'cat-pertanian.svg', cls:''};
+      return `<a class="cat-card ${m.cls}" href="#/marketplace?kategori=${encodeURIComponent(k)}"><img src="${m.icon}" alt="${k}" width="48" height="48" style="object-fit:contain;margin-bottom:8px;display:block;"><h3 class="cat-title">${k}</h3><p>${(SUBS[k]||[]).join(' · ')}</p></a>`;
     }).join('')}
   </section>
   <section><h2 class="sec-title">Produk Terbaru</h2><div class="grid">${prods.map(cardProduk).join('')||'<p class="muted">Belum ada produk — jalankan supabase-schema.sql + seed-supabase.sql di Supabase terlebih dahulu.</p>'}</div></section>`;

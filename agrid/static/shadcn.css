@@ -478,3 +478,168 @@ body{background-image:url("agri-categories-bg.svg");background-repeat:no-repeat;
   .settings-tabs,.dashboard-action-tabs{grid-template-columns:1fr}
   .dashboard-shortcuts{grid-template-columns:1fr}
 }
+
+
+/* ============================================================
+   BRAND TITLE STYLING: AGR (Green), BIZ (Amber), ID (Sky Blue)
+   ============================================================ */
+.brand-text {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: baseline;
+}
+.brand-agr {
+  color: #10b981; /* Hijau Segar */
+}
+.brand-biz {
+  color: #f59e0b; /* Kuning Amber / Emas */
+}
+.brand-id {
+  color: #0ea5e9; /* Biru Langit / Bahari */
+}
+.brand-dot {
+  color: #94a3b8;
+  opacity: 0.75;
+  font-weight: 700;
+  margin: 0 1px;
+}
+
+/* Latar gelap / hero banner / dark mode */
+.hero-content .brand-agr,
+.hero .brand-agr,
+.navbar-agrid .brand-agr,
+.navbar-brand .brand-agr,
+html.dark .brand-agr {
+  color: #34d399;
+}
+.hero-content .brand-biz,
+.hero .brand-biz,
+.navbar-agrid .brand-biz,
+.navbar-brand .brand-biz,
+html.dark .brand-biz {
+  color: #fbbf24;
+}
+.hero-content .brand-id,
+.hero .brand-id,
+.navbar-agrid .brand-id,
+.navbar-brand .brand-id,
+html.dark .brand-id {
+  color: #38bdf8;
+}
+.hero-content .brand-dot,
+.hero .brand-dot,
+.navbar-agrid .brand-dot,
+.navbar-brand .brand-dot,
+html.dark .brand-dot {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* ============================================================
+   DESKTOP VIEW: JELAJAHI PRODUK & JADI PENJUAL BUTTON SPACING
+   ============================================================ */
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 1.5rem;
+}
+@media (min-width: 768px) {
+  .hero-actions {
+    gap: 28px !important; /* Jarak pas dan proporsional di desktop view */
+  }
+}
+
+/* ============================================================
+   WARNA LEMBUT UNTUK 4 KARTU KATEGORI
+   ============================================================ */
+.card-category, .cat-card {
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+.card-category:hover, .cat-card:hover {
+  transform: translateY(-4px);
+}
+
+/* 1. Pertanian (Lembut Mint / Hijau Muda) */
+.card-cat-pertanian, .cat-card.cat-pertanian {
+  background: linear-gradient(145deg, #f0fdf4 0%, #dcfce7 100%) !important;
+  border: 1px solid #bbf7d0 !important;
+}
+.card-cat-pertanian .cat-title, .cat-card.cat-pertanian h3 {
+  color: #166534 !important;
+}
+.card-cat-pertanian:hover, .cat-card.cat-pertanian:hover {
+  box-shadow: 0 10px 24px rgba(22, 101, 52, 0.14) !important;
+  border-color: #86efac !important;
+}
+
+/* 2. Perkebunan (Lembut Kuning Madu / Amber) */
+.card-cat-perkebunan, .cat-card.cat-perkebunan {
+  background: linear-gradient(145deg, #fffbeb 0%, #fef3c7 100%) !important;
+  border: 1px solid #fde68a !important;
+}
+.card-cat-perkebunan .cat-title, .cat-card.cat-perkebunan h3 {
+  color: #92400e !important;
+}
+.card-cat-perkebunan:hover, .cat-card.cat-perkebunan:hover {
+  box-shadow: 0 10px 24px rgba(180, 83, 9, 0.14) !important;
+  border-color: #fcd34d !important;
+}
+
+/* 3. Perikanan (Lembut Biru Akuatik / Bahari) */
+.card-cat-perikanan, .cat-card.cat-perikanan {
+  background: linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+  border: 1px solid #bae6fd !important;
+}
+.card-cat-perikanan .cat-title, .cat-card.cat-perikanan h3 {
+  color: #075985 !important;
+}
+.card-cat-perikanan:hover, .cat-card.cat-perikanan:hover {
+  box-shadow: 0 10px 24px rgba(7, 89, 133, 0.14) !important;
+  border-color: #7dd3fc !important;
+}
+
+/* 4. Peternakan (Lembut Peach / Terracotta Hangat) */
+.card-cat-peternakan, .cat-card.cat-peternakan {
+  background: linear-gradient(145deg, #fff7ed 0%, #ffedd5 100%) !important;
+  border: 1px solid #fed7aa !important;
+}
+.card-cat-peternakan .cat-title, .cat-card.cat-peternakan h3 {
+  color: #9a3412 !important;
+}
+.card-cat-peternakan:hover, .cat-card.cat-peternakan:hover {
+  box-shadow: 0 10px 24px rgba(154, 52, 18, 0.14) !important;
+  border-color: #fdba74 !important;
+}
+
+/* Mode gelap: saturasi warna lembut yang nyaman di mata */
+html.dark .card-cat-pertanian, html.dark .cat-card.cat-pertanian {
+  background: linear-gradient(145deg, rgba(22, 101, 52, 0.24) 0%, rgba(20, 83, 45, 0.36) 100%) !important;
+  border-color: rgba(74, 222, 128, 0.35) !important;
+}
+html.dark .card-cat-pertanian .cat-title, html.dark .cat-card.cat-pertanian h3 {
+  color: #86efac !important;
+}
+html.dark .card-cat-perkebunan, html.dark .cat-card.cat-perkebunan {
+  background: linear-gradient(145deg, rgba(146, 64, 14, 0.24) 0%, rgba(120, 53, 15, 0.36) 100%) !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+}
+html.dark .card-cat-perkebunan .cat-title, html.dark .cat-card.cat-perkebunan h3 {
+  color: #fde047 !important;
+}
+html.dark .card-cat-perikanan, html.dark .cat-card.cat-perikanan {
+  background: linear-gradient(145deg, rgba(7, 89, 133, 0.24) 0%, rgba(3, 105, 161, 0.36) 100%) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}
+html.dark .card-cat-perikanan .cat-title, html.dark .cat-card.cat-perikanan h3 {
+  color: #7dd3fc !important;
+}
+html.dark .card-cat-peternakan, html.dark .cat-card.cat-peternakan {
+  background: linear-gradient(145deg, rgba(154, 52, 18, 0.24) 0%, rgba(124, 45, 18, 0.36) 100%) !important;
+  border-color: rgba(251, 146, 60, 0.35) !important;
+}
+html.dark .card-cat-peternakan .cat-title, html.dark .cat-card.cat-peternakan h3 {
+  color: #fdba74 !important;
+}
