@@ -16,10 +16,10 @@
         <div class="mt-3" style="white-space:pre-line">{{ event.deskripsi }}</div>
         {% if event.catatan_admin %}<div class="alert {{ 'alert-danger' if event.status=='ditolak' else 'alert-info' }} mt-3 mb-0"><b>Catatan admin:</b><div style="white-space:pre-line">{{ event.catatan_admin }}</div></div>{% endif %}
         <div class="card border-warning-subtle bg-light mt-3"><div class="card-body"><h6 class="fw-bold">Syarat dan Ketentuan Pelelangan</h6><div class="small" style="white-space:pre-line">{{ event.syarat_ketentuan or 'Belum ada syarat khusus.' }}</div></div></div>
-        <hr><h5 class="fw-bold">Isi paket lelang ({{ event.items|length }} jenis produk)</h5>
+        <hr>{% if event.paket_kustom %}<h5 class="fw-bold">Kriteria paket khusus</h5><div class="border rounded bg-light p-3" style="white-space:pre-line">{{ event.kriteria_paket }}</div>{% else %}<h5 class="fw-bold">Isi paket lelang ({{ event.items|length }} jenis produk)</h5>
         <div class="table-responsive"><table class="table table-sm auction-item-table align-middle"><thead><tr><th>Foto / Produk</th><th>Kategori</th><th>Jumlah tersedia</th><th>Harga listing/unit</th></tr></thead><tbody>
           {% for item in event.items %}<tr><td>{% if item.product and item.product.foto %}{% if item.product.foto.startswith('object://') or item.product.foto.startswith('cloud://') %}<img class="auction-item-thumb agr-media" data-ref="{{ item.product.foto }}" alt="">{% else %}<img class="auction-item-thumb" src="{{ item.product.foto }}" alt="">{% endif %}{% endif %}<b class="ms-1">{{ item.nama_produk }}</b></td><td class="small">{{ item.kategori }}{% if item.subkategori %} › {{ item.subkategori }}{% endif %}</td><td>{{ item.jumlah|rp }} {{ item.satuan }}</td><td>Rp{{ item.harga_listing|rp }}/{{ item.satuan }}</td></tr>{% endfor %}
-        </tbody></table></div>
+        </tbody></table></div>{% endif %}
         <div class="small text-muted"><i class="bi bi-geo-alt-fill text-danger"></i> Lokasi pengambilan/pelelangan: <b>{{ event.alamat_lokasi }}</b><br>GPS {{ '%.6f'|format(event.lat) }}, {{ '%.6f'|format(event.lng) }} · <a target="_blank" rel="noopener" href="https://maps.google.com/?q={{ event.lat }},{{ event.lng }}">Buka peta</a></div>
         {% if event.jadwal_pengambilan %}<div class="alert alert-info py-2 small mt-3 mb-0"><i class="bi bi-calendar-check"></i> Jadwal pengambilan paket: <b>{{ event.jadwal_pengambilan|wib }}</b></div>{% endif %}
       </div></div>

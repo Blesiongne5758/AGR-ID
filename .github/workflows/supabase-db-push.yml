@@ -290,6 +290,56 @@ jobs:
           print("Migration 0007 seller payment settings berhasil diterapkan.")
           PY
 
+      - name: Apply migration 0008 custom auction packages
+        run: |
+          python3 - "supabase/migrations/0008_custom_auction_packages.sql" <<'PY'
+          import json, os, subprocess, sys
+          path = sys.argv[1]
+          sql = open(path, encoding="utf-8").read()
+          r = subprocess.run([
+              "curl", "-sS", "--fail-with-body", "--max-time", "120", "--retry", "3", "--retry-delay", "5",
+              f"https://api.supabase.com/v1/projects/{os.environ['PROJECT_REF']}/database/query",
+              "-H", f"Authorization: Bearer {os.environ['MGMT_TOKEN']}",
+              "-H", "Content-Type: application/json",
+              "-d", json.dumps({"query": sql}),
+          ], capture_output=True, text=True)
+          if r.returncode:
+              sys.exit(f"Migration 0008 gagal ({r.returncode}): {r.stderr[:500]} {r.stdout[:500]}")
+          out = r.stdout.strip()
+          try:
+              result = json.loads(out) if out else None
+              if isinstance(result, dict) and result.get("error"):
+                  sys.exit(f"Migration 0008 gagal: {result['error']}")
+          except json.JSONDecodeError:
+              sys.exit(f"Respons migration 0008 bukan JSON: {out[:500]}")
+          print("Migration 0008 custom auction packages berhasil diterapkan.")
+          PY
+
+      - name: Apply migration 0009 cooperative membership
+        run: |
+          python3 - "supabase/migrations/0009_cooperative_membership.sql" <<'PY'
+          import json, os, subprocess, sys
+          path = sys.argv[1]
+          sql = open(path, encoding="utf-8").read()
+          r = subprocess.run([
+              "curl", "-sS", "--fail-with-body", "--max-time", "120", "--retry", "3", "--retry-delay", "5",
+              f"https://api.supabase.com/v1/projects/{os.environ['PROJECT_REF']}/database/query",
+              "-H", f"Authorization: Bearer {os.environ['MGMT_TOKEN']}",
+              "-H", "Content-Type: application/json",
+              "-d", json.dumps({"query": sql}),
+          ], capture_output=True, text=True)
+          if r.returncode:
+              sys.exit(f"Migration 0009 gagal ({r.returncode}): {r.stderr[:500]} {r.stdout[:500]}")
+          out = r.stdout.strip()
+          try:
+              result = json.loads(out) if out else None
+              if isinstance(result, dict) and result.get("error"):
+                  sys.exit(f"Migration 0009 gagal: {result['error']}")
+          except json.JSONDecodeError:
+              sys.exit(f"Respons migration 0009 bukan JSON: {out[:500]}")
+          print("Migration 0009 cooperative membership berhasil diterapkan.")
+          PY
+
       # ---------- Verifikasi hasil ----------
       # Query tunggal sederhana yang sudah terbukti sukses dari sandbox:
       # daftar nama tabel publik via information_schema.

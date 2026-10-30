@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container my-4" style="max-width:980px">
   <a class="small text-decoration-none" href="{{ url_for('dashboard_seller') }}">← Kembali ke Dashboard Penjual</a>
-  <div class="card card-prod shadow-sm mt-2"><div class="card-header border-bottom"><h4 class="fw-bold mb-1"><i class="bi bi-hammer text-success"></i> Buat Event Lelang Terbuka</h4><p class="small text-muted mb-0">Pilih stok produk aktif untuk dilelang sebagai satu paket. Pembeli terdaftar dapat menawar total paket.</p></div>
+  <div class="card card-prod shadow-sm mt-2"><div class="card-header border-bottom"><h4 class="fw-bold mb-1"><i class="bi bi-hammer text-success"></i> Buat Event Lelang Terbuka</h4><p class="small text-muted mb-0">Lelang stok produk Anda atau buat paket khusus berdasarkan keterangan dan kriteria. Pembeli terdaftar menawar total paket.</p></div>
     <div class="card-body">
       <form method="post" id="auctionForm" class="row g-3">
         <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
@@ -11,7 +11,8 @@
         <div class="col-12"><label class="form-label fw-bold">Informasi lengkap paket lelang <span class="text-danger">*</span></label><textarea class="form-control" name="deskripsi" rows="4" required placeholder="Jelaskan jenis/varietas, kualitas, perkiraan hasil, kondisi panen/ternak, akses pengambilan, syarat angkut, dan informasi penting lain."></textarea><div class="form-text">Tuliskan rincian yang membantu peserta menilai paket sebelum menawar.</div></div>
         <div class="col-12"><label class="form-label fw-bold">Syarat dan ketentuan pelelangan <span class="text-danger">*</span></label><textarea class="form-control" name="syarat_ketentuan" rows="4" maxlength="5000" required placeholder="Contoh: ketentuan pemeriksaan barang, pengambilan, transportasi, pembayaran pemenang, pembatalan, dan hal lain yang perlu dipatuhi peserta.">{{ auction_cfg.syarat_ketentuan }}</textarea><div class="form-text">Syarat ini ditampilkan kepada calon peserta dan wajib disetujui sebelum mendaftar. Nilai awal berasal dari Pengaturan Lelang Anda.</div></div>
 
-        <div class="col-12"><label class="form-label fw-bold">Daftar produk dan stok yang dilelang <span class="text-danger">*</span></label>
+        <div class="col-12"><label class="form-label fw-bold">Jenis paket lelang <span class="text-danger">*</span></label><div class="d-flex flex-wrap gap-3"><label class="form-check"><input class="form-check-input" type="radio" name="jenis_paket" value="produk" checked><span class="form-check-label">Pilih produk dan stok terdaftar</span></label><label class="form-check"><input class="form-check-input" type="radio" name="jenis_paket" value="kustom"><span class="form-check-label">Paket khusus tanpa produk terdaftar</span></label></div></div>
+        <div class="col-12" id="auctionProductsSection"><label class="form-label fw-bold">Daftar produk dan stok yang dilelang <span class="text-danger">*</span></label>
           {% if products %}<div class="row g-2" id="auctionProducts">
             {% for p in products %}<div class="col-md-6"><label class="auction-product-option w-100">
               <input class="form-check-input auction-product-check me-2" type="checkbox" name="product_ids" value="{{ p.id }}" data-total="{{ (p.harga * p.stok)|int }}">
@@ -22,6 +23,7 @@
           <div class="form-text">Stok setiap produk dicatat sebagai snapshot paket saat event dibuat.</div>
         </div>
 
+        <div class="col-12 d-none" id="auctionCustomSection"><label class="form-label fw-bold">Keterangan dan kriteria paket khusus <span class="text-danger">*</span></label><textarea class="form-control" name="kriteria_paket" id="auctionCriteria" rows="5" maxlength="5000" placeholder="Contoh: komoditas/hasil yang dilelang, varietas, mutu atau ukuran minimum, kisaran jumlah, kondisi, waktu panen, kriteria penerimaan, dan syarat lain."></textarea><div class="form-text">Tuliskan kriteria dengan jelas agar peserta memahami barang atau hasil yang ditawarkan. Tidak ada stok listing yang dicadangkan.</div></div>
         <div class="col-md-6"><label class="form-label fw-bold">Harga pembukaan paket (Rp) <span class="text-danger">*</span></label><input class="form-control" type="number" name="harga_awal" id="auctionStartPrice" min="1" step="1" required placeholder="Total harga pembukaan untuk semua produk"><div class="form-text">Harga tawaran pembeli berlaku untuk keseluruhan paket, bukan per produk.</div></div>
         <div class="col-md-6"><label class="form-label fw-bold">Foto pendukung paket <span class="text-danger">*</span></label><input type="hidden" name="foto" id="auctionPhoto"><input class="form-control" type="file" id="auctionPhotoFile" accept="image/jpeg,image/png,image/webp"><div id="auctionPhotoStatus" class="small mt-1"></div><div id="auctionPhotoPreview" class="mt-2"></div><div class="form-text">Foto hasil panen, buah, ternak, atau keseluruhan paket. Maksimal 5 MB.</div></div>
 
@@ -34,7 +36,7 @@
         <div class="col-md-4"><label class="form-label fw-bold">Latitude GPS <span class="text-danger">*</span></label><div class="input-group"><input class="form-control" type="number" name="lat" id="auctionLat" min="-90" max="90" step="0.000001" required><button class="btn btn-outline-success" type="button" id="auctionLocate" title="Gunakan lokasi perangkat"><i class="bi bi-crosshair"></i></button></div></div>
         <div class="col-md-4"><label class="form-label fw-bold">Longitude GPS <span class="text-danger">*</span></label><input class="form-control" type="number" name="lng" id="auctionLng" min="-180" max="180" step="0.000001" required></div>
         <div class="col-md-4 d-flex align-items-end"><a id="auctionMap" class="small" href="https://maps.google.com" target="_blank" rel="noopener">🗺️ Periksa titik lokasi di peta</a></div>
-        <div class="col-12"><div id="auctionFormError" class="small text-danger" role="alert"></div><button class="btn btn-agrid btn-lg fw-bold w-100" {% if not products %}disabled{% endif %}><i class="bi bi-send"></i> Ajukan Event untuk Ditinjau Admin</button><div class="small text-muted text-center mt-2">Event baru tayang setelah disetujui admin dan biaya lelang penjual dilunasi.</div></div>
+        <div class="col-12"><div id="auctionFormError" class="small text-danger" role="alert"></div><button class="btn btn-agrid btn-lg fw-bold w-100"><i class="bi bi-send"></i> Ajukan Event untuk Ditinjau Admin</button><div class="small text-muted text-center mt-2">Event baru tayang setelah disetujui admin dan biaya lelang penjual dilunasi.</div></div>
       </form>
     </div>
   </div>
@@ -43,6 +45,9 @@
 const auctionPhotoFile = document.getElementById('auctionPhotoFile');
 document.addEventListener('DOMContentLoaded', () => bindAgrUploader(auctionPhotoFile, {category:'product', hiddenId:'auctionPhoto', previewEl:document.getElementById('auctionPhotoPreview'), statusEl:document.getElementById('auctionPhotoStatus')}));
 const startPrice = document.getElementById('auctionStartPrice');
+const productsSection=document.getElementById('auctionProductsSection'), customSection=document.getElementById('auctionCustomSection'), criteria=document.getElementById('auctionCriteria');
+function updatePackageMode(){const custom=document.querySelector('[name="jenis_paket"]:checked').value==='kustom';productsSection.classList.toggle('d-none',custom);customSection.classList.toggle('d-none',!custom);criteria.required=custom;document.querySelectorAll('.auction-product-check').forEach(el=>el.disabled=custom);}
+document.querySelectorAll('[name="jenis_paket"]').forEach(el=>el.addEventListener('change',updatePackageMode));
 let priceTouched = false;
 startPrice.addEventListener('input', () => { priceTouched = true; });
 document.querySelectorAll('.auction-product-check').forEach(el => el.addEventListener('change', () => {
@@ -65,7 +70,8 @@ document.getElementById('auctionLocate').addEventListener('click', () => {
 document.getElementById('auctionForm').addEventListener('submit', event => {
   const error=document.getElementById('auctionFormError');
   if (!document.getElementById('auctionPhoto').value) { event.preventDefault(); error.textContent='Unggah foto pendukung sebelum mempublikasikan event.'; }
-  else if (!document.querySelector('.auction-product-check:checked')) { event.preventDefault(); error.textContent='Pilih minimal satu produk ke dalam paket lelang.'; }
+  else if (document.querySelector('[name="jenis_paket"]:checked').value==='kustom' && !criteria.value.trim()) { event.preventDefault(); error.textContent='Isi keterangan dan kriteria paket khusus.'; }
+  else if (document.querySelector('[name="jenis_paket"]:checked').value==='produk' && !document.querySelector('.auction-product-check:checked')) { event.preventDefault(); error.textContent='Pilih minimal satu produk ke dalam paket lelang.'; }
 });
 </script>
 {% endblock %}
