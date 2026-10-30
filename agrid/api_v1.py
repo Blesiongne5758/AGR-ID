@@ -26,9 +26,13 @@ Endpoint ber-token:
 Manajemen token (sesi admin + CSRF, bukan bagian API publik):
   POST /admin/api-token   {nama, role, expiry_days}
   POST /admin/api-token/revoke/<id>
+
+Integrasi koperasi:
+  POST /api/v1/cooperatives/sync         : [admin token] sinkron direktori + roster resmi koperasi
 """
 import json
 import os
+import re
 import secrets
 from datetime import datetime, timedelta
 
@@ -126,6 +130,96 @@ def produk_master():
 def ticker():
     from app import ticker_data
     return _ok(data=ticker_data())
+
+
+@api_bp.route("/cooperatives/sync", methods=["POST"])
+@api_token_required(roles=["koperasi"])
+def sync_cooperatives():
+    """Terima snapshot direktori dan roster anggota resmi dari sistem koperasi."""
+    from app import Koperasi, KoperasiAnggota, KeanggotaanKoperasi
+    db = _db()
+    body = request.get_json(silent=True) or {}
+    cooperatives = body.get("cooperatives")
+    if not isinstance(cooperatives, list) or len(cooperatives) > 500:
+        return _err("cooperatives harus berupa daftar, maksimal 500 koperasi")
+    snapshot = body.get("snapshot") is True
+    cooperative_count = member_count = 0
+    for item in cooperatives:
+        if not isinstance(item, dict):
+            return _err("Format data koperasi tidak valid")
+        ext_id = str(item.get("id") or "").strip()[:100]
+        code = str(item.get("code") or "").strip().upper()[:40]
+        name = str(item.get("name") or "").strip()[:160]
+        members = item.get("members", [])
+        if (not ext_id or not re.fullmatch(r"[A-Z0-9_-]{2,40}", code) or not name
+                or not isinstance(members, list) or len(members) > 10000):
+            return _err("Setiap koperasi harus memiliki id, code, name, dan daftar members yang valid")
+        cooperative_by_id = Koperasi.query.filter_by(external_id=ext_id).first()
+        cooperative_by_code = Koperasi.query.filter_by(kode=code).first()
+        if cooperative_by_id and cooperative_by_code and cooperative_by_id.id != cooperative_by_code.id:
+            return _err("id sumber dan code koperasi menunjuk ke dua record berbeda")
+        cooperative = cooperative_by_id or cooperative_by_code
+        if cooperative is None:
+            cooperative = Koperasi(kode=code, nama=name, external_id=ext_id)
+            db.session.add(cooperative)
+            db.session.flush()
+        else:
+            cooperative.external_id = ext_id
+            cooperative.kode = code
+            cooperative.nama = name
+        cooperative.status = "aktif" if item.get("active", True) else "nonaktif"
+        existing_roster = KoperasiAnggota.query.filter_by(koperasi_id=cooperative.id).all()
+        if snapshot:
+            for member in existing_roster:
+                member.status = "nonaktif"
+        for member in members:
+            if not isinstance(member, dict):
+                return _err("Format anggota tidak valid")
+            member_id = str(member.get("id") or "").strip()[:100]
+            number = str(member.get("number") or "").strip()[:80]
+            member_name = str(member.get("name") or "").strip()[:160]
+            if not member_id or not number or not member_name:
+                return _err("Setiap anggota harus memiliki id, number, dan name")
+            roster = KoperasiAnggota.query.filter_by(koperasi_id=cooperative.id,
+                                                     nomor_anggota=number).first()
+            if roster is None:
+                roster = KoperasiAnggota(koperasi_id=cooperative.id, external_id=member_id,
+                                         nomor_anggota=number, nama=member_name)
+                db.session.add(roster)
+            else:
+                roster.external_id = member_id
+                roster.nama = member_name
+            roster.email = str(member.get("email") or "").strip().lower()[:160] or None
+            roster.status = "aktif" if member.get("active", True) else "nonaktif"
+            roster.updated_at = datetime.utcnow()
+            linked = KeanggotaanKoperasi.query.filter_by(
+                koperasi_id=cooperative.id, nomor_anggota=number).first()
+            inactive_roster_reasons = ("Nomor anggota tidak tercantum pada roster koperasi terbaru.",
+                                       "Status anggota tidak aktif pada data koperasi.")
+            if linked and roster.status != "aktif" and linked.status in ("menunggu", "terdaftar"):
+                linked.status = "ditolak"
+                linked.catatan = "Status anggota tidak aktif pada data koperasi."
+                linked.diverifikasi_pada = datetime.utcnow()
+            elif linked and (linked.status == "menunggu" or
+                             (linked.status == "ditolak" and linked.catatan in inactive_roster_reasons)) and (
+                    linked.nama_terdaftar.strip().casefold() == roster.nama.strip().casefold()
+                    or (roster.email and roster.email.casefold() == linked.user.email.casefold())):
+                linked.status = "terdaftar"
+                linked.catatan = None
+                linked.diverifikasi_pada = datetime.utcnow()
+            member_count += 1
+        if snapshot:
+            for roster in KoperasiAnggota.query.filter_by(koperasi_id=cooperative.id, status="nonaktif").all():
+                linked = KeanggotaanKoperasi.query.filter_by(
+                    koperasi_id=cooperative.id, nomor_anggota=roster.nomor_anggota).first()
+                if linked and linked.status in ("menunggu", "terdaftar"):
+                    linked.status = "ditolak"
+                    linked.catatan = "Nomor anggota tidak tercantum pada roster koperasi terbaru."
+                    linked.diverifikasi_pada = datetime.utcnow()
+        cooperative_count += 1
+    db.session.commit()
+    return _ok(cooperatives_synced=cooperative_count, members_synced=member_count,
+               snapshot=snapshot)
 
 
 # ---------------------------------------------------------------------------
@@ -393,7 +487,7 @@ def register_admin_token_routes(app):
         nama = (request.form.get("nama") or "Token").strip()[:80]
         role = request.form.get("role") or "read"
         days = request.form.get("expiry_days", type=int)
-        if role not in ("read", "penjual", "admin"):
+        if role not in ("read", "penjual", "koperasi", "admin"):
             role = "read"
         raw = "agr_" + secrets.token_urlsafe(32)
         rec = models_api.ApiToken(

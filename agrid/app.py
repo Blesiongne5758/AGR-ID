@@ -118,6 +118,51 @@ class User(db.Model):
         return self.tipe or "Admin"
 
 
+class Koperasi(db.Model):
+    """Direktori koperasi yang tersedia untuk dipilih anggota di marketplace."""
+    __tablename__ = "koperasi"
+    id = db.Column(db.Integer, primary_key=True)
+    kode = db.Column(db.String(40), unique=True, nullable=False)
+    nama = db.Column(db.String(160), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="aktif")
+    external_id = db.Column(db.String(100), unique=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    memberships = db.relationship("KeanggotaanKoperasi", back_populates="koperasi", cascade="all, delete-orphan")
+    roster = db.relationship("KoperasiAnggota", back_populates="koperasi", cascade="all, delete-orphan")
+
+
+class KoperasiAnggota(db.Model):
+    """Roster resmi yang disinkronkan dari sistem sumber koperasi."""
+    __tablename__ = "koperasi_anggota"
+    __table_args__ = (db.UniqueConstraint("koperasi_id", "nomor_anggota", name="uq_roster_koperasi_nomor"),)
+    id = db.Column(db.Integer, primary_key=True)
+    koperasi_id = db.Column(db.Integer, db.ForeignKey("koperasi.id", ondelete="CASCADE"), nullable=False, index=True)
+    external_id = db.Column(db.String(100), nullable=False)
+    nomor_anggota = db.Column(db.String(80), nullable=False)
+    nama = db.Column(db.String(160), nullable=False)
+    email = db.Column(db.String(160))
+    status = db.Column(db.String(20), nullable=False, default="aktif")
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    koperasi = db.relationship("Koperasi", back_populates="roster")
+
+
+class KeanggotaanKoperasi(db.Model):
+    """Pengajuan dan verifikasi nomor anggota dari direktori koperasi."""
+    __tablename__ = "keanggotaan_koperasi"
+    __table_args__ = (db.UniqueConstraint("koperasi_id", "nomor_anggota", name="uq_koperasi_nomor_anggota"),)
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    koperasi_id = db.Column(db.Integer, db.ForeignKey("koperasi.id", ondelete="CASCADE"), nullable=False, index=True)
+    nomor_anggota = db.Column(db.String(80), nullable=False)
+    nama_terdaftar = db.Column(db.String(160), nullable=False, default="")
+    status = db.Column(db.String(20), nullable=False, default="menunggu")
+    catatan = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    diverifikasi_pada = db.Column(db.DateTime)
+    user = db.relationship("User")
+    koperasi = db.relationship("Koperasi", back_populates="memberships")
+
+
 class ProdukMaster(db.Model):
     """Database produk master - auto update saat penjual mengisi nama produk baru."""
     __tablename__ = "produk_master"
@@ -335,6 +380,8 @@ class LelangEvent(db.Model):
     seller_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     judul = db.Column(db.String(160), nullable=False)
     deskripsi = db.Column(db.Text, nullable=False)
+    kriteria_paket = db.Column(db.Text, nullable=False, default="")
+    paket_kustom = db.Column(db.Boolean, nullable=False, default=False)
     syarat_ketentuan = db.Column(db.Text, nullable=False, default="")
     foto = db.Column(db.String(500), nullable=False)
     alamat_lokasi = db.Column(db.String(255), nullable=False)
@@ -1051,6 +1098,8 @@ def create_auction_event():
     if request.method == "POST":
         judul = request.form.get("judul", "").strip()
         deskripsi = request.form.get("deskripsi", "").strip()
+        kriteria_paket = request.form.get("kriteria_paket", "").strip()
+        paket_kustom = request.form.get("jenis_paket", "produk") == "kustom"
         syarat_ketentuan = request.form.get("syarat_ketentuan", "").strip()
         foto = request.form.get("foto", "").strip()
         alamat = request.form.get("alamat_lokasi", "").strip()
@@ -1079,17 +1128,23 @@ def create_auction_event():
             flash("Jadwal lelang tidak valid. Tetapkan waktu mulai, waktu selesai, dan tenggat pembayaran pemenang setelah lelang berakhir.", "danger")
         elif jadwal_pengambilan and jadwal_pengambilan <= selesai:
             flash("Jadwal pengambilan harus sesudah lelang berakhir.", "danger")
-        elif not ids or len(ids) > 100:
+        elif len(kriteria_paket) > 5000:
+            flash("Kriteria paket maksimal 5.000 karakter.", "danger")
+        elif (paket_kustom and not kriteria_paket):
+            flash("Isi keterangan dan kriteria paket untuk lelang tanpa produk terdaftar.", "danger")
+        elif (not paket_kustom and (not ids or len(ids) > 100)):
             flash("Pilih minimal satu dan maksimal 100 produk untuk paket lelang.", "danger")
         else:
-            selected = Product.query.filter(Product.seller_id == u.id, Product.status == "aktif",
-                                            Product.stok > 0, Product.id.in_(ids)).all()
-            if len(selected) != len(ids):
+            selected = [] if paket_kustom else Product.query.filter(
+                Product.seller_id == u.id, Product.status == "aktif",
+                Product.stok > 0, Product.id.in_(ids)).all()
+            if not paket_kustom and len(selected) != len(ids):
                 flash("Daftar produk lelang tidak valid. Pilih produk aktif milik Anda dengan stok tersedia.", "danger")
             elif not harga_awal:
                 flash("Harga pembukaan lelang harus lebih dari nol.", "danger")
             else:
                 event = LelangEvent(seller_id=u.id, judul=judul, deskripsi=deskripsi,
+                                    kriteria_paket=kriteria_paket, paket_kustom=paket_kustom,
                                     syarat_ketentuan=syarat_ketentuan, foto=foto,
                                     alamat_lokasi=alamat, lat=lat, lng=lng, mulai=mulai, selesai=selesai,
                                     batas_bayar_pemenang=batas_bayar_pemenang,
@@ -1104,7 +1159,7 @@ def create_auction_event():
                 db.session.add(event)
                 db.session.commit()
                 audit_current("event_lelang_dibuat", "lelang_events", event.id,
-                              f"{len(selected)} produk; mulai {mulai.isoformat()} UTC")
+                              f"{'paket kustom' if paket_kustom else f'{len(selected)} produk'}; mulai {mulai.isoformat()} UTC")
                 flash("Pengajuan event lelang terkirim dan menunggu persetujuan admin.", "success")
                 return redirect(url_for("auction_detail", event_id=event.id))
     return render_template("auction_form.html", products=seller_products, user=u, ticker=ticker_data(),
@@ -1635,6 +1690,8 @@ def seller_profile_issues(user):
 @login_required()
 def account_settings():
     u = current_user()
+    memberships = KeanggotaanKoperasi.query.filter_by(user_id=u.id).order_by(KeanggotaanKoperasi.created_at.desc()).all()
+    cooperatives = Koperasi.query.filter_by(status="aktif").order_by(Koperasi.nama.asc()).all()
     if request.method == "POST":
         nama = request.form.get("nama", "").strip()
         phone = request.form.get("phone", "").strip()
@@ -1671,7 +1728,64 @@ def account_settings():
         return redirect(url_for("account_settings"))
     return render_template("account_settings.html", user=u, tipe_penjual=TIPE_PENJUAL,
                            seller_profile_issues=seller_profile_issues(u),
-                           bank_settings=seller_payment_cfg(u))
+                           bank_settings=seller_payment_cfg(u), koperasi_memberships=memberships,
+                           cooperatives=cooperatives)
+
+
+@app.route("/akun/keanggotaan-koperasi", methods=["POST"])
+@login_required()
+def apply_cooperative_membership():
+    u = current_user()
+    try:
+        cooperative_id = int(request.form.get("koperasi_id", ""))
+    except (TypeError, ValueError):
+        cooperative_id = 0
+    cooperative = Koperasi.query.filter_by(id=cooperative_id, status="aktif").first()
+    member_number = request.form.get("nomor_anggota", "").strip()
+    registered_name = request.form.get("nama_terdaftar", "").strip()
+    if not cooperative or not member_number or len(member_number) > 80 or not registered_name or len(registered_name) > 160:
+        flash("Pilih koperasi terdaftar, lalu isi nomor anggota dan nama sesuai catatan koperasi.", "danger")
+    else:
+        existing_for_cooperative = KeanggotaanKoperasi.query.filter_by(
+            user_id=u.id, koperasi_id=cooperative.id).filter(
+                KeanggotaanKoperasi.status.in_(("menunggu", "terdaftar"))).first()
+        if existing_for_cooperative:
+            flash("Anda sudah mengajukan atau terdaftar sebagai anggota di koperasi tersebut.", "info")
+        else:
+            roster_member = KoperasiAnggota.query.filter_by(koperasi_id=cooperative.id,
+                                                            nomor_anggota=member_number).first()
+            verified = bool(roster_member and roster_member.status == "aktif" and (
+                            roster_member.nama.strip().casefold() == registered_name.casefold()
+                            or (roster_member.email and roster_member.email.strip().casefold() == u.email.casefold())))
+            linked = KeanggotaanKoperasi.query.filter_by(koperasi_id=cooperative.id,
+                                                         nomor_anggota=member_number).first()
+            if roster_member and roster_member.status != "aktif":
+                flash("Nomor anggota tersebut berstatus nonaktif pada data koperasi.", "danger")
+            elif linked and linked.user_id != u.id:
+                flash("Nomor anggota ini sudah tertaut ke akun marketplace. Hubungi admin jika perlu diperiksa.", "warning")
+            else:
+                if linked is None:
+                    linked = KeanggotaanKoperasi(
+                        user_id=u.id,
+                        koperasi_id=cooperative.id,
+                        nomor_anggota=member_number,
+                        nama_terdaftar=registered_name,
+                        status="terdaftar" if verified else "menunggu",
+                        diverifikasi_pada=datetime.utcnow() if verified else None,
+                    )
+                    db.session.add(linked)
+                else:
+                    linked.nama_terdaftar = registered_name
+                    linked.status = "terdaftar" if verified else "menunggu"
+                    linked.catatan = None
+                    linked.diverifikasi_pada = datetime.utcnow() if verified else None
+                db.session.commit()
+                audit_current("keanggotaan_koperasi_diajukan", "keanggotaan_koperasi", linked.id,
+                              f"koperasi {cooperative.kode}; status {'terdaftar dari roster' if verified else 'menunggu verifikasi'}")
+                db.session.commit()
+                flash("Keanggotaan terverifikasi dari data koperasi." if verified else
+                      "Pengajuan tersimpan dan menunggu pencocokan admin dengan data resmi koperasi.", "success")
+    return redirect(url_for("account_settings") + "#koperasi")
 
 
 @app.route("/akun/data-bank", methods=["POST"])
@@ -1934,6 +2048,51 @@ def tambah_favorit_ke_kebutuhan(fqid):
     return redirect(url_for("dashboard_buyer") + "#tNeeds")
 
 
+@app.route("/admin/koperasi/tambah", methods=["POST"])
+@login_required("admin")
+def add_cooperative():
+    code = request.form.get("kode", "").strip().upper()
+    name = request.form.get("nama", "").strip()
+    if not re.fullmatch(r"[A-Z0-9_-]{2,40}", code) or not name or len(name) > 160:
+        flash("Kode koperasi (2–40 huruf/angka) dan nama koperasi wajib diisi.", "danger")
+    elif Koperasi.query.filter(db.or_(db.func.upper(Koperasi.kode) == code, Koperasi.nama.ilike(name))).first():
+        flash("Kode atau nama koperasi tersebut sudah terdaftar.", "warning")
+    else:
+        db.session.add(Koperasi(kode=code, nama=name, status="aktif"))
+        db.session.commit()
+        audit_current("koperasi_ditambahkan_ke_direktori", "koperasi", None, f"{code}: {name}")
+        db.session.commit()
+        flash("Koperasi ditambahkan ke direktori marketplace.", "success")
+    return redirect(url_for("dashboard_admin") + "#tKoperasi")
+
+
+@app.route("/admin/koperasi/keanggotaan/<int:membership_id>", methods=["POST"])
+@login_required("admin")
+def review_cooperative_membership(membership_id):
+    membership = KeanggotaanKoperasi.query.get_or_404(membership_id)
+    decision = request.form.get("decision")
+    if membership.status != "menunggu":
+        flash("Hanya pengajuan yang menunggu verifikasi dapat ditinjau.", "warning")
+    elif decision not in ("terdaftar", "ditolak"):
+        flash("Keputusan verifikasi tidak valid.", "danger")
+    elif decision == "terdaftar" and KeanggotaanKoperasi.query.filter(
+            KeanggotaanKoperasi.koperasi_id == membership.koperasi_id,
+            KeanggotaanKoperasi.nomor_anggota == membership.nomor_anggota,
+            KeanggotaanKoperasi.status == "terdaftar",
+            KeanggotaanKoperasi.id != membership.id).first():
+        flash("Nomor anggota ini sudah terhubung ke akun lain.", "danger")
+    else:
+        membership.status = decision
+        membership.catatan = request.form.get("catatan", "").strip()[:500] or None
+        membership.diverifikasi_pada = datetime.utcnow()
+        db.session.commit()
+        audit_current("keanggotaan_koperasi_diverifikasi", "keanggotaan_koperasi", membership.id,
+                      f"status {decision}; koperasi {membership.koperasi.kode}")
+        db.session.commit()
+        flash("Status keanggotaan diperbarui.", "success")
+    return redirect(url_for("dashboard_admin") + "#tKoperasi")
+
+
 @app.route("/dashboard/admin")
 @login_required("admin")
 def dashboard_admin():
@@ -1944,6 +2103,9 @@ def dashboard_admin():
     eks = Ekspedisi.query.all()
     settings = {p.key: p.value for p in Pengaturan.query.all()}
     auction_requests = LelangEvent.query.filter_by(status="diajukan").order_by(LelangEvent.created_at.asc()).all()
+    koperasi_rows = Koperasi.query.order_by(Koperasi.nama.asc()).all()
+    koperasi_membership_requests = KeanggotaanKoperasi.query.filter_by(status="menunggu").order_by(
+        KeanggotaanKoperasi.created_at.asc()).all()
 
     # ---- Laporan keuangan (rekap per metode pembayaran & status) ----
     by_method, by_status = {}, {}
@@ -2009,6 +2171,8 @@ def dashboard_admin():
                            total_penjualan=total_nilai_penjualan, total_pembelian=total_nilai_pembelian,
                            rating_rekap=rating_rekap, rat_rows=rat_rows[:30],
                            auction_requests=auction_requests,
+                           koperasi_rows=koperasi_rows,
+                           koperasi_membership_requests=koperasi_membership_requests,
                            wallet=wallet_ctx(u), bstats=bchain.stats(),
                            feat_cfg=FEATURE_KEYS)
 
@@ -3202,6 +3366,8 @@ def seed():
                 ],
                 "lelang_events": [
                     ("syarat_ketentuan", "TEXT NOT NULL DEFAULT ''"),
+                    ("kriteria_paket", "TEXT NOT NULL DEFAULT ''"),
+                    ("paket_kustom", "BOOLEAN NOT NULL DEFAULT FALSE"),
                     ("catatan_admin", "TEXT"), ("biaya_peserta", "FLOAT NOT NULL DEFAULT 0"),
                     ("biaya_penjual", "FLOAT NOT NULL DEFAULT 0"),
                     ("biaya_penjual_lunas", "BOOLEAN NOT NULL DEFAULT FALSE"),

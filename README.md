@@ -39,6 +39,7 @@ Dibangun dengan **Python Flask + SQLAlchemy** untuk aplikasi lokal/server dan fr
 - Migrasi `0006_product_chat.sql` menyiapkan percakapan per produk dan fungsi database terautentikasi; tabel pesan tidak dapat dibaca langsung oleh klien publik.
 - **Tipe Penjual**: Perorangan / Kelompok-Paguyuban / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
 - **Tipe Pembeli**: Perorangan / Yayasan / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
+- **Keanggotaan Koperasi**: pengguna dapat menautkan satu atau lebih koperasi dari direktori tersinkron; nomor anggota dan nama dicocokkan dengan roster resmi, sedangkan data yang belum cocok masuk verifikasi admin.
 - Alamat lengkap + **koordinat GPS** (tombol deteksi lokasi).
 - **Floating window Syarat & Ketentuan** wajib disetujui sebelum masuk halaman pendaftaran/login.
 - Profil penjual menampilkan **rating kepuasan** dan dapat ditandai **favorit** oleh pembeli.
@@ -92,6 +93,7 @@ Flask membuat database SQLite lokal `agrid/agrid.db`. Deployment statis mengguna
 | Tabel | Isi |
 |---|---|
 | `users` | Akun, username unik, daftar mode (`roles`), mode dasar, tipe Penjual dan Pembeli terpisah, NPWP/NIB, alamat, GPS, dan pengaturan metode DP penjual |
+| `koperasi`, `koperasi_anggota`, `keanggotaan_koperasi` | Direktori koperasi, roster anggota resmi yang disinkronkan, dan tautan anggota ke akun marketplace |
 | `sessions` | Token sesi gateway dan mode akun aktif (`active_role`) |
 | `produk_master` | Master nama produk & jenis; auto-tambah saat penjual mengetik nama baru |
 | `products` | Listing produk penjual (harga, stok, foto, GPS kebun/kolam/kandang, label non-halal) |
@@ -113,6 +115,8 @@ Flask membuat database SQLite lokal `agrid/agrid.db`. Deployment statis mengguna
 | `chat_messages` | Riwayat percakapan AI agent |
 
 Skema SQLite lokal dibuat (`db.create_all()`) dan diisi seed demo saat pertama kali dijalankan. Migrasi database produksi dikelola sebagai file SQL dan diterapkan oleh workflow GitHub Actions ke Supabase.
+
+Sistem koperasi menyinkronkan direktori dan roster ke `POST /api/v1/cooperatives/sync` menggunakan token API berperan `koperasi` yang dibuat di Dashboard Admin. Kontrak payload dan aturan sinkronisasi tersedia di [KOPERASI_MARKETPLACE_INTEGRATION.md](KOPERASI_MARKETPLACE_INTEGRATION.md).
 
 ---
 

@@ -202,6 +202,18 @@
   </div>
   </div><!-- /tab-content -->
 
+  <section class="card shadow-sm mt-4" id="tKoperasi">
+    <div class="card-header bg-white fw-bold d-flex justify-content-between"><span>🤝 Direktori Koperasi dan Keanggotaan</span><span class="badge bg-warning text-dark">{{ koperasi_membership_requests|length }} pengajuan</span></div>
+    <div class="card-body">
+      <p class="small text-muted">Direktori dan roster dapat disinkronkan dari sistem KOPERASI melalui <code>POST /api/v1/cooperatives/sync</code> menggunakan token integrasi berizin terbatas. Pengajuan tanpa kecocokan roster menunggu pencocokan admin.</p>
+      <form id="koperasiTokenForm" method="post" action="{{ url_for('create_api_token') }}" class="row g-2 align-items-end border rounded p-3 mb-3"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="role" value="koperasi"><div class="col-md-5"><label class="form-label small fw-bold">Nama integrasi</label><input class="form-control" name="nama" maxlength="80" required value="KOPERASI directory sync"></div><div class="col-md-3"><label class="form-label small fw-bold">Masa berlaku</label><select class="form-select" name="expiry_days"><option value="90">90 hari</option><option value="365">1 tahun</option></select></div><div class="col-md-4"><button type="submit" class="btn btn-outline-success w-100">Buat token sinkronisasi</button></div><div class="col-12"><div id="koperasiTokenResult" class="small" aria-live="polite"></div></div></form>
+      <form method="post" action="{{ url_for('add_cooperative') }}" class="row g-2 mb-4"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><div class="col-md-3"><input class="form-control" name="kode" maxlength="40" required placeholder="Kode koperasi"></div><div class="col-md-6"><input class="form-control" name="nama" maxlength="160" required placeholder="Nama koperasi resmi"></div><div class="col-md-3"><button class="btn btn-agrid w-100">Tambah ke direktori</button></div></form>
+      <div class="table-responsive mb-4"><table class="table table-sm align-middle"><thead><tr><th>Kode</th><th>Nama koperasi</th><th>Status</th><th>Anggota di roster</th><th>Akun terhubung</th></tr></thead><tbody>{% for koperasi in koperasi_rows %}<tr><td>{{ koperasi.kode }}</td><td>{{ koperasi.nama }}</td><td>{{ koperasi.status }}</td><td>{{ koperasi.roster|selectattr('status','equalto','aktif')|list|length }}</td><td>{{ koperasi.memberships|selectattr('status','equalto','terdaftar')|list|length }}</td></tr>{% else %}<tr><td colspan="5" class="text-muted">Direktori koperasi masih kosong.</td></tr>{% endfor %}</tbody></table></div>
+      <h6 class="fw-bold">Verifikasi pengajuan anggota</h6>
+      {% for item in koperasi_membership_requests %}<article class="border rounded p-3 mb-2"><div class="d-flex justify-content-between flex-wrap gap-2"><div><b>{{ item.user.nama }}</b> · {{ item.user.email }}<div class="small text-muted">{{ item.koperasi.nama }} ({{ item.koperasi.kode }}) · No. anggota {{ item.nomor_anggota }} · nama tercatat {{ item.nama_terdaftar }} · diajukan {{ item.created_at|wib }}</div></div></div><div class="d-flex gap-2 mt-3 flex-wrap"><form method="post" action="{{ url_for('review_cooperative_membership', membership_id=item.id) }}" class="d-flex gap-2"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="decision" value="terdaftar"><input class="form-control form-control-sm" name="catatan" maxlength="500" placeholder="Catatan verifikasi (opsional)"><button class="btn btn-sm btn-success">Tandai Terdaftar</button></form><form method="post" action="{{ url_for('review_cooperative_membership', membership_id=item.id) }}" class="d-flex gap-2"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="decision" value="ditolak"><input class="form-control form-control-sm" name="catatan" maxlength="500" placeholder="Alasan penolakan"><button class="btn btn-sm btn-outline-danger">Tolak</button></form></div></article>{% else %}<div class="small text-muted">Tidak ada pengajuan keanggotaan yang menunggu.</div>{% endfor %}
+    </div>
+  </section>
+
   <section class="card shadow-sm mt-4" id="tAuctionAdmin">
     <div class="card-header bg-white fw-bold d-flex justify-content-between"><span>🔨 Pengajuan Event Lelang Terbuka</span><span class="badge bg-warning text-dark">{{ auction_requests|length }} menunggu</span></div>
     <div class="card-body">
@@ -424,6 +436,28 @@
 {% endblock %}
 {% block scripts %}
 <script>
+(() => {
+  const form = document.getElementById('koperasiTokenForm');
+  if (!form) return;
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const output = document.getElementById('koperasiTokenResult');
+    output.textContent = 'Membuat token…';
+    try {
+      const response = await fetch(form.action, {method:'POST', body:new FormData(form), headers:{'Accept':'application/json'}});
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Token tidak dapat dibuat.');
+      output.replaceChildren();
+      const note = document.createElement('span'); note.className = 'text-warning-emphasis';
+      note.textContent = 'Simpan token di secret manager KOPERASI sekarang; token hanya ditampilkan sekali. ';
+      const value = document.createElement('code'); value.textContent = result.token;
+      const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'btn btn-sm btn-outline-secondary ms-2'; copy.textContent = 'Salin';
+      copy.addEventListener('click', async () => { await navigator.clipboard.writeText(result.token); copy.textContent = 'Tersalin'; });
+      output.append(note, value, copy);
+      form.querySelector('button[type="submit"]').disabled = true;
+    } catch (error) { output.textContent = error.message; }
+  });
+})();
 async function ujiCloud(){
   const s=document.getElementById('cloudProbe'); s.textContent='Menguji…';
   try{
