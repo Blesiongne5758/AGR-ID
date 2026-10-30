@@ -657,12 +657,9 @@ switch ($action) {
     case 'settings': {
         if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') { out(get_pengaturan()); }
         require_admin($token); $b = body_json();
-        foreach ($b as $k => $v) {
-            $ex = get_pengaturan((string)$k);
-            if ($ex) sb('pengaturan', 'PATCH', ['key=eq.' . urlencode((string)$k)], ['value' => (string)$v]);
-            else sb('pengaturan', 'POST', [], ['key' => (string)$k, 'value' => (string)$v]);
-        }
-        out(['ok' => true]);
+        if (!$b || count($b) > 20) err('Pengaturan kosong atau terlalu banyak', 422);
+        $saved = sb_rpc('agr_admin_settings_save', ['p_token' => $token, 'p_settings' => (object)$b]);
+        out(['ok' => true, 'settings' => $saved]);
     }
 
     default:
