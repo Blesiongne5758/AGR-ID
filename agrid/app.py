@@ -1690,7 +1690,7 @@ def seller_profile_issues(user):
 @login_required()
 def account_settings():
     u = current_user()
-    membership = KeanggotaanKoperasi.query.filter_by(user_id=u.id).order_by(KeanggotaanKoperasi.created_at.desc()).first()
+    memberships = KeanggotaanKoperasi.query.filter_by(user_id=u.id).order_by(KeanggotaanKoperasi.created_at.desc()).all()
     cooperatives = Koperasi.query.filter_by(status="aktif").order_by(Koperasi.nama.asc()).all()
     if request.method == "POST":
         nama = request.form.get("nama", "").strip()
@@ -1728,7 +1728,7 @@ def account_settings():
         return redirect(url_for("account_settings"))
     return render_template("account_settings.html", user=u, tipe_penjual=TIPE_PENJUAL,
                            seller_profile_issues=seller_profile_issues(u),
-                           bank_settings=seller_payment_cfg(u), koperasi_membership=membership,
+                           bank_settings=seller_payment_cfg(u), koperasi_memberships=memberships,
                            cooperatives=cooperatives)
 
 
@@ -1736,11 +1736,6 @@ def account_settings():
 @login_required()
 def apply_cooperative_membership():
     u = current_user()
-    existing = KeanggotaanKoperasi.query.filter_by(user_id=u.id).filter(
-        KeanggotaanKoperasi.status.in_(("menunggu", "terdaftar"))).first()
-    if existing:
-        flash("Anda sudah memiliki keanggotaan koperasi yang menunggu verifikasi atau sudah terdaftar.", "info")
-        return redirect(url_for("account_settings") + "#koperasi")
     try:
         cooperative_id = int(request.form.get("koperasi_id", ""))
     except (TypeError, ValueError):
@@ -1751,34 +1746,45 @@ def apply_cooperative_membership():
     if not cooperative or not member_number or len(member_number) > 80 or not registered_name or len(registered_name) > 160:
         flash("Pilih koperasi terdaftar, lalu isi nomor anggota dan nama sesuai catatan koperasi.", "danger")
     else:
-        roster_member = KoperasiAnggota.query.filter_by(koperasi_id=cooperative.id,
-                                                        nomor_anggota=member_number).first()
-        verified = bool(roster_member and roster_member.status == "aktif" and (
-                        roster_member.nama.strip().casefold() == registered_name.casefold()
-                        or (roster_member.email and roster_member.email.strip().casefold() == u.email.casefold())))
-        linked = KeanggotaanKoperasi.query.filter_by(koperasi_id=cooperative.id,
-                                                     nomor_anggota=member_number).first()
-        if roster_member and roster_member.status != "aktif":
-            flash("Nomor anggota tersebut berstatus nonaktif pada data koperasi.", "danger")
-        elif linked and (linked.user_id != u.id or linked.status != "ditolak"):
-            flash("Nomor anggota ini sudah tertaut ke akun marketplace. Hubungi admin jika perlu diperiksa.", "warning")
-        elif linked:
-            linked.nama_terdaftar = registered_name
-            linked.status = "terdaftar" if verified else "menunggu"
-            linked.catatan = None
-            linked.diverifikasi_pada = datetime.utcnow() if verified else None
+        existing_for_cooperative = KeanggotaanKoperasi.query.filter_by(
+            user_id=u.id, koperasi_id=cooperative.id).filter(
+                KeanggotaanKoperasi.status.in_(("menunggu", "terdaftar"))).first()
+        if existing_for_cooperative:
+            flash("Anda sudah mengajukan atau terdaftar sebagai anggota di koperasi tersebut.", "info")
         else:
-            db.session.add(KeanggotaanKoperasi(user_id=u.id, koperasi_id=cooperative.id,
-                nomor_anggota=member_number, nama_terdaftar=registered_name,
-                status="terdaftar" if verified else "menunggu",
-                diverifikasi_pada=datetime.utcnow() if verified else None))
-        if not linked or linked.user_id == u.id and linked.status != "ditolak":
-            db.session.commit()
-            audit_current("keanggotaan_koperasi_diajukan", "keanggotaan_koperasi", linked.id if linked else None,
-                          f"koperasi {cooperative.kode}; status {'terdaftar dari roster' if verified else 'menunggu verifikasi'}")
-            db.session.commit()
-            flash("Keanggotaan terverifikasi dari data koperasi." if verified else
-                  "Pengajuan tersimpan dan menunggu pencocokan admin dengan data resmi koperasi.", "success")
+            roster_member = KoperasiAnggota.query.filter_by(koperasi_id=cooperative.id,
+                                                            nomor_anggota=member_number).first()
+            verified = bool(roster_member and roster_member.status == "aktif" and (
+                            roster_member.nama.strip().casefold() == registered_name.casefold()
+                            or (roster_member.email and roster_member.email.strip().casefold() == u.email.casefold())))
+            linked = KeanggotaanKoperasi.query.filter_by(koperasi_id=cooperative.id,
+                                                         nomor_anggota=member_number).first()
+            if roster_member and roster_member.status != "aktif":
+                flash("Nomor anggota tersebut berstatus nonaktif pada data koperasi.", "danger")
+            elif linked and linked.user_id != u.id:
+                flash("Nomor anggota ini sudah tertaut ke akun marketplace. Hubungi admin jika perlu diperiksa.", "warning")
+            else:
+                if linked is None:
+                    linked = KeanggotaanKoperasi(
+                        user_id=u.id,
+                        koperasi_id=cooperative.id,
+                        nomor_anggota=member_number,
+                        nama_terdaftar=registered_name,
+                        status="terdaftar" if verified else "menunggu",
+                        diverifikasi_pada=datetime.utcnow() if verified else None,
+                    )
+                    db.session.add(linked)
+                else:
+                    linked.nama_terdaftar = registered_name
+                    linked.status = "terdaftar" if verified else "menunggu"
+                    linked.catatan = None
+                    linked.diverifikasi_pada = datetime.utcnow() if verified else None
+                db.session.commit()
+                audit_current("keanggotaan_koperasi_diajukan", "keanggotaan_koperasi", linked.id,
+                              f"koperasi {cooperative.kode}; status {'terdaftar dari roster' if verified else 'menunggu verifikasi'}")
+                db.session.commit()
+                flash("Keanggotaan terverifikasi dari data koperasi." if verified else
+                      "Pengajuan tersimpan dan menunggu pencocokan admin dengan data resmi koperasi.", "success")
     return redirect(url_for("account_settings") + "#koperasi")
 
 

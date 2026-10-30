@@ -39,7 +39,7 @@ Dibangun dengan **Python Flask + SQLAlchemy** untuk aplikasi lokal/server dan fr
 - Migrasi `0006_product_chat.sql` menyiapkan percakapan per produk dan fungsi database terautentikasi; tabel pesan tidak dapat dibaca langsung oleh klien publik.
 - **Tipe Penjual**: Perorangan / Kelompok-Paguyuban / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
 - **Tipe Pembeli**: Perorangan / Yayasan / Koperasi / Perusahaan — tipe organisasi menampilkan kolom NPWP & NIB.
-- **Keanggotaan Koperasi**: pengguna memilih koperasi dari direktori yang disinkronkan, lalu nomor anggota dan nama/email dicocokkan dengan roster resmi. Data yang belum cocok masuk verifikasi admin.
+- **Keanggotaan Koperasi**: pengguna dapat menautkan satu atau lebih koperasi dari direktori tersinkron; nomor anggota dan nama dicocokkan dengan roster resmi, sedangkan data yang belum cocok masuk verifikasi admin.
 - Alamat lengkap + **koordinat GPS** (tombol deteksi lokasi).
 - **Floating window Syarat & Ketentuan** wajib disetujui sebelum masuk halaman pendaftaran/login.
 - Profil penjual menampilkan **rating kepuasan** dan dapat ditandai **favorit** oleh pembeli.
