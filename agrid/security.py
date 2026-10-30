@@ -226,6 +226,8 @@ def api_token_required(roles=None):
             from datetime import datetime
             if rec.expires_at and rec.expires_at < datetime.utcnow():
                 return jsonify(ok=False, error="Token API kedaluwarsa"), 403
+            if rec.role == "koperasi" and request.path != "/api/v1/cooperatives/sync":
+                return jsonify(ok=False, error="Token ini hanya dapat menyinkronkan direktori koperasi"), 403
             if roles and rec.role != "admin" and rec.role not in roles:
                 return jsonify(ok=False, error="Token tidak punya hak akses ini"), 403
             rec.last_used = datetime.utcnow()

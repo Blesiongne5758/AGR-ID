@@ -10,6 +10,7 @@
     <div class="card-body">
       <ul class="nav nav-tabs settings-tabs" role="tablist" aria-label="Menu pengaturan pengguna">
         <li class="nav-item"><button class="nav-link active" id="settings-profile-tab" data-bs-toggle="tab" data-bs-target="#settings-profile" type="button" role="tab" aria-controls="settings-profile" aria-selected="true"><i class="bi bi-person-vcard"></i> Ubah Data Profil</button></li>
+        <li class="nav-item"><button class="nav-link" id="settings-koperasi-tab" data-bs-toggle="tab" data-bs-target="#settings-koperasi" type="button" role="tab" aria-controls="settings-koperasi" aria-selected="false"><i class="bi bi-people"></i> Keanggotaan Koperasi</button></li>
         <li class="nav-item"><button class="nav-link" id="settings-bank-tab" data-bs-toggle="tab" data-bs-target="#settings-bank" type="button" role="tab" aria-controls="settings-bank" aria-selected="false"><i class="bi bi-bank"></i> Data Bank</button></li>
         <li class="nav-item"><button class="nav-link" id="settings-password-tab" data-bs-toggle="tab" data-bs-target="#settings-password" type="button" role="tab" aria-controls="settings-password" aria-selected="false"><i class="bi bi-shield-lock"></i> Ganti Password</button></li>
         <li class="nav-item"><button class="nav-link" id="settings-seller-tab" data-bs-toggle="tab" data-bs-target="#settings-seller" type="button" role="tab" aria-controls="settings-seller" aria-selected="false"><i class="bi bi-shop"></i> Mode Penjual</button></li>
@@ -37,6 +38,21 @@
             <div class="col-12 d-flex flex-wrap align-items-center gap-2"><button class="btn btn-outline-success" type="button" id="detectProfileGps"><i class="bi bi-crosshair"></i> Isi lokasi dari GPS</button><small class="text-muted">Koordinat digunakan untuk informasi lokasi usaha.</small></div>
             <div class="col-12"><button class="btn btn-agrid fw-bold settings-submit" type="submit"><i class="bi bi-save"></i> Simpan Profil</button></div>
           </form>
+        </section>
+
+        <section class="tab-pane fade" id="settings-koperasi" role="tabpanel" aria-labelledby="settings-koperasi-tab" tabindex="0">
+          <div class="settings-section-intro"><h5>Keanggotaan koperasi</h5><p class="text-muted mb-0">Pilih koperasi dan isi nomor serta nama seperti tercatat pada sistem koperasi. Data yang cocok dengan roster tersinkron akan terverifikasi otomatis.</p></div>
+          {% if koperasi_membership and koperasi_membership.status != 'ditolak' %}
+            <div class="alert {{ 'alert-success' if koperasi_membership.status == 'terdaftar' else 'alert-warning' }}"><b>{{ koperasi_membership.koperasi.nama }}</b> · nomor anggota {{ koperasi_membership.nomor_anggota }}<br>Status: {{ 'Anggota terdaftar' if koperasi_membership.status == 'terdaftar' else 'Menunggu verifikasi' }}{% if koperasi_membership.catatan %}<br>Catatan: {{ koperasi_membership.catatan }}{% endif %}</div>
+          {% else %}
+            {% if koperasi_membership and koperasi_membership.catatan %}<div class="alert alert-danger">Pengajuan sebelumnya ditolak: {{ koperasi_membership.catatan }}. Anda dapat mengajukan kembali dengan nomor yang benar.</div>{% endif %}
+            {% if cooperatives %}<form method="post" action="{{ url_for('apply_cooperative_membership') }}" class="row g-3 settings-form"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <div class="col-md-6"><label class="form-label">Koperasi terdaftar</label><select class="form-select" name="koperasi_id" required><option value="">Pilih koperasi</option>{% for koperasi in cooperatives %}<option value="{{ koperasi.id }}">{{ koperasi.nama }} ({{ koperasi.kode }})</option>{% endfor %}</select></div>
+              <div class="col-md-6"><label class="form-label">Nomor anggota koperasi</label><input class="form-control" name="nomor_anggota" maxlength="80" required autocomplete="off"></div>
+              <div class="col-md-6"><label class="form-label">Nama sesuai data koperasi</label><input class="form-control" name="nama_terdaftar" maxlength="160" required autocomplete="name"></div>
+              <div class="col-12"><button class="btn btn-agrid fw-bold"><i class="bi bi-send"></i> Ajukan verifikasi keanggotaan</button></div>
+            </form>{% else %}<div class="alert alert-info mb-0">Belum ada koperasi di direktori. Hubungi admin marketplace agar koperasi Anda ditambahkan.</div>{% endif %}
+          {% endif %}
         </section>
 
         <section class="tab-pane fade" id="settings-bank" role="tabpanel" aria-labelledby="settings-bank-tab" tabindex="0">
