@@ -8,13 +8,15 @@ import os
 import json
 import random
 import re
+import base64
 from datetime import datetime, timedelta, date, timezone
 from functools import wraps
 from zoneinfo import ZoneInfo
 
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, make_response
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "templates"),
@@ -83,6 +85,8 @@ class User(db.Model):
     npwp = db.Column(db.String(30))                          # untuk tipe badan/organisasi
     nib = db.Column(db.String(40))                           # nomor induk berusaha
     verified = db.Column(db.Boolean, default=False)
+    avatar_url = db.Column(db.String(500))
+    logo_url = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # keamanan: lockout akun setelah gagal login berulang
     failed_logins = db.Column(db.Integer, default=0)
@@ -908,6 +912,21 @@ def current_user():
     return User.query.get(uid) if uid else None
 
 
+def verified_cooperative_memberships(user_id):
+    """Active cooperative memberships for dashboard shortcuts and portal access."""
+    return (KeanggotaanKoperasi.query
+            .join(Koperasi, KeanggotaanKoperasi.koperasi_id == Koperasi.id)
+            .filter(KeanggotaanKoperasi.user_id == user_id,
+                    KeanggotaanKoperasi.status == "terdaftar",
+                    Koperasi.status == "aktif")
+            .order_by(Koperasi.nama.asc())
+            .all())
+
+
+def cooperative_member_signer():
+    return URLSafeTimedSerializer(app.config["SECRET_KEY"], salt="agrid-coop-member-verification-v1")
+
+
 WIB = ZoneInfo("Asia/Jakarta")
 
 
@@ -1699,6 +1718,18 @@ def account_settings():
         kota = request.form.get("kota", "").strip()
         provinsi = request.form.get("provinsi", "").strip()
         tipe_penjual = request.form.get("tipe_penjual", "").strip()
+        avatar_url = request.form.get("avatar_url", "").strip()
+        logo_url = request.form.get("logo_url", "").strip()
+        allowed_avatar_ref = (avatar_url.startswith(("object://", "cloud://")) or
+                              avatar_url.startswith("https://res.cloudinary.com/"))
+        if avatar_url and (len(avatar_url) > 500 or not allowed_avatar_ref):
+            flash("Foto profil harus berasal dari layanan penyimpanan resmi AGR-ID.", "danger")
+            return redirect(url_for("account_settings") + "#profile")
+        allowed_logo_ref = (logo_url.startswith(("object://", "cloud://")) or
+                            logo_url.startswith("https://res.cloudinary.com/"))
+        if logo_url and (len(logo_url) > 500 or not allowed_logo_ref):
+            flash("Logo usaha harus berasal dari layanan penyimpanan resmi AGR-ID.", "danger")
+            return redirect(url_for("account_settings") + "#profile")
         if tipe_penjual and tipe_penjual not in TIPE_PENJUAL:
             flash("Tipe penjual tidak valid.", "danger")
             return redirect(url_for("account_settings"))
@@ -1719,6 +1750,8 @@ def account_settings():
         u.lng = lng
         u.npwp = request.form.get("npwp", "").strip()
         u.nib = request.form.get("nib", "").strip()
+        u.avatar_url = avatar_url or None
+        u.logo_url = logo_url or None
         if tipe_penjual:
             u.tipe_penjual = tipe_penjual
         db.session.commit()
@@ -1730,6 +1763,113 @@ def account_settings():
                            seller_profile_issues=seller_profile_issues(u),
                            bank_settings=seller_payment_cfg(u), koperasi_memberships=memberships,
                            cooperatives=cooperatives)
+
+
+@app.route("/ruang-koperasi")
+@login_required()
+def cooperative_portal():
+    """Select a verified cooperative while keeping the existing marketplace session."""
+    u = current_user()
+    memberships = (KeanggotaanKoperasi.query
+                   .filter_by(user_id=u.id)
+                   .order_by(KeanggotaanKoperasi.created_at.desc())
+                   .all())
+    verified_memberships = verified_cooperative_memberships(u.id)
+    return render_template("cooperative_portal.html", user=u, memberships=memberships,
+                           verified_memberships=verified_memberships)
+
+
+@app.route("/ruang-koperasi/<int:koperasi_id>")
+@login_required()
+def cooperative_member_dashboard(koperasi_id):
+    """Open the member area only for this user's verified, active membership."""
+    u = current_user()
+    membership = (KeanggotaanKoperasi.query
+                  .join(Koperasi, KeanggotaanKoperasi.koperasi_id == Koperasi.id)
+                  .filter(KeanggotaanKoperasi.user_id == u.id,
+                          KeanggotaanKoperasi.koperasi_id == koperasi_id,
+                          KeanggotaanKoperasi.status == "terdaftar",
+                          Koperasi.status == "aktif")
+                  .first_or_404())
+    qr_token = cooperative_member_signer().dumps({"membership_id": membership.id,
+                                                   "user_id": u.id,
+                                                   "koperasi_id": membership.koperasi_id})
+    public_base = (os.environ.get("AGR_BASE_URL") or request.url_root).rstrip("/")
+    verification_url = f"{public_base}{url_for('verify_cooperative_member', token=qr_token)}"
+    qr_data_uri = None
+    try:
+        import qrcode
+        from qrcode.image.svg import SvgPathImage
+        qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_M,
+                           box_size=6, border=2)
+        qr.add_data(verification_url)
+        qr.make(fit=True)
+        qr_svg = qr.make_image(image_factory=SvgPathImage).to_string(encoding="unicode")
+        qr_data_uri = "data:image/svg+xml;base64," + base64.b64encode(qr_svg.encode("utf-8")).decode("ascii")
+    except ImportError:
+        app.logger.warning("qrcode package is missing; member QR is unavailable")
+    cooperative_seller_ids = db.select(KeanggotaanKoperasi.user_id).where(
+        KeanggotaanKoperasi.koperasi_id == membership.koperasi_id,
+        KeanggotaanKoperasi.status == "terdaftar",
+    )
+    cooperative_products = (Product.query
+                            .filter(Product.seller_id.in_(cooperative_seller_ids),
+                                    Product.seller_id != u.id,
+                                    Product.status == "aktif",
+                                    Product.stok > 0)
+                            .order_by(Product.created_at.desc())
+                            .limit(4).all())
+    response = make_response(render_template("cooperative_member_dashboard.html", user=u,
+                           membership=membership, koperasi=membership.koperasi,
+                           cooperative_memberships=verified_cooperative_memberships(u.id),
+                           cooperative_products=cooperative_products,
+                           qr_data_uri=qr_data_uri))
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@app.route("/member/dashboard")
+@login_required()
+def member_dashboard():
+    """Canonical member dashboard route; same marketplace session, selected cooperative."""
+    koperasi_id = request.args.get("koperasi_id", type=int)
+    if not koperasi_id:
+        return redirect(url_for("cooperative_portal"))
+    return redirect(url_for("cooperative_member_dashboard", koperasi_id=koperasi_id))
+
+
+@app.route("/member/verify/<token>")
+def verify_cooperative_member(token):
+    """Short-lived QR verification; exposes membership status only, never finances."""
+    try:
+        payload = cooperative_member_signer().loads(token, max_age=300)
+    except SignatureExpired:
+        response = make_response(render_template("cooperative_member_verify.html", valid=False,
+                               message="QR anggota sudah kedaluwarsa. Minta anggota menampilkan QR baru."), 410)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    except BadSignature:
+        response = make_response(render_template("cooperative_member_verify.html", valid=False,
+                               message="QR anggota tidak valid."), 404)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    membership = (KeanggotaanKoperasi.query
+                  .join(Koperasi, KeanggotaanKoperasi.koperasi_id == Koperasi.id)
+                  .filter(KeanggotaanKoperasi.id == payload.get("membership_id"),
+                          KeanggotaanKoperasi.user_id == payload.get("user_id"),
+                          KeanggotaanKoperasi.koperasi_id == payload.get("koperasi_id"),
+                          KeanggotaanKoperasi.status == "terdaftar",
+                          Koperasi.status == "aktif")
+                  .first())
+    if not membership:
+        response = make_response(render_template("cooperative_member_verify.html", valid=False,
+                               message="Keanggotaan tidak aktif atau tidak dapat diverifikasi."), 404)
+    else:
+        response = make_response(render_template("cooperative_member_verify.html", valid=True,
+                               membership=membership, koperasi=membership.koperasi))
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.route("/akun/keanggotaan-koperasi", methods=["POST"])
@@ -1909,6 +2049,7 @@ def wallet_ctx(u):
 @login_required("penjual")
 def dashboard_seller():
     u = current_user()
+    cooperative_memberships = verified_cooperative_memberships(u.id)
     my_prods = Product.query.filter_by(seller_id=u.id).order_by(Product.created_at.desc()).all()
     auction_cfg = seller_auction_cfg(u)
     my_auctions = LelangEvent.query.filter_by(seller_id=u.id).order_by(LelangEvent.created_at.desc()).all()
@@ -1929,13 +2070,15 @@ def dashboard_seller():
            paycfg=seller_payment_cfg(u), pending_pelunasan=pending_pelunasan,
            rstats=rating_stats(u.id), rat_in=ratings_received,
            rat_out=[my_rating_for(t.id, u.id) for t in jualan if my_rating_for(t.id, u.id)],
-           rat_pending=pending_ratings(u.id), wallet=wallet_ctx(u))
+           rat_pending=pending_ratings(u.id), wallet=wallet_ctx(u),
+           cooperative_memberships=cooperative_memberships)
 
 
 @app.route("/dashboard/pembeli")
 @login_required("pembeli")
 def dashboard_buyer():
     u = current_user()
+    cooperative_memberships = verified_cooperative_memberships(u.id)
     my_offers = Offer.query.filter_by(buyer_id=u.id).order_by(Offer.created_at.desc()).all()
     pembelian = Transaksi.query.filter_by(buyer_id=u.id).order_by(Transaksi.created_at.desc()).all()
     total_belanja = sum(t.nilai for t in pembelian if t.status in ("paid", "shipped", "delivered", "completed"))
@@ -1952,11 +2095,13 @@ def dashboard_buyer():
     return render_template("buyer_dashboard.html", u=u, offers=my_offers, pembelian=pembelian,
                            total=total_belanja, user=u, ticker=ticker_data(),
                            bookings=bookings, pelunasans=pelunasans, favs=favs, kebutuhan=kebutuhan,
+                           total_anggaran=sum(item.estimasi_total for item in kebutuhan),
                            lelang_diikuti=lelang_diikuti,
                            kategori_list=KATEGORI,
                            rstats=rating_stats(u.id), rat_in=ratings_received,
                            rat_out=[my_rating_for(t.id, u.id) for t in pembelian if my_rating_for(t.id, u.id)],
-                           rat_pending=pending_ratings(u.id), wallet=wallet_ctx(u))
+                           rat_pending=pending_ratings(u.id), wallet=wallet_ctx(u),
+                           cooperative_memberships=cooperative_memberships)
 
 
 @app.route("/dashboard/pembeli/kebutuhan", methods=["POST"])
@@ -1972,7 +2117,8 @@ def tambah_kebutuhan():
     except (TypeError, ValueError):
         flash("Jumlah dan estimasi harga harus berupa angka.", "danger")
         return redirect(url_for("dashboard_buyer") + "#tNeeds")
-    if kategori not in KATEGORI or not nama or len(nama) > 120 or not satuan or len(satuan) > 20 or jumlah <= 0 or harga < 0:
+    if (kategori not in KATEGORI or not nama or len(nama) > 120 or not satuan or len(satuan) > 20
+            or not (0 < jumlah < float("inf")) or not (0 <= harga < float("inf"))):
         flash("Periksa kategori, nama produk, satuan, jumlah, dan estimasi harga.", "danger")
         return redirect(url_for("dashboard_buyer") + "#tNeeds")
     db.session.add(KebutuhanPembeli(buyer_id=u.id, kategori=kategori, nama_produk=nama,
@@ -2306,6 +2452,48 @@ def create_offer(pid):
     db.session.commit()
     flash("Penawaran terkirim ke penjual. Tunggu konfirmasi untuk lanjut ke booking DP 💛", "success")
     return redirect(url_for("dashboard_buyer"))
+
+
+@app.route("/pesan/buat/<int:pid>", methods=["POST"])
+@feature_required("fitur_booking_dp")
+@login_required("pembeli")
+def create_list_price_order(pid):
+    """Create a buyer order at the current listing price, without negotiation."""
+    product = Product.query.get_or_404(pid)
+    buyer = current_user()
+    if product.status != "aktif" or product.stok is None or product.stok <= 0:
+        flash("Produk ini sedang tidak tersedia untuk dipesan.", "warning")
+        return redirect(url_for("product_detail", pid=pid))
+    if product.seller_id == buyer.id:
+        flash("Anda tidak dapat memesan produk sendiri.", "warning")
+        return redirect(url_for("product_detail", pid=pid))
+    if product.non_halal and request.form.get("konfirmasi_non_halal") != "ya":
+        flash("Konfirmasi label NON HALAL sebelum memesan produk ini.", "danger")
+        return redirect(url_for("product_detail", pid=pid))
+    try:
+        qty = float(request.form.get("qty", "0"))
+    except (TypeError, ValueError):
+        qty = 0
+    if not (0 < qty <= product.stok and qty < float("inf")):
+        flash(f"Jumlah harus lebih dari nol dan tidak melebihi stok {product.stok:g} {product.satuan}.", "danger")
+        return redirect(url_for("product_detail", pid=pid))
+    price = _positive_price(product.harga)
+    if price is None:
+        flash("Harga listing tidak valid. Hubungi penjual.", "danger")
+        return redirect(url_for("product_detail", pid=pid))
+    due = datetime.utcnow() + timedelta(hours=24)
+    offer = Offer(product_id=product.id, buyer_id=buyer.id, qty=qty,
+                  harga_penawaran=price, harga_terkini=price,
+                  harga_disepakati=price, total=qty * price,
+                  batas_pembayaran=due, status="diterima",
+                  pesan="Pesanan langsung sesuai harga listing")
+    db.session.add(offer)
+    db.session.commit()
+    audit_current("pesanan_harga_listing_dibuat", "offers", offer.id,
+                  f"produk {product.id}; qty {qty:g}; harga satuan {price:g}")
+    db.session.commit()
+    flash("Pesanan dibuat sesuai harga listing. Lanjutkan ke booking untuk memilih pengiriman dan membayar DP.", "success")
+    return redirect(url_for("show_booking_form", oid=offer.id))
 
 
 @app.route("/offer/status/<int:oid>", methods=["POST"])
@@ -3035,7 +3223,7 @@ def toggle_favorit():
     return redirect(referer or url_for("marketplace"))
 
 
-@app.route("/favorit/hapus/<int:fqid>")
+@app.route("/favorit/hapus/<int:fqid>", methods=["POST"])
 @login_required("pembeli")
 def hapus_favorit(fqid):
     f = Favorite.query.filter_by(id=fqid, buyer_id=current_user().id).first_or_404()
@@ -3311,6 +3499,8 @@ def seed():
                 ("roles", "TEXT NOT NULL DEFAULT '[]'"),
                 ("tipe_penjual", "VARCHAR(40)"),
                 ("tipe_pembeli", "VARCHAR(40)"),
+                ("avatar_url", "VARCHAR(500)"),
+                ("logo_url", "VARCHAR(500)"),
             ]:
                 if column not in user_columns:
                     db.session.execute(text(f"ALTER TABLE users ADD COLUMN {column} {ddl}"))

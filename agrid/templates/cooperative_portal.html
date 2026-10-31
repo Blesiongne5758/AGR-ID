@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Ruang Koperasi — AGR.BIZ.ID{% endblock %}
+{% block content %}
+<main class="container my-4" style="max-width:1100px">
+  <section class="card border-0 shadow-sm mb-4 overflow-hidden">
+    <div class="card-body p-4 p-lg-5 bg-success-subtle">
+      <div class="d-flex align-items-start gap-3 flex-wrap">
+        <div class="rounded-circle bg-white text-success d-grid" style="width:54px;height:54px;place-items:center;font-size:1.5rem"><i class="bi bi-people-fill"></i></div>
+        <div class="flex-grow-1">
+          <span class="badge text-bg-success mb-2">Akses memakai sesi AGR-ID</span>
+          <h1 class="h3 fw-bold mb-2">Ruang Koperasi</h1>
+          <p class="text-secondary mb-0">Pilih koperasi tempat keanggotaan Anda telah diverifikasi. Anda tetap masuk dengan akun marketplace yang sama.</p>
+        </div>
+        <a class="btn btn-outline-success" href="{{ url_for('account_settings') }}#koperasi"><i class="bi bi-person-gear me-1"></i> Pengaturan anggota</a>
+      </div>
+    </div>
+  </section>
+
+  {% if verified_memberships %}
+    <h2 class="h5 fw-bold mb-3">Koperasi terdaftar Anda</h2>
+    <div class="row g-3 mb-4">
+      {% for membership in verified_memberships %}
+        <div class="col-md-6 col-xl-4">
+          <article class="card h-100 shadow-sm border-success-subtle">
+            <div class="card-body d-flex flex-column">
+              <div class="d-flex justify-content-between gap-2 mb-3">
+                <span class="badge text-bg-light border">{{ membership.koperasi.kode }}</span>
+                <span class="badge text-bg-success">Anggota aktif</span>
+              </div>
+              <h3 class="h5 fw-bold">{{ membership.koperasi.nama }}</h3>
+              <p class="small text-muted mb-1">ID anggota sumber</p>
+              <p class="fw-semibold">{{ membership.nomor_anggota }}</p>
+              <a class="btn btn-success mt-auto" href="{{ url_for('member_dashboard', koperasi_id=membership.koperasi_id) }}">
+                Masuk ke ruang anggota <i class="bi bi-arrow-right ms-1"></i>
+              </a>
+            </div>
+          </article>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card shadow-sm mb-4"><div class="card-body p-4">
+      <div class="d-flex align-items-start gap-3">
+        <i class="bi bi-info-circle text-primary fs-4"></i>
+        <div><h2 class="h5 fw-bold">Belum ada keanggotaan aktif</h2>
+          <p class="text-muted mb-3">Ajukan keanggotaan atau tautkan nomor anggota Anda. Ruang anggota akan terbuka setelah koperasi atau admin memverifikasi data.</p>
+          <a class="btn btn-agrid" href="{{ url_for('account_settings') }}#koperasi"><i class="bi bi-person-plus me-1"></i> Daftar / tautkan koperasi</a>
+        </div>
+      </div>
+    </div></div>
+  {% endif %}
+
+  {% set other_memberships = memberships|rejectattr('status', 'equalto', 'terdaftar')|list %}
+  {% if other_memberships %}
+    <section class="card shadow-sm"><div class="card-body">
+      <h2 class="h6 fw-bold mb-3">Status pengajuan lainnya</h2>
+      {% for membership in other_memberships %}
+        <div class="d-flex justify-content-between align-items-center gap-3 py-2 border-top">
+          <div><b>{{ membership.koperasi.nama }}</b><div class="small text-muted">ID anggota {{ membership.nomor_anggota }}</div></div>
+          {% if membership.status == 'ditolak' %}<span class="badge text-bg-danger">Ditolak</span>
+          {% else %}<span class="badge text-bg-warning">Menunggu verifikasi</span>{% endif %}
+        </div>
+      {% endfor %}
+    </div></section>
+  {% endif %}
+</main>
+{% endblock %}

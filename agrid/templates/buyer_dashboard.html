@@ -26,6 +26,8 @@
     </div>
   </div>
 
+  {% include "_cooperative_dashboard_entry.html" %}
+
   <div class="row g-3 mb-4">
     <div class="col-md-4"><div class="card stat-card"><div class="card-body py-3">
       <div class="small text-muted">Penawaran Aktif</div><h3 class="mb-0">{{ offers|selectattr('status','in',['menunggu','balasan_pembeli','balasan_penjual','menunggu_konfirmasi','diterima','booking'])|list|length }}</h3></div></div></div>
@@ -38,7 +40,7 @@
   <ul class="nav nav-tabs dashboard-action-tabs buyer-action-tabs mb-3" role="tablist" aria-label="Menu dashboard pembeli">
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tNeeds">🧮 Manajemen Kebutuhan</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tAuction">🔨 Lelang Diikuti ({{ lelang_diikuti|length }})</button></li>
-    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tOff">💬 Penawaran Saya ({{ offers|length }})</button></li>
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tOff">🛒 Pesanan & Penawaran ({{ offers|length }})</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tLap">🧾 Laporan Transaksi Pembelian</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tFav">❤️ Favorit Saya ({{ favs|length }})</button></li>
     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tRat">⭐ Penilaian Kepuasan{% if rat_pending %} <span class="badge bg-danger">{{ rat_pending|length }}</span>{% endif %}</button></li>
@@ -46,6 +48,10 @@
   <div class="tab-content">
     <div class="tab-pane fade" id="tNeeds">
       <div class="row g-3 mb-3">
+        <div class="col-12"><div class="card border-success"><div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div><div class="small text-muted">Estimasi total Rencana Anggaran Belanja</div><div class="h4 mb-0 text-success">Rp{{ total_anggaran|rp }}</div></div>
+          <div class="small text-muted">Total dihitung dari jumlah × estimasi harga per satuan. Harga dapat berubah; verifikasi harga pada listing sebelum memesan.</div>
+        </div></div></div>
         <div class="col-lg-5"><div class="card shadow-sm h-100"><div class="card-header bg-white fw-bold">Tambah rencana belanja</div><div class="card-body">
           <form method="post" action="{{ url_for('tambah_kebutuhan') }}" class="row g-2">
             <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
@@ -91,7 +97,7 @@
         {% for o in offers %}
           <tr>
             <td class="small">{{ o.created_at|dt }}</td>
-            <td><b>{{ o.product.nama_produk }}</b><br><small class="text-muted">Penjual: {{ o.product.seller.nama }} · GPS {{ '%.3f'|format(o.product.lat or 0) }},{{ '%.3f'|format(o.product.lng or 0) }}</small></td>
+            <td><b>{{ o.product.nama_produk }}</b>{% if o.pesan and o.pesan.startswith('Pesanan langsung') %}<br><span class="badge bg-success-subtle text-success">Pesanan harga listing</span>{% endif %}<br><small class="text-muted">Penjual: {{ o.product.seller.nama }} · GPS {{ '%.3f'|format(o.product.lat or 0) }},{{ '%.3f'|format(o.product.lng or 0) }}</small></td>
             <td>{{ o.qty|rp }} {{ o.product.satuan }} × Rp{{ (o.harga_terkini or o.harga_penawaran)|rp }}{% if o.harga_terkini and o.harga_terkini != o.harga_penawaran %}<div class="small text-muted">Harga awal: Rp{{ o.harga_penawaran|rp }}/{{ o.product.satuan }}</div>{% endif %}</td>
             <td class="fw-bold">Rp{{ o.total|rp }}</td>
             <td><span class="badge {{ {'menunggu':'bg-warning text-dark','balasan_pembeli':'bg-info text-dark','balasan_penjual':'bg-warning text-dark','menunggu_konfirmasi':'bg-info text-dark','diterima':'bg-success','booking':'bg-primary','selesai':'bg-success','ditolak':'bg-danger','kedaluwarsa':'bg-secondary'}.get(o.status,'bg-secondary') }}">{{ {'menunggu':'Menunggu penjual','balasan_pembeli':'Harga balik dari penjual','balasan_penjual':'Menunggu balasan Anda','menunggu_konfirmasi':'Menunggu tenggat DP','diterima':'Disepakati','ditolak':'Ditutup','kedaluwarsa':'Kedaluwarsa'}.get(o.status,o.status) }}</span></td>
@@ -197,7 +203,7 @@
                 </div>
                 <div class="d-flex gap-2">
                   <a class="btn btn-sm btn-outline-success" href="{{ url_for('marketplace', q='') }}?seller={{ f.seller_id }}">Lihat Produk</a>
-                  <a class="btn btn-sm btn-outline-danger" href="{{ url_for('hapus_favorit', fqid=f.id) }}" title="Hapus favorit">✕</a>
+                  <form method="post" action="{{ url_for('hapus_favorit', fqid=f.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger" title="Hapus favorit">✕</button></form>
                 </div>
               </div>
             {% else %}<div class="list-group-item small text-muted py-4 text-center">Belum ada penjual favorit. Klik 🤍 <b>Simpan Penjual</b> di halaman produk.</div>{% endfor %}
@@ -216,11 +222,11 @@
                   {% endif %}
                 </div>
                 <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
-                  {% if f.product %}<a class="btn btn-sm btn-agrid" href="{{ url_for('product_detail', pid=f.product_id) }}">Beli / Tawar</a>
+                  {% if f.product %}<a class="btn btn-sm btn-agrid" href="{{ url_for('product_detail', pid=f.product_id) }}">Lihat / Pesan / Tawar</a>
                     {% if f.product.status=='aktif' %}<form method="post" action="{{ url_for('tambah_favorit_ke_kebutuhan', fqid=f.id) }}" class="d-flex gap-1 align-items-center"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input class="form-control form-control-sm" type="number" name="jumlah" min="0.01" step="0.01" value="1" style="width:88px" aria-label="Jumlah rencana {{ f.product.nama_produk }}"><button class="btn btn-sm btn-outline-primary" title="Tambahkan ke Manajemen Kebutuhan"><i class="bi bi-calculator"></i> Rencana</button></form>
                     {% else %}<span class="badge bg-secondary">Listing tidak aktif</span>{% endif %}
                   {% endif %}
-                  <a class="btn btn-sm btn-outline-danger" href="{{ url_for('hapus_favorit', fqid=f.id) }}" title="Hapus favorit">✕</a>
+                  <form method="post" action="{{ url_for('hapus_favorit', fqid=f.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger" title="Hapus favorit">✕</button></form>
                 </div>
               </div>
             {% else %}<div class="list-group-item small text-muted py-4 text-center">Belum ada produk favorit. Klik 🤍 pada kartu produk di marketplace.</div>{% endfor %}

@@ -20,6 +20,34 @@
         <section class="tab-pane fade show active" id="settings-profile" role="tabpanel" aria-labelledby="settings-profile-tab" tabindex="0">
           <form method="post" action="{{ url_for('account_settings') }}" class="row g-3 settings-form">
             <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <div class="col-12"><label class="form-label fw-semibold">Foto profil kartu anggota koperasi</label>
+              <input type="hidden" name="avatar_url" id="avatarInput" value="{{ user.avatar_url or '' }}">
+              <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div id="avatarPreview" class="rounded-circle overflow-hidden border bg-light d-grid" style="width:76px;height:76px;place-items:center">
+                  {% if user.avatar_url %}
+                    {% if user.avatar_url.startswith(('object://','cloud://')) %}<img class="agr-media w-100 h-100" data-ref="{{ user.avatar_url }}" alt="Foto profil {{ user.nama }}" style="object-fit:cover">
+                    {% else %}<img src="{{ user.avatar_url }}" alt="Foto profil {{ user.nama }}" class="w-100 h-100" style="object-fit:cover">{% endif %}
+                  {% else %}<span class="fw-bold text-success fs-4">{{ user.nama[:1]|upper }}</span>{% endif %}
+                </div>
+                <div class="flex-grow-1"><input type="file" id="avatarFile" accept="image/jpeg,image/png,image/webp" class="form-control" aria-label="Unggah foto profil">
+                  <div id="avatarUploadStatus" class="small mt-1" aria-live="polite"></div>
+                  <small class="text-muted">JPG, PNG atau WebP, maksimal 5 MB. Unggah foto lalu simpan profil.</small></div>
+              </div>
+            </div>
+            <div class="col-12"><label class="form-label fw-semibold">Logo usaha</label>
+              <input type="hidden" name="logo_url" id="logoInput" value="{{ user.logo_url or '' }}">
+              <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div id="logoPreview" class="rounded overflow-hidden border bg-light d-grid" style="width:96px;height:72px;place-items:center">
+                  {% if user.logo_url %}
+                    {% if user.logo_url.startswith(('object://','cloud://')) %}<img class="agr-media w-100 h-100" data-ref="{{ user.logo_url }}" alt="Logo usaha {{ user.nama }}" style="object-fit:contain">
+                    {% else %}<img src="{{ user.logo_url }}" alt="Logo usaha {{ user.nama }}" class="w-100 h-100" style="object-fit:contain">{% endif %}
+                  {% else %}<span class="text-muted small">Belum ada logo</span>{% endif %}
+                </div>
+                <div class="flex-grow-1"><input type="file" id="logoFile" accept="image/jpeg,image/png,image/webp" class="form-control" aria-label="Unggah logo usaha">
+                  <div id="logoUploadStatus" class="small mt-1" aria-live="polite"></div>
+                  <small class="text-muted">JPG, PNG atau WebP, maksimal 5 MB.</small></div>
+              </div>
+            </div>
             <div class="col-md-6"><label class="form-label">Email</label><input class="form-control" value="{{ user.email }}" readonly></div>
             <div class="col-md-6"><label class="form-label">Nama Pengguna</label><input class="form-control" value="{{ user.username or user.email }}" readonly></div>
             <div class="col-md-6"><label class="form-label">Nama Lengkap / Nama Usaha</label><input class="form-control" name="nama" value="{{ user.nama or '' }}" autocomplete="name"></div>
@@ -95,6 +123,16 @@
 </main>
 <script>
 (() => {
+  document.addEventListener('DOMContentLoaded', () => {
+    const avatarFile = document.getElementById('avatarFile');
+    if (avatarFile && typeof bindAgrUploader === 'function') {
+      bindAgrUploader(avatarFile, {category:'avatar', hiddenId:'avatarInput', previewEl:document.getElementById('avatarPreview'), statusEl:document.getElementById('avatarUploadStatus')});
+    }
+    const logoFile = document.getElementById('logoFile');
+    if (logoFile && typeof bindAgrUploader === 'function') {
+      bindAgrUploader(logoFile, {category:'logo', hiddenId:'logoInput', previewEl:document.getElementById('logoPreview'), statusEl:document.getElementById('logoUploadStatus')});
+    }
+  });
   const type = document.getElementById('tipePenjual');
   const toggleDocs = () => { if (type) document.querySelectorAll('.org-field').forEach(el => el.style.display = type.value && type.value !== 'Perorangan' ? '' : 'none'); };
   if (type) { type.addEventListener('change', toggleDocs); toggleDocs(); }

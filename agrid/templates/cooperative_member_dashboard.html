@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Anggota — {{ koperasi.nama }}{% endblock %}
+{% block content %}
+<style>
+  .member-dashboard{max-width:920px}
+  .member-id-card{background:linear-gradient(130deg,#075f42,#12845b 58%,#2fa577);color:#fff;border:0;border-radius:24px;overflow:hidden}
+  .member-id-card .member-code{letter-spacing:.06em;overflow-wrap:anywhere}
+  .member-avatar{width:76px;height:76px;flex:0 0 76px;border:2px solid rgba(255,255,255,.8);border-radius:50%;overflow:hidden;background:rgba(255,255,255,.18);display:grid;place-items:center;font-size:1.7rem;font-weight:800}
+  .member-avatar img{width:100%;height:100%;object-fit:cover}
+  .member-qr{width:128px;height:128px;object-fit:contain;background:#fff;border-radius:14px;padding:8px}
+  .member-savings-card{min-height:132px;border-radius:18px}
+  .member-feature-card{border-radius:18px}
+  .member-bottom-cta{position:sticky;bottom:12px;z-index:5}
+  .member-timeline{position:relative}
+  @media(max-width:575.98px){.member-id-card{border-radius:18px}.member-id-layout{align-items:flex-start!important}.member-qr{width:104px;height:104px}.member-dashboard{padding-left:12px;padding-right:12px}}
+</style>
+<main class="container my-3 my-md-4 member-dashboard">
+  <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+    <a class="small text-decoration-none" href="{{ url_for('cooperative_portal') }}"><i class="bi bi-arrow-left me-1"></i> Koperasi saya</a>
+    <span class="badge text-bg-success"><i class="bi bi-shield-check me-1"></i> Sesi AGR-ID aktif</span>
+  </div>
+
+  <!-- 1. Kartu anggota digital -->
+  <section class="card member-id-card shadow-sm mb-4">
+    <div class="card-body p-3 p-sm-4">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div><div class="small text-uppercase fw-bold opacity-75">Kartu Anggota Digital</div>
+          <div class="fw-semibold">{{ koperasi.nama }} <span class="opacity-75">· {{ koperasi.kode }}</span></div></div>
+        <span class="badge rounded-pill text-bg-light text-success"><i class="bi bi-patch-check-fill me-1"></i> Aktif</span>
+      </div>
+      <div class="d-flex justify-content-between gap-3 member-id-layout flex-wrap">
+        <div class="d-flex gap-3 align-items-center flex-grow-1">
+          <div class="member-avatar">
+            {% if user.avatar_url %}
+              {% if user.avatar_url.startswith(('object://','cloud://')) %}<img class="agr-media" data-ref="{{ user.avatar_url }}" alt="Foto {{ membership.nama_terdaftar or user.nama }}">
+              {% else %}<img src="{{ user.avatar_url }}" alt="Foto {{ membership.nama_terdaftar or user.nama }}">{% endif %}
+            {% else %}<span aria-label="Inisial anggota">{{ (membership.nama_terdaftar or user.nama)[:1]|upper }}</span>{% endif %}
+          </div>
+          <div class="min-w-0">
+            <h1 class="h5 fw-bold mb-1">{{ membership.nama_terdaftar or user.nama }}</h1>
+            <div class="small opacity-75">ID Anggota</div>
+            <div class="member-code fw-bold">{{ membership.nomor_anggota }}</div>
+          </div>
+        </div>
+        <div class="text-center ms-auto">
+          {% if qr_data_uri %}<img class="member-qr" src="{{ qr_data_uri }}" alt="QR verifikasi anggota {{ membership.nama_terdaftar or user.nama }}">
+          {% else %}<div class="member-qr d-grid text-muted small" style="place-items:center">QR belum tersedia</div>{% endif %}
+          <div class="small mt-1 opacity-75">QR verifikasi · berlaku 5 menit</div>
+        </div>
+      </div>
+      <div class="border-top border-white border-opacity-25 mt-3 pt-2 small opacity-75">Masuk dari akun AGR-ID · tidak perlu login ulang</div>
+    </div>
+  </section>
+
+  <!-- 2. Portofolio simpanan -->
+  <section class="mb-4" aria-labelledby="savingsTitle">
+    <div class="d-flex justify-content-between align-items-end gap-2 mb-2">
+      <div><h2 id="savingsTitle" class="h5 fw-bold mb-1">Portofolio Simpanan</h2><p class="small text-muted mb-0">Saldo akan tampil setelah buku simpanan koperasi terhubung.</p></div>
+      <span class="badge text-bg-light border">Belum tersambung</span>
+    </div>
+    <div class="row g-2 g-sm-3">
+      {% for title, icon in [('Pokok','bi-safe2'),('Wajib','bi-calendar-check'),('Sukarela','bi-piggy-bank')] %}
+        <div class="col-12 col-sm-4"><article class="card member-savings-card shadow-sm h-100"><div class="card-body p-3">
+          <div class="d-flex justify-content-between align-items-start"><span class="small text-muted">Simpanan {{ title }}</span><i class="bi {{ icon }} text-success fs-5"></i></div>
+          <div class="h5 fw-bold mt-3 mb-1">—</div><div class="small text-muted">Menunggu koneksi data koperasi</div>
+        </div></article></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- 3. Status pinjaman -->
+  <section class="card member-feature-card shadow-sm mb-4" aria-labelledby="loanTitle">
+    <div class="card-body p-3 p-sm-4">
+      <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+        <div><h2 id="loanTitle" class="h5 fw-bold mb-1">Status Pinjaman</h2><p class="small text-muted mb-0">Informasi pinjaman memerlukan data resmi dari koperasi.</p></div>
+        <i class="bi bi-cash-coin fs-4 text-success"></i>
+      </div>
+      <div class="rounded-3 bg-light p-3 mb-3">
+        <div class="d-flex justify-content-between small mb-2"><span>Progress pelunasan</span><span class="text-muted">Menunggu data</span></div>
+        <div class="rounded-pill" role="img" aria-label="Progress pelunasan belum tersedia dari sistem koperasi" style="height:8px;background:repeating-linear-gradient(135deg,#e9ecef 0,#e9ecef 8px,#f8f9fa 8px,#f8f9fa 16px)"></div>
+        <div class="d-flex justify-content-between gap-3 mt-3 small"><span class="text-muted">Jatuh tempo berikutnya</span><b>Belum tersedia</b></div>
+      </div>
+      <button class="btn btn-success w-100" type="button" disabled aria-disabled="true"><i class="bi bi-credit-card me-1"></i> Bayar Angsuran</button>
+      <div class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i> Pembayaran angsuran belum aktif karena data pinjaman koperasi dan kanal gateway khusus belum terhubung.</div>
+    </div>
+  </section>
+
+  <!-- Produk anggota lain di koperasi yang sama -->
+  <section class="card member-feature-card shadow-sm mb-4" aria-labelledby="cooperativeProductsTitle">
+    <div class="card-body p-3 p-sm-4">
+      <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+        <div><h2 id="cooperativeProductsTitle" class="h5 fw-bold mb-1">Produk anggota koperasi</h2>
+          <p class="small text-muted mb-0">Temukan hasil dan produk yang ditawarkan anggota {{ koperasi.nama }}.</p></div>
+        <i class="bi bi-basket2 text-success fs-4"></i>
+      </div>
+      {% if cooperative_products %}
+        <div class="row g-2 g-sm-3">
+          {% for p in cooperative_products %}
+            <div class="col-6 col-md-3"><article class="card h-100 border-0 bg-light overflow-hidden">
+              <a href="{{ url_for('product_detail', pid=p.id) }}" class="text-decoration-none text-dark">
+                <div class="ratio ratio-4x3 bg-success-subtle">
+                  {% if p.foto %}<img src="{{ p.foto }}" alt="{{ p.nama_produk }}" class="w-100 h-100 object-fit-cover" loading="lazy">
+                  {% else %}<div class="d-grid text-success fs-2" style="place-items:center"><i class="bi bi-flower1"></i></div>{% endif %}
+                </div>
+                <div class="p-2"><div class="small text-muted text-truncate">{{ p.kategori or 'Produk anggota' }}</div>
+                  <h3 class="small fw-semibold mb-1 text-truncate">{{ p.nama_produk }}</h3>
+                  <div class="small fw-bold text-success">Rp{{ p.harga|rp }}<span class="fw-normal text-muted">/{{ p.satuan }}</span></div>
+                  <div class="small text-muted mt-1"><i class="bi bi-person me-1"></i>{{ p.seller.nama }}</div>
+                </div>
+              </a>
+            </article></div>
+          {% endfor %}
+        </div>
+        <a class="btn btn-sm btn-outline-success mt-3" href="{{ url_for('marketplace') }}">Jelajahi semua produk <i class="bi bi-arrow-right ms-1"></i></a>
+      {% else %}
+        <div class="rounded-3 border p-3 text-center">
+          <i class="bi bi-shop-window text-success fs-3"></i>
+          <p class="small text-muted mb-0 mt-2">Belum ada produk aktif dari anggota koperasi ini. Produk anggota akan tampil otomatis setelah penjual menautkan keanggotaan koperasinya.</p>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- 4. Riwayat transaksi -->
+  <section class="card member-feature-card shadow-sm mb-4" aria-labelledby="historyTitle">
+    <div class="card-body p-3 p-sm-4">
+      <div class="d-flex justify-content-between align-items-center mb-3"><h2 id="historyTitle" class="h5 fw-bold mb-0">Riwayat Transaksi</h2><i class="bi bi-clock-history text-success fs-5"></i></div>
+      <div class="member-timeline rounded-3 border border-dashed p-4 text-center">
+        <i class="bi bi-receipt text-muted fs-3"></i>
+        <p class="fw-semibold mb-1 mt-2">Belum ada riwayat yang dapat ditampilkan</p>
+        <p class="small text-muted mb-0">Mutasi simpanan dan pinjaman akan muncul setelah sistem transaksi koperasi terintegrasi.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Marketplace link -->
+  <section class="card border-success-subtle shadow-sm member-feature-card mb-4">
+    <div class="card-body p-3 p-sm-4 d-flex align-items-center justify-content-between gap-3 flex-wrap">
+      <div><h2 class="h5 fw-bold mb-1">Marketplace AGR-ID</h2><p class="small text-muted mb-0">Jelajahi produk dan lelang tanpa keluar dari sesi akun Anda.</p>
+        <span class="small text-muted"><i class="bi bi-lock me-1"></i> Pembayaran memakai saldo simpanan/Paylater belum diaktifkan.</span></div>
+      <a class="btn btn-success" href="{{ url_for('marketplace') }}"><i class="bi bi-shop me-1"></i> Belanja di AGR-ID</a>
+    </div>
+  </section>
+</main>
+{% endblock %}

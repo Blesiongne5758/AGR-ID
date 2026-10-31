@@ -10,5 +10,6 @@ filetype>=1.2              # validasi magic bytes server-side
 Pillow>=10.0               # verifikasi integritas gambar
 requests>=2.31             # pemanggilan API payment gateway / ekspedisi / Cloudinary probe
 tzdata>=2024.1             # basis zona waktu IANA untuk Python di Windows
+qrcode>=7.4                # QR code kartu anggota koperasi digital (SVG, tanpa data sensitif)
 python-dotenv>=1.0         # baca .env saat start-website.bat / gunicorn
 gunicorn>=21.2             # production WSGI (mis. Render/Railway); di InfinityFree pakai PHP proxy bila perlu
