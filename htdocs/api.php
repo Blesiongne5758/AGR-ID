@@ -234,23 +234,7 @@ switch ($action) {
         $lng = ($b['lng'] ?? '') === '' || ($b['lng'] ?? null) === null ? null : filter_var($b['lng'], FILTER_VALIDATE_FLOAT);
         if (($b['lat'] ?? '') !== '' && $lat === false || ($b['lng'] ?? '') !== '' && $lng === false) err('Koordinat GPS tidak valid', 422);
         if ($lat !== null && ($lat < -90 || $lat > 90) || $lng !== null && ($lng < -180 || $lng > 180)) err('Koordinat GPS di luar rentang', 422);
-        $update = [
-            'nama' => trim((string)($b['nama'] ?? '')),
-            'no_hp' => trim((string)($b['no_hp'] ?? '')),
-            'alamat' => trim((string)($b['alamat'] ?? '')),
-            'kota' => trim((string)($b['kota'] ?? '')),
-            'provinsi' => trim((string)($b['provinsi'] ?? '')),
-            'tipe_penjual' => $tipe !== '' ? $tipe : null,
-            'npwp' => trim((string)($b['npwp'] ?? '')),
-            'nib' => trim((string)($b['nib'] ?? '')),
-            'lat' => $lat,
-            'lng' => $lng,
-        ];
-        $rows = sb('users', 'PATCH', ['id=eq.' . urlencode((string)$u['id'])], $update);
-        $fresh = $rows[0] ?? array_merge($u, $update);
-        $fresh['role'] = $u['role'];
-        $fresh['roles'] = $u['roles'] ?? [];
-        out(['ok' => true, 'user' => public_user($fresh)]);
+        out(sb_rpc('agr_profile_update', ['p_token' => $token, 'p_payload' => $b]));
     }
 
     case 'switch-role': {
@@ -258,24 +242,9 @@ switch ($action) {
         if (($u['role'] ?? '') === 'admin') err('Mode admin tidak dapat diganti', 403);
         $b = body_json();
         $target = $b['role'] ?? '';
-        $roles = $u['roles'] ?? [];
-        if (is_string($roles)) $roles = json_decode($roles, true) ?: [];
         if (!in_array($target, ['penjual','pembeli'], true))
             err('Mode akun yang dipilih tidak tersedia', 422);
-        if ($target === 'penjual') {
-            $missing = seller_profile_missing($u);
-            if ($missing) err('Lengkapi informasi pengguna dan usaha sebelum mengaktifkan mode Penjual: ' . implode(', ', $missing) . '.', 422);
-            if (!in_array('penjual', $roles, true)) {
-                $roles[] = 'penjual';
-                sb('users', 'PATCH', ['id=eq.' . urlencode((string)$u['id'])], ['roles' => array_values(array_unique($roles))]);
-            }
-        } elseif (!in_array($target, $roles, true)) {
-            err('Mode akun yang dipilih tidak tersedia', 422);
-        }
-        sb('sessions', 'PATCH', ['token=eq.' . urlencode($token)], ['active_role' => $target]);
-        $u['role'] = $target;
-        $u['roles'] = $roles;
-        out(['ok' => true, 'user' => public_user($u)]);
+        out(sb_rpc('agr_role_switch', ['p_token' => $token, 'p_role' => $target]));
     }
 
     /* ---- GANTI PASSWORD (semua role: penjual/pembeli/admin) ---- */
@@ -321,17 +290,7 @@ switch ($action) {
         $u = require_session($token, 'penjual');
         $b = body_json();
         foreach (['nama_product','kategori','harga','satuan'] as $req) if (!isset($b[$req]) || $b[$req] === '') err("Field wajib: $req");
-        // auto-update master produk: simpan nama baru ke product_master (permintaan awal pengguna)
-        $master = sb('product_master', 'GET', ['nama=eq.' . urlencode($b['nama_product']), 'select=id']);
-        if (!$master) sb('product_master', 'POST', [], ['nama' => $b['nama_product'], 'kategori' => $b['kategori'], 'auto_added' => true]);
-        $row = sb('products', 'POST', [], [
-            'user_id' => $u['id'], 'nama_product' => $b['nama_product'], 'jenis' => $b['jenis'] ?? '',
-            'kategori' => $b['kategori'], 'sub_kategori' => $b['sub_kategori'] ?? '',
-            'deskripsi' => $b['deskripsi'] ?? '', 'harga' => (float)$b['harga'], 'satuan' => $b['satuan'],
-            'stok' => (int)($b['stok'] ?? 0), 'foto' => $b['foto'] ?? '', 'lat' => $b['lat'] ?? ($u['lat'] ?? null),
-            'lng' => $b['lng'] ?? ($u['lng'] ?? null), 'alamat_lahan' => $b['alamat_lahan'] ?? ($u['alamat'] ?? ''),
-            'status' => 'aktif', 'created_at' => date('c'),
-        ])[0] ?? null;
+        $row = sb_rpc('agr_product_create', ['p_token' => $token, 'p_payload' => $b]);
         out(['ok' => true, 'product' => $row], 201);
     }
 
@@ -354,77 +313,45 @@ switch ($action) {
     case 'offer-create': {
         $u = require_session($token, 'pembeli');
         $b = body_json();
-        $row = sb('offers', 'POST', [], ['product_id' => (int)($b['product_id'] ?? 0), 'buyer_id' => $u['id'],
-            'harga_tawar' => (float)($b['harga_tawar'] ?? 0), 'jumlah' => (float)($b['jumlah'] ?? 1),
-            'catatan' => $b['catatan'] ?? '', 'status' => 'menunggu', 'created_at' => date('c')])[0] ?? null;
+        $row = sb_rpc('agr_offer_create', ['p_token' => $token, 'p_product_id' => (int)($b['product_id'] ?? 0),
+            'p_price' => (float)($b['harga_tawar'] ?? 0), 'p_quantity' => (float)($b['jumlah'] ?? 1), 'p_note' => (string)($b['catatan'] ?? '')]);
         out(['ok' => true, 'offer' => $row], 201);
     }
     case 'offers-mine': {
-        $u = require_session($token);
-        if ($u['role'] === 'penjual') {
-            $mine = sb('products', 'GET', ['user_id=eq.' . $u['id'], 'select=id']);
-            $ids = array_column($mine, 'id');
-            if (!$ids) out([]);
-            $rows = sb('offers', 'GET', ['product_id=in.(' . implode(',', $ids) . ')', 'select=*', 'order=created_at.desc']);
-        } else {
-            $rows = sb('offers', 'GET', ['buyer_id=eq.' . $u['id'], 'select=*', 'order=created_at.desc']);
-        }
-        out($rows);
+        require_session($token);
+        out(sb_rpc('agr_offers_list', ['p_token' => $token]));
     }
     case 'offer-respond': {
         $u = require_session($token, 'penjual');
         $b = body_json(); $id = (int)($b['id'] ?? 0);
-        $own = sb('offers', 'GET', ['id=eq.' . $id]);
-        if (!$own) err('Penawaran tidak ditemukan', 404);
-        $prod = sb('products', 'GET', ['id=eq.' . $own[0]['product_id'], 'select=user_id']);
-        if (!$prod || $prod[0]['user_id'] != $u['id']) err('Bukan penawaran atas produk Anda', 403);
-        sb('offers', 'PATCH', ['id=eq.' . $id], ['status' => $b['status'] === 'terima' ? 'diterima' : 'ditolak', 'responded_at' => date('c')]);
-        out(['ok' => true]);
+        out(['ok' => true, 'offer' => sb_rpc('agr_offer_respond', ['p_token' => $token, 'p_offer_id' => $id,
+            'p_decision' => ($b['status'] ?? '') === 'terima' ? 'terima' : 'tolak'])]);
     }
     case 'booking-create': {
         $u = require_session($token, 'pembeli');
         $b = body_json();
-        $set = get_pengaturan('persen_dp');
-        $persenDP = (float)($set[0]['value'] ?? 20);
-        $feeSet = get_pengaturan('biaya_penanganan');
-        $feePct = (float)($feeSet[0]['value'] ?? 2.5);
-        $offerId = (int)($b['offer_id'] ?? 0);
-        $offers = sb('offers', 'GET', ['id=eq.' . $offerId]);
-        if (!$offers) err('Penawaran tidak ditemukan', 404);
-        $of = $offers[0];
-        if ($of['status'] !== 'diterima') err('Penawaran belum diterima penjual — tidak dapat dibooking', 409);
-        if ((int)$of['buyer_id'] !== (int)$u['id']) err('Bukan penawaran Anda', 403);
-        $dup = sb('bookings', 'GET', ['offer_id=eq.' . $offerId, 'select=id']);
-        if ($dup) err('Penawaran ini sudah dibooking', 409);
-        $prod = sb('products', 'GET', ['id=eq.' . (int)$of['product_id'], 'select=user_id,nama_product'])[0] ?? null;
-        if (!$prod) err('Produk tidak ditemukan', 404);
-        $total = round((float)$of['harga_tawar'] * (float)$of['jumlah']);
-        $dp = round($total * $persenDP / 100);
-        $bk = sb('bookings', 'POST', [], ['offer_id' => $offerId, 'buyer_id' => $u['id'],
-            'total' => $total, 'dp' => $dp, 'sisa' => $total - $dp, 'metode_dp' => $b['metode_dp'] ?? 'Transfer Bank',
-            'jadwal_kirim' => $b['jadwal_kirim'] ?? '', 'ekspedisi' => $b['ekspedisi'] ?? '',
-            'status' => 'dp_pending', 'created_at' => date('c')])[0] ?? null;
-        if (!$bk) err('Gagal membuat booking', 502);
-        $potongan = round($total * $feePct / 100);
-        $tx = sb('transaksi', 'POST', [], ['booking_id' => $bk['id'], 'product_id' => (int)$of['product_id'],
-            'seller_id' => (int)$prod['user_id'], 'buyer_id' => $u['id'], 'harga_total' => $total, 'dp' => $dp,
-            'potongan_platform' => $potongan, 'metode_bayar' => $bk['metode_dp'], 'status' => 'dp_pending',
-            'created_at' => date('c')])[0] ?? null;
-        out(['ok' => true, 'booking' => $bk, 'transaksi' => $tx, 'persen_dp' => $persenDP], 201);
+        $result = sb_rpc('agr_order_create', ['p_token' => $token, 'p_product_id' => (int)($b['product_id'] ?? 0),
+            'p_quantity' => (float)($b['jumlah'] ?? 0), 'p_offer_id' => (int)($b['offer_id'] ?? 0),
+            'p_method' => (string)($b['metode_dp'] ?? ''), 'p_delivery' => (string)($b['jadwal_kirim'] ?? ''),
+            'p_carrier' => (string)($b['ekspedisi'] ?? '')]);
+        out(['ok' => true] + (is_array($result) ? $result : []), 201);
+    }
+
+    case 'order-create': {
+        require_session($token, 'pembeli');
+        $b = body_json();
+        $result = sb_rpc('agr_order_create', ['p_token' => $token, 'p_product_id' => (int)($b['product_id'] ?? 0),
+            'p_quantity' => (float)($b['jumlah'] ?? 0), 'p_offer_id' => 0,
+            'p_method' => (string)($b['metode_dp'] ?? ''), 'p_delivery' => (string)($b['jadwal_kirim'] ?? ''),
+            'p_carrier' => (string)($b['ekspedisi'] ?? '')]);
+        out(['ok' => true] + (is_array($result) ? $result : []), 201);
     }
 
     /* ---- BAYAR DP: konfirmasi pembayaran (gateway/transfer manual) ---- */
     case 'dp-confirm': {
-        $u = require_session($token, 'pembeli');
-        $b = body_json(); $id = (int)($b['transaction_id'] ?? 0);
-        $rows = sb('transaksi', 'GET', ['id=eq.' . $id]);
-        if (!$rows) err('Transaksi tidak ditemukan', 404);
-        if ((int)$rows[0]['buyer_id'] !== (int)$u['id']) err('Bukan transaksi Anda', 403);
-        if ($rows[0]['status'] !== 'dp_pending') err('DP sudah dibayar / status tidak dapat diubah', 409);
-        sb('transaksi', 'PATCH', ['id=eq.' . $id], ['status' => 'dp_paid',
-            'ref_payment' => $b['ref_payment'] ?? '', 'bukti_transfer' => $b['bukti'] ?? '']);
-        if (!empty($rows[0]['booking_id'])) sb('bookings', 'PATCH', ['id=eq.' . $rows[0]['booking_id']], ['status' => 'dp_paid']);
-        out(['ok' => true]);
+        require_session($token, 'pembeli'); $b = body_json();
+        out(sb_rpc('agr_payment_submit', ['p_token' => $token, 'p_transaction_id' => (int)($b['transaction_id'] ?? 0),
+            'p_proof' => (string)($b['bukti'] ?? ''), 'p_note' => '', 'p_reference' => (string)($b['ref_payment'] ?? '')]));
     }
 
     /* ---- PELUNASAN DP: pembeli upload bukti -> approval penjual ---- */
@@ -432,29 +359,17 @@ switch ($action) {
         $u = require_session($token, 'pembeli');
         $b = body_json();
         $id = (int)($b['transaction_id'] ?? 0);
-        $rows = sb('transaksi', 'GET', ['id=eq.' . $id]);
-        if (!$rows) err('Transaksi tidak ditemukan', 404);
-        if ((int)$rows[0]['buyer_id'] !== (int)$u['id']) err('Bukan transaksi Anda', 403);
-        if (!in_array($rows[0]['status'], ['dp_paid','lunas_dp','menunggu_approval'])) err('Status tidak menunggu pelunasan', 409);
-        sb('transaksi', 'PATCH', ['id=eq.' . $id], ['status' => 'menunggu_approval',
-            'bukti_transfer' => $b['bukti'] ?? '', 'catatan_pelunasan' => $b['catatan'] ?? '']);
-        out(['ok' => true]);
+        out(sb_rpc('agr_payment_submit', ['p_token' => $token, 'p_transaction_id' => $id,
+            'p_proof' => (string)($b['bukti'] ?? ''), 'p_note' => (string)($b['catatan'] ?? ''), 'p_reference' => '']));
     }
     case 'pelunasan-list': {
         $u = require_session($token, 'penjual');
-        out(sb('transaksi', 'GET', ['seller_id=eq.' . $u['id'], 'status=eq.menunggu_approval', 'select=*', 'order=created_at.desc']));
+        out(array_values(array_filter(sb_rpc('agr_transactions_list', ['p_token' => $token, 'p_side' => 'penjualan']), fn($tx) => ($tx['status'] ?? '') === 'menunggu_approval')));
     }
     case 'pelunasan-respond': {
         $u = require_session($token, 'penjual');
         $b = body_json(); $id = (int)($b['transaction_id'] ?? 0);
-        $rows = sb('transaksi', 'GET', ['id=eq.' . $id]);
-        if (!$rows) err('Transaksi tidak ditemukan', 404);
-        if ((int)$rows[0]['seller_id'] !== (int)$u['id']) err('Bukan transaksi Anda', 403);
-        if ($rows[0]['status'] !== 'menunggu_approval') err('Tidak dalam antrean approval', 409);
-        $status = ($b['keputusan'] ?? '') === 'setuju' ? 'lunas' : 'dp_paid';
-        sb('transaksi', 'PATCH', ['id=eq.' . $id], ['status' => $status]);
-        if (!empty($b['booking_id'])) sb('bookings', 'PATCH', ['id=eq.' . (int)$b['booking_id']], ['status' => $status === 'lunas' ? 'lunas' : 'dp_paid']);
-        out(['ok' => true, 'status' => $status]);
+        out(sb_rpc('agr_payment_approve', ['p_token' => $token, 'p_transaction_id' => $id, 'p_approve' => ($b['keputusan'] ?? '') === 'setuju']));
     }
 
     /* ---- KIRIM & SELESAI ---- */
@@ -484,12 +399,11 @@ switch ($action) {
     case 'transactions': {
         $u = require_session($token);
         $side = $_GET['side'] ?? ($u['role'] === 'penjual' ? 'penjualan' : 'pembelian');
-        $col = $side === 'penjualan' ? 'seller_id' : 'buyer_id';
-        out(sb('transaksi', 'GET', ["{$col}=eq.{$u['id']}", 'select=*', 'order=created_at.desc']));
+        out(sb_rpc('agr_transactions_list', ['p_token' => $token, 'p_side' => $side]));
     }
     case 'report-admin': {
         require_admin($token);
-        $tx = sb('transaksi', 'GET', ['select=harga_total,status,potongan_platform,created_at']);
+        $tx = sb_rpc('agr_transactions_list', ['p_token' => $token, 'p_side' => 'pembelian']);
         $gmv = 0; $rev = 0; $perbulan = [];
         foreach ($tx as $t) {
             $gmv += (float)$t['harga_total']; $rev += (float)($t['potongan_platform'] ?? 0);
@@ -534,14 +448,12 @@ switch ($action) {
         $u = require_session($token, 'pembeli');
         $b = body_json();
         $tt = in_array($b['target_type'] ?? '', ['produk','penjual']) ? $b['target_type'] : 'produk';
-        $ex = sb('favorites', 'GET', ['buyer_id=eq.' . $u['id'], "target_type=eq.$tt", 'target_id=eq.' . (int)($b['target_id'] ?? 0)]);
-        if ($ex) { sb('favorites', 'DELETE', ['id=eq.' . $ex[0]['id']]); out(['ok' => true, 'favorit' => false]); }
-        sb('favorites', 'POST', [], ['buyer_id' => $u['id'], 'target_type' => $tt, 'target_id' => (int)($b['target_id'] ?? 0), 'created_at' => date('c')]);
-        out(['ok' => true, 'favorit' => true], 201);
+        $result = sb_rpc('agr_favorite_toggle', ['p_token' => $token, 'p_target_type' => $tt, 'p_target_id' => (int)($b['target_id'] ?? 0)]);
+        out(['ok' => true, 'favorit' => (bool)($result['favorit'] ?? false)]);
     }
     case 'favorites': {
-        $u = require_session($token, 'pembeli');
-        out(sb('favorites', 'GET', ['buyer_id=eq.' . $u['id'], 'select=*']));
+        require_session($token, 'pembeli');
+        out(sb_rpc('agr_favorites_list', ['p_token' => $token]));
     }
 
     /* ---- PESAN PRODUK: percakapan buyer dengan pemilik listing ---- */
@@ -655,14 +567,26 @@ switch ($action) {
 
     /* ---- PENGATURAN admin ---- */
     case 'settings': {
-        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') { out(get_pengaturan()); }
-        require_admin($token); $b = body_json();
-        foreach ($b as $k => $v) {
-            $ex = get_pengaturan((string)$k);
-            if ($ex) sb('pengaturan', 'PATCH', ['key=eq.' . urlencode((string)$k)], ['value' => (string)$v]);
-            else sb('pengaturan', 'POST', [], ['key' => (string)$k, 'value' => (string)$v]);
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
+            if ($token !== '') {
+                $activeSession = sb('sessions', 'GET', ['token=eq.' . urlencode($token), 'select=user_id,active_role,expires_at']);
+                if ($activeSession && strtotime((string)$activeSession[0]['expires_at']) > time() && ($activeSession[0]['active_role'] ?? '') === 'admin') out(get_pengaturan());
+            }
+            $publicKeys = ['footer_tagline','footer_email','footer_wa','footer_alamat','footer_copy','ticker_harian','beranda_aktif'];
+            out(array_values(array_filter(get_pengaturan(), fn($row) => in_array($row['key'] ?? '', $publicKeys, true))));
         }
-        out(['ok' => true]);
+        require_admin($token); $b = body_json();
+        out(sb_rpc('agr_admin_settings_save', ['p_token' => $token, 'p_settings' => (object)$b]));
+    }
+
+    case 'checkout-config': {
+        $keys = ['fitur_pembayaran','fitur_booking_dp','fitur_biaya','persen_dp','biaya_penanganan','biaya_tambahan_flat'];
+        $all = get_pengaturan(); $cfg = [];
+        foreach ($all as $row) if (in_array($row['key'] ?? '', $keys, true)) $cfg[$row['key']] = $row['value'];
+        out(['payment_enabled' => ($cfg['fitur_pembayaran'] ?? '1') !== '0',
+            'dp_enabled' => ($cfg['fitur_booking_dp'] ?? '1') !== '0',
+            'fees_enabled' => ($cfg['fitur_biaya'] ?? '1') !== '0',
+            'dp_percent' => (float)($cfg['persen_dp'] ?? 20)]);
     }
 
     default:

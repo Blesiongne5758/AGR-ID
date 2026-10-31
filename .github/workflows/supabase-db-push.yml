@@ -370,7 +370,8 @@ jobs:
           python3 - <<'PY'
           import json, os, subprocess, sys
           for path in ("supabase/migrations/0011_user_business_logo.sql",
-                       "supabase/migrations/0012_auction_schema.sql"):
+                       "supabase/migrations/0012_auction_schema.sql",
+                       "supabase/migrations/0013_infinityfree_marketplace.sql"):
               sql = open(path, encoding="utf-8").read()
               r = subprocess.run([
                   "curl", "-sS", "--fail-with-body", "--max-time", "120", "--retry", "3", "--retry-delay", "5",

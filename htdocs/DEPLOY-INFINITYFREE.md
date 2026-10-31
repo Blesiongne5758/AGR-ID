@@ -51,6 +51,33 @@ Buka domain Anda → Daftar/Login (demo: `penjual@agr.id / penjual123`,
 buat penawaran → booking DP → bayar. Foto produk ter-upload langsung ke
 Cloudinary (bucket publik), dokumen KYC ke folder privat dengan pre-signed URL.
 
+## Jalur alternatif InfinityFree (tanpa menjalankan Flask)
+
+Jalur ini mempertahankan aplikasi Flask dan semua fiturnya untuk server utama,
+sementara portal statis `htdocs/` menggunakan PHP gateway (`api.php`) ke Supabase
+REST dan upload bertanda tangan langsung dari browser ke Cloudinary. InfinityFree
+tidak perlu koneksi PostgreSQL langsung, Python, atau service-role key.
+
+- Pendaftaran dimulai sebagai pembeli; pengguna mengisi profil dan data usaha di
+  Pengaturan sebelum mengaktifkan mode Penjual.
+- Penjual dapat mengambil foto dari kamera ponsel (`capture="environment"`) atau
+  memilih file. Kedua jalur mengunggah foto ke Cloudinary sebelum listing disimpan.
+- Listing menyimpan stok serta kuota minimum/maksimum per pesanan. Pembeli dapat
+  checkout langsung atau checkout penawaran yang disetujui; server memeriksa kuota
+  dan mengurangi stok dalam satu transaksi database.
+- Setelah checkout, portal membuka chat dengan pemilik listing. Favorit, profil,
+  penawaran, checkout, transaksi, dan persetujuan pembayaran ditangani oleh RPC
+  yang memvalidasi token sesi pada database.
+- Admin dapat menonaktifkan Pembayaran, DP, dan Biaya di dashboard. Jika Pembayaran
+  mati, pemesanan tetap tercatat dengan DP dan biaya layanan nol. Jika hanya DP mati,
+  pesanan menunggu pelunasan penuh sesuai pengaturan pembayaran.
+
+Migrasi `supabase/migrations/0013_infinityfree_marketplace.sql` menambah kolom
+kuota dan operasi aman untuk jalur ini. Workflow database menerapkannya bersama
+migrasi lain ketika perubahan masuk ke `main`; untuk instalasi baru, skema gabungan
+di `supabase-schema.sql` sudah memuat SQL migrasi tersebut. Deploy `htdocs/` tetap
+terpisah dari server Flask dan tidak menghapus atau menimpa kode backend utama.
+
 ## Troubleshooting
 | Gejala | Solusi |
 |---|---|

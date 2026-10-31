@@ -1,4 +1,4 @@
-﻿/* =====================================================================
+/* =====================================================================
    AGR.BIZ.ID — Frontend SPA statis (InfinityFree htdocs)
    Backend : api.php (gateway) -> Supabase PostgREST + Cloudinary
    Token sesi disimpan localStorage, dikirim via header X-Agr-Token.
@@ -100,7 +100,7 @@ const fotoP = p => {
 const $ = s => document.querySelector(s);
 const el = (t,c,h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
 const toast = m => { const t=el('div','agr-toast',esc(m)); $('#toasts').appendChild(t); setTimeout(()=>t.remove(),4200); };
-const STATUS_LBL = { dp_pending:'Menunggu DP', dp_paid:'DP Dibayar', menunggu_approval:'Menunggu Approval Penjual', lunas:'Lunas', dikirim:'Dikirim', completed:'Selesai', dibatalkan:'Dibatalkan', menunggu:'Menunggu', diterima:'Diterima', ditolak:'Ditolak' };
+const STATUS_LBL = { dp_pending:'Menunggu DP', menunggu_pembayaran:'Menunggu Pembayaran Penuh', dp_paid:'DP Dibayar', menunggu_approval:'Menunggu Approval Penjual', dipesan:'Dipesan', lunas:'Lunas', dikirim:'Dikirim', completed:'Selesai', dibatalkan:'Dibatalkan', menunggu:'Menunggu', diterima:'Diterima', ditolak:'Ditolak' };
 const badge = st => `<span class="badge b-${st||'menunggu'}">${esc(STATUS_LBL[st]||st)}</span>`;
 
 const routes = { '#/beranda':'home', '#/marketplace':'market', '#/login':'login', '#/daftar':'register', '#/chat':'chat', '#/pesan':'productChats', '#/akun':'akun',
@@ -322,6 +322,7 @@ renderers.market = async (qs) => {
 
 async function tampilDetail(id){
   let p; try{ p = await api('product',{qs:'id='+id}); }catch(e){ toast(e.message); return; }
+  const checkout=await api('checkout-config').catch(()=>({payment_enabled:true,dp_enabled:true,dp_percent:20}));
   const nh = NONHALAL.includes(p.sub_kategori);
   let fav=false; if(S.user&&S.user.role==='pembeli'){ try{ const fs=await api('favorites'); fav=fs.some(f=>f.target_type==='produk'&&+f.target_id===+id);}catch(e){} }
   $('#app').innerHTML = `
@@ -331,22 +332,32 @@ async function tampilDetail(id){
       <h2>${esc(p.nama_product)} ${nh?'<span class="badge b-haram">⚠️ Non Halal</span>':''}</h2>
       <p class="muted">${esc(p.kategori)} › ${esc(p.sub_kategori||'-')} · Jenis: ${esc(p.jenis||'-')}</p>
       <p class="price xl">${rp(p.harga)}<small> /${esc(p.satuan)}</small></p>
+      <p class="muted">Stok tersedia: ${esc(p.stok)} ${esc(p.satuan)} · Kuota pesanan: min. ${esc(p.kuota_minimum||1)}${p.kuota_maksimum?` – maks. ${esc(p.kuota_maksimum)}`:' sampai stok tersedia'} ${esc(p.satuan)}</p>
       <p>${esc(p.deskripsi||'')}</p>
       <div class="sellerbox"><b>${esc((p.seller&&p.seller.nama)||'Penjual')}</b> <span class="badge b-role">${esc((p.seller&&p.seller.tipe)||'Perorangan')}</span>
         <p class="muted">📍 ${esc(p.alamat_lahan||(p.seller&&p.seller.alamat)||'-')} ${p.lat?`· <a target="_blank" rel="noopener" href="https://maps.google.com/?q=${p.lat},${p.lng}">lihat peta</a>`:''}</p></div>
       <div class="d-act">
-        ${S.user&&S.user.role==='pembeli'?`<button class="btn btn-primary" id="btnTawar">Buat Penawaran</button>
+        ${S.user&&S.user.role==='pembeli'?`<button class="btn btn-primary" id="btnOrder">Pesan Langsung</button><button class="btn btn-outline" id="btnTawar">Tawar Harga</button>
           <button class="btn btn-outline" id="btnFav">${fav?'★':'☆'} Favorit</button>
           ${+S.user.id!==+p.user_id?'<button class="btn btn-outline" id="btnProductChat">Tanya Penjual</button>':''}`:!S.user?`<a class="btn btn-primary" href="#/login">Masuk untuk Menawar atau Bertanya</a>`:'<span class="muted">Hanya pembeli yang dapat menawar dan memulai chat produk.</span>'}
       </div>
       <div id="offerBox"></div>
+      <div id="orderBox"></div>
     </div></div>`;
   const bf=$('#btnFav'); if(bf) bf.onclick=async()=>{ try{ const r=await api('favorite-toggle',{method:'POST',body:{target_type:'produk',target_id:+id}}); bf.innerHTML=(r.favorit?'★':'☆')+' Favorit'; toast(r.favorit?'Ditambahkan ke favorit':'Dihapus dari favorit'); }catch(e){toast(e.message);} };
   const bc=$('#btnProductChat'); if(bc) bc.onclick=async()=>{try{const c=await api('chat-start',{method:'POST',body:{product_id:+id}});location.hash='#/pesan/'+c.id;}catch(e){toast(e.message);}};
+  const bo=$('#btnOrder'); if(bo) bo.onclick=()=>{
+    const min=+(p.kuota_minimum||1), max=Math.min(+(p.kuota_maksimum||p.stok||min),+p.stok);
+    $('#orderBox').innerHTML=`<div class="panel"><h4>Pesan Langsung</h4><label>Jumlah (${esc(p.satuan)})<input id="directQty" class="input" type="number" min="${min}" max="${max}" value="${min}" step="1"></label>
+      ${checkout.payment_enabled?'<label>Metode pembayaran<select id="directMethod" class="input"><option>Transfer Bank</option><option>QRIS</option><option>Tunai</option></select></label>':''}<label>Jadwal Pengiriman (opsional)<input id="directDate" class="input" type="date"></label><p class="muted">Total barang: <b id="directTotal">${rp(+p.harga*min)}</b>. ${checkout.payment_enabled?(checkout.dp_enabled?`DP ${checkout.dp_percent}% mengikuti pengaturan admin.`:'DP nonaktif; pembayaran penuh mengikuti petunjuk penjual.'):'Pembayaran dan biaya platform nonaktif; pemesanan dicatat tanpa biaya layanan.'}</p>
+      <button class="btn btn-primary" id="directSubmit">Checkout &amp; Hubungi Penjual</button></div>`;
+    $('#directQty').oninput=()=>$('#directTotal').textContent=rp(+p.harga*(+$('#directQty').value||0));
+    $('#directSubmit').onclick=async()=>{ try{ const result=await api('order-create',{method:'POST',body:{product_id:+id,jumlah:+$('#directQty').value,metode_dp:$('#directMethod')?.value||'',jadwal_kirim:$('#directDate').value}}); toast(result.payment_enabled?'Pesanan dibuat. Silakan lanjutkan pembayaran sesuai status pesanan.':'Pesanan dibuat tanpa biaya platform; pembayaran sedang dinonaktifkan admin.'); try{const c=await api('chat-start',{method:'POST',body:{product_id:+id}});location.hash='#/pesan/'+c.id;}catch(_){location.hash='#/dashboard/pembeli';} }catch(e){toast(e.message);} };
+  };
   const bt=$('#btnTawar'); if(bt) bt.onclick=()=>{
     $('#offerBox').innerHTML = `<div class="panel"><h4>Buat Penawaran Harga</h4>
       <label>Harga tawar per ${esc(p.satuan)} (Rp)<input id="oHarga" class="input" type="number" value="${Math.round(p.harga*0.95)}"></label>
-      <label>Jumlah (${esc(p.satuan)})<input id="oJml" class="input" type="number" value="10" min="1"></label>
+      <label>Jumlah (${esc(p.satuan)})<input id="oJml" class="input" type="number" value="${p.kuota_minimum||1}" min="${p.kuota_minimum||1}" max="${Math.min(+(p.kuota_maksimum||p.stok),+p.stok)}"></label>
       <label>Catatan<textarea id="oNote" class="input" rows="2" placeholder="Contoh: kirim Jumat, kualitas grade A"></textarea></label>
       <button class="btn btn-primary" id="oSend">Kirim Penawaran</button></div>`;
     $('#oSend').onclick=async()=>{ try{ await api('offer-create',{method:'POST',body:{product_id:+id,harga_tawar:+$('#oHarga').value,jumlah:+$('#oJml').value,catatan:$('#oNote').value}}); toast('Penawaran terkirim — pantau respons penjual di Dashboard Pembeli.'); $('#offerBox').innerHTML=''; }catch(e){toast(e.message);} };
@@ -561,31 +572,32 @@ renderers.dashPembeli = async () => {
    <div class="tabs user-action-tabs" id="tabsB" role="tablist" aria-label="Menu dashboard pembeli"><button class="on" data-t="ofr">Penawaran Saya</button><button data-t="trx">Transaksi & Pelunasan</button><button data-t="rpt">Laporan Pembelian</button><button data-t="fav">Favorit</button></div><div id="tabB"></div>`;
   const show=t=>{ $('#tabsB').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); const box=$('#tabB');
     if(t==='ofr') box.innerHTML=tbl(['ID','Tawaran','Jumlah','Status','Aksi'],ofr.map(o=>[o.id,rp(o.harga_tawar),o.jumlah,badge(o.status),
-      o.status==='diterima'?`<button class="btn btn-sm btn-primary bk" data-id="${o.id}" data-h="${o.harga_tawar}" data-j="${o.jumlah}">Booking + DP</button>`:''])) || '<p class="muted">Belum ada penawaran. Kirim penawaran dari halaman produk.</p>';
+      o.status==='diterima'?`<button class="btn btn-sm btn-primary bk" data-id="${o.id}" data-p="${o.product_id}" data-h="${o.harga_tawar}" data-j="${o.jumlah}">Checkout Penawaran</button>`:''])) || '<p class="muted">Belum ada penawaran. Kirim penawaran dari halaman produk.</p>';
     if(t==='trx') box.innerHTML=tbl(['ID','Total','DP','Metode','Status','Aksi'],tx.map(x=>{ const aksi=[];
-      if(x.status==='dp_pending') aksi.push(`<button class="btn btn-sm btn-primary pay" data-id="${x.id}" data-dp="${x.dp}">Bayar DP</button>`);
+      if(['dp_pending','menunggu_pembayaran'].includes(x.status)) aksi.push(`<button class="btn btn-sm btn-primary pay" data-id="${x.id}" data-dp="${x.dp}">${+x.dp>0?'Bayar DP':'Bayar Penuh'}</button>`);
       if(x.status==='dp_paid') aksi.push(`<button class="btn btn-sm btn-primary pay" data-id="${x.id}" data-dp="0">Upload Bukti Pelunasan</button>`);
       if(x.status==='dikirim') aksi.push(`<button class="btn btn-sm btn-success done" data-id="${x.id}">Terima & Selesai</button>`);
       if(['completed','lunas'].includes(x.status)) aksi.push(`<button class="btn btn-sm btn-outline rate" data-id="${x.id}" data-to="${x.seller_id}">★ Rating</button>`);
       return [x.id,rp(x.harga_total),rp(x.dp),esc(x.metode_bayar||'-'),badge(x.status),aksi.join(' ')];})) || '<p class="muted">Belum ada transaksi.</p>';
     if(t==='rpt') box.innerHTML=tbl(['ID','Total','DP','Platform Fee','Status','Tanggal'],tx.map(x=>[x.id,rp(x.harga_total),rp(x.dp),rp(x.potongan_platform||0),badge(x.status),(x.created_at||'').slice(0,10)])) || '<p class="muted">Belum ada laporan.</p>';
     if(t==='fav') box.innerHTML=tbl(['Tipe','Target','Aksi'],favs.map(f=>[f.target_type,'#'+f.target_id,`<a class="btn btn-sm btn-outline" href="#/produk/${f.target_id}">Buka</a>`])) || '<p class="muted">Belum ada favorit.</p>';
-    box.querySelectorAll('.bk').forEach(b=>b.onclick=()=>formBooking(b,+b.dataset.h,+b.dataset.j));
+    box.querySelectorAll('.bk').forEach(b=>b.onclick=()=>formBooking(b,+b.dataset.id,+b.dataset.p,+b.dataset.h,+b.dataset.j));
     box.querySelectorAll('.pay').forEach(b=>b.onclick=()=>formBayar(+b.dataset.id,+b.dataset.dp));
     box.querySelectorAll('.done').forEach(b=>b.onclick=async()=>{ try{ await api('tx-complete',{method:'POST',body:{transaction_id:+b.dataset.id}}); toast('Transaksi selesai — beri rating penjual!'); renderers.dashPembeli(); }catch(e){toast(e.message);} });
     box.querySelectorAll('.rate').forEach(b=>b.onclick=()=>formRating(+b.dataset.id,+b.dataset.to));
   };
   $('#tabsB').querySelectorAll('button').forEach(b=>b.onclick=()=>show(b.dataset.t)); show('ofr');
 };
-function formBooking(btn,oid,h,j){
+async function formBooking(btn,oid,pid,h,j){
   const total=Math.round(h*j);
-  btn.closest('td').innerHTML=`<div class="panel"><label>Metode DP<select id="bdp" class="input"><option>Transfer Bank</option><option>QRIS</option><option>Tunai</option></select></label>
+  const cfg=await api('checkout-config').catch(()=>({payment_enabled:true,dp_enabled:true,dp_percent:20}));
+  btn.closest('td').innerHTML=`<div class="panel">${cfg.payment_enabled?`<label>Metode pembayaran<select id="bdp" class="input"><option>Transfer Bank</option><option>QRIS</option><option>Tunai</option></select></label>`:''}
    <label>Jadwal Pengiriman<input id="bdk" class="input" type="date"></label>
    <label>Ekspedisi<select id="bdx" class="input"><option>Agribus Cargo</option><option>JNE Logistics</option><option>SiCepat Cold Chain</option></select></label>
-   <p class="muted">Estimasi DP ±20%: <b>${rp(Math.round(total*0.2))}</b> dari total ${rp(total)} — angka final dihitung server sesuai pengaturan admin.</p>
-   <button class="btn btn-primary" id="bdgo">Booking Sekarang</button></div>`;
-  $('#bdgo').onclick=async()=>{ try{ const r=await api('booking-create',{method:'POST',body:{offer_id:oid,metode_dp:$('#bdp').value,jadwal_kirim:$('#bdk').value,ekspedisi:$('#bdx').value}});
-    toast(`Booking dibuat. DP ${rp(r.booking.dp)} (${r.persen_dp}%). Silakan bayar DP.`); renderers.dashPembeli(); }catch(e){toast(e.message);} };
+   <p class="muted">${!cfg.payment_enabled?'Admin menonaktifkan pembayaran dan seluruh biaya layanan.':cfg.dp_enabled?`Estimasi DP ${cfg.dp_percent}%: <b>${rp(Math.round(total*cfg.dp_percent/100))}</b> dari total ${rp(total)}.`:`DP dinonaktifkan admin. Pembayaran penuh dihitung dari total ${rp(total)}.`} Perhitungan final dilakukan server.</p>
+   <button class="btn btn-primary" id="bdgo">Checkout &amp; Hubungi Penjual</button></div>`;
+  $('#bdgo').onclick=async()=>{ try{ const r=await api('booking-create',{method:'POST',body:{offer_id:oid,product_id:pid,jumlah:j,metode_dp:$('#bdp')?.value||'',jadwal_kirim:$('#bdk').value,ekspedisi:$('#bdx').value}});
+    toast(+r.booking.dp>0?`Pesanan dibuat dengan DP ${rp(r.booking.dp)}.`:cfg.payment_enabled?'Pesanan dibuat tanpa DP. Pembayaran penuh mengikuti status transaksi.':'Pesanan dibuat tanpa biaya layanan.'); try{const c=await api('chat-start',{method:'POST',body:{product_id:pid}});location.hash='#/pesan/'+c.id;}catch(_){renderers.dashPembeli();} }catch(e){toast(e.message);} };
 }
 function formBayar(txId,dp){
   const td=$(`.pay[data-id="${txId}"]`).closest('td');
@@ -621,9 +633,11 @@ renderers.formProduk = async () => {
      <input id="pn" class="input" autocomplete="off"><div id="pnl" class="sug"></div></label>
    <label>Jenis/Varietas<input id="pj" class="input" placeholder="mis. Biasa, Keriting, Rawit"></label>
    <div class="two"><label>Harga per satuan<input id="ph" class="input" type="number"></label><label>Satuan<select id="pu" class="input"><option>kg</option><option>pack</option><option>ekor</option><option>lusin</option><option>ton</option></select></label></div>
-   <label>Stok<input id="pst" class="input" type="number" value="100"></label>
+   <label>Stok tersedia<input id="pst" class="input" type="number" value="100" min="1"></label>
+   <div class="two"><label>Kuota minimum per pesanan<input id="pmin" class="input" type="number" min="1" value="1"></label><label>Kuota maksimum per pesanan (opsional)<input id="pmax" class="input" type="number" min="1" placeholder="Sampai stok tersedia"></label></div>
    <label>Deskripsi<textarea id="pd" class="input" rows="3"></textarea></label>
-   <label>Foto Produk<input type="file" id="pf" accept="image/*" class="input"></label>
+   <label>Foto dari file<input type="file" id="pf" accept="image/*" class="input"></label>
+   <label>Ambil foto dengan kamera<input type="file" id="pfCamera" accept="image/*" capture="environment" class="input"></label>
    <div class="gps-row"><button class="btn btn-outline btn-sm" id="pgps">📍 Deteksi GPS Lahan</button><span id="pgpsv" class="muted">belum diisi</span></div>
    <button class="btn btn-primary wide" id="psave">Simpan &amp; Tayangkan</button></div>`;
   const isiSub=()=>{ $('#ps').innerHTML=(SUBS[$('#pk').value]||[]).map(s=>`<option value="${esc(s)}">${s}${NONHALAL.includes(s)?' — ⚠️ Non Halal':''}</option>`).join(''); };
@@ -635,9 +649,9 @@ renderers.formProduk = async () => {
   $('#pgps').onclick=()=>navigator.geolocation.getCurrentPosition(p=>{window._plat=p.coords.latitude;window._plng=p.coords.longitude;$('#pgpsv').textContent=`${window._plat}, ${window._plng}`;},()=>toast('Izin GPS ditolak'));
   $('#psave').onclick=async()=>{
     if(!$('#pn').value||!$('#ph').value){ toast('Nama produk & harga wajib diisi'); return; }
-    let foto=''; const f=$('#pf').files[0];
+    let foto=''; const f=$('#pfCamera').files[0]||$('#pf').files[0];
     if(f){ try{ foto=await uploadCloud(f,'public','product'); }catch(e){ toast('Foto gagal diupload: '+e.message); return; } }
-    try{ await api('product-create',{method:'POST',body:{nama_product:$('#pn').value,jenis:$('#pj').value,kategori:$('#pk').value,sub_kategori:$('#ps').value,deskripsi:$('#pd').value,harga:+$('#ph').value,satuan:$('#pu').value,stok:+$('#pst').value,foto,lat:window._plat??null,lng:window._plng??null}});
+    try{ await api('product-create',{method:'POST',body:{nama_product:$('#pn').value,jenis:$('#pj').value,kategori:$('#pk').value,sub_kategori:$('#ps').value,deskripsi:$('#pd').value,harga:+$('#ph').value,satuan:$('#pu').value,stok:+$('#pst').value,kuota_minimum:+$('#pmin').value,kuota_maksimum:$('#pmax').value?+$('#pmax').value:null,foto,lat:window._plat??null,lng:window._plng??null}});
       toast('Produk tayang! Nama baru otomatis masuk master DB.'); location.hash='#/dashboard/penjual'; }catch(e){toast(e.message);} };
 };
 
@@ -653,12 +667,16 @@ renderers.dashAdmin = async () => {
   const show=t=>{ $('#tabsA').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); const box=$('#tabA');
     if(t==='fin'){ const mx=Math.max(1,...Object.values(rep.per_bulan||{}));
       box.innerHTML='<div class="panel"><h4>GMV per Bulan</h4>'+(Object.entries(rep.per_bulan||{}).map(([m,v])=>'<div class="bar-row"><span>'+m+'</span><div class="bar"><i style="width:'+Math.min(100,v/mx*100)+'%"></i></div><b>'+rp(v)+'</b></div>').join('')||'<p class="muted">Belum ada transaksi.</p>')+'</div>'; }
-    if(t==='biaya') box.innerHTML=`<div class="card-form"><label>Persen DP Booking (%)<input id="gDP" class="input" value="${esc(setVal('persen_dp')||'20')}"></label>
+    if(t==='biaya') box.innerHTML=`<div class="card-form"><label class="sw"><input type="checkbox" id="gPayment" ${setVal('fitur_pembayaran')!=='0'?'checked':''}> Aktifkan pembayaran checkout</label>
+      <label class="sw"><input type="checkbox" id="gDPEnabled" ${setVal('fitur_booking_dp')!=='0'?'checked':''}> Minta DP saat checkout</label>
+      <label class="sw"><input type="checkbox" id="gFeesEnabled" ${setVal('fitur_biaya')!=='0'?'checked':''}> Kenakan biaya platform</label>
+      <p class="muted small">Jika pembayaran dimatikan, checkout tetap dapat mencatat pesanan dengan DP dan biaya layanan Rp0. Jika DP dimatikan, pembeli membayar penuh sesuai petunjuk transaksi. Aturan dihitung di server saat checkout.</p>
+      <label>Persen DP Booking (%)<input id="gDP" class="input" min="0" max="100" type="number" value="${esc(setVal('persen_dp')||'20')}"></label>
       <label>Biaya Penanganan (%)<input id="gFee" class="input" value="${esc(setVal('biaya_penanganan')||'2.5')}"></label>
       <label>Biaya Tambahan Flat (Rp)<input id="gFlat" class="input" value="${esc(setVal('biaya_tambahan_flat')||'0')}"></label>
       <label>Biaya Verifikasi Eviden (Rp)<input id="gVer" class="input" value="${esc(setVal('biaya_verifikasi')||'0')}"></label>
       <button class="btn btn-primary" id="gSave">Simpan Biaya</button></div>`;
-    if(t==='fitur') box.innerHTML=`<div class="card-form">${[['beranda_aktif','Landing Page'],['fitur_marketplace','Marketplace & Penawaran'],['fitur_booking_dp','Booking DP'],['fitur_payment_gateway','Payment Gateway'],['fitur_eviden_gps','Eviden & Ketelusuran GPS'],['fitur_rating','Rating Kepuasan'],['fitur_favorit','Favorit Pembeli'],['fitur_chat_ai','AI Chat Agent'],['fitur_crypto','Dompet Crypto (AGR Coin)'],['fitur_storage_cloud','Cloud Storage Media']].map(([k,lbl])=>`<label class="sw"><input type="checkbox" data-k="${k}" ${setVal(k)!=='0'?'checked':''}> ${lbl}</label>`).join('')}<button class="btn btn-primary" id="fSave">Simpan Toggle</button></div>`;
+    if(t==='fitur') box.innerHTML=`<div class="card-form">${[['beranda_aktif','Landing Page'],['fitur_marketplace','Marketplace & Penawaran'],['fitur_payment_gateway','Payment Gateway'],['fitur_eviden_gps','Eviden & Ketelusuran GPS'],['fitur_rating','Rating Kepuasan'],['fitur_favorit','Favorit Pembeli'],['fitur_chat_ai','AI Chat Agent'],['fitur_crypto','Dompet Crypto (AGR Coin)'],['fitur_storage_cloud','Cloud Storage Media']].map(([k,lbl])=>`<label class="sw"><input type="checkbox" data-k="${k}" ${setVal(k)!=='0'?'checked':''}> ${lbl}</label>`).join('')}<button class="btn btn-primary" id="fSave">Simpan Toggle</button><p class="muted small">Jika Pembayaran dimatikan, checkout tetap tersedia, DP otomatis nol, dan biaya platform tidak dibebankan. Jika Pembayaran aktif tetapi DP mati, pembeli menyelesaikan pembayaran penuh sesuai petunjuk transaksi.</p></div>`;
     if(t==='footer') box.innerHTML=`<div class="card-form"><label>Tagline Footer<input id="fTag" class="input" value="${esc(setVal('footer_tagline'))}"></label>
       <label>Email Kontak<input id="fMail" class="input" value="${esc(setVal('footer_email'))}"></label><label>WhatsApp<input id="fWa" class="input" value="${esc(setVal('footer_wa'))}"></label>
       <label>Alamat Kantor<input id="fAddr" class="input" value="${esc(setVal('footer_alamat'))}"></label><label>Copyright<input id="fCopy" class="input" value="${esc(setVal('footer_copy'))}"></label>
@@ -680,7 +698,7 @@ renderers.dashAdmin = async () => {
           toast('Password admin berhasil diganti'); $('#aOld').value=$('#aNew').value=$('#aNew2').value=''; }catch(e){toast(e.message);} };
     }
     const sv=async(obj,reload)=>{ try{ await api('settings',{method:'POST',body:obj}); toast('Pengaturan disimpan'); if(reload) loadFooter(); }catch(e){toast(e.message);} };
-    if($('#gSave')) $('#gSave').onclick=()=>sv({persen_dp:$('#gDP').value,biaya_penanganan:$('#gFee').value,biaya_tambahan_flat:$('#gFlat').value,biaya_verifikasi:$('#gVer').value});
+    if($('#gSave')) $('#gSave').onclick=()=>sv({fitur_pembayaran:$('#gPayment').checked?'1':'0',fitur_booking_dp:$('#gDPEnabled').checked?'1':'0',fitur_biaya:$('#gFeesEnabled').checked?'1':'0',persen_dp:$('#gDP').value,biaya_penanganan:$('#gFee').value,biaya_tambahan_flat:$('#gFlat').value,biaya_verifikasi:$('#gVer').value});
     if($('#fSave')) $('#fSave').onclick=()=>{ const o={}; box.querySelectorAll('input[type=checkbox]').forEach(c=>o[c.dataset.k]=c.checked?'1':'0'); sv(o); };
     if($('#fkSave')) $('#fkSave').onclick=()=>sv({footer_tagline:$('#fTag').value,footer_email:$('#fMail').value,footer_wa:$('#fWa').value,footer_alamat:$('#fAddr').value,footer_copy:$('#fCopy').value},true);
   };
