@@ -82,6 +82,7 @@ BLOCKED_MAGIC = [b"\x7fELF", b"MZ", b"#!/", b"<script", b"<?php", b"\x1f\x8b"]
 CATEGORY_RULES = {                    # (bucket, prefix folder, max bytes, mimes)
     "product":  ("public",  "products",  MAX_IMAGE_BYTES, {"image/jpeg", "image/png", "image/webp"}),
     "avatar":   ("public",  "avatars",   MAX_IMAGE_BYTES, {"image/jpeg", "image/png", "image/webp"}),
+    "logo":     ("public",  "logos",     MAX_IMAGE_BYTES, {"image/jpeg", "image/png", "image/webp"}),
     "eviden":   ("public",  "eviden",    MAX_IMAGE_BYTES, {"image/jpeg", "image/png", "image/webp", "image/gif"}),
     "kyc":      ("private", "kyc",       MAX_DOC_BYTES,   {"image/jpeg", "image/png", "application/pdf"}),
     "chat":     ("private", "chat",      MAX_CHAT_BYTES,  {"image/jpeg", "image/png", "application/pdf"}),

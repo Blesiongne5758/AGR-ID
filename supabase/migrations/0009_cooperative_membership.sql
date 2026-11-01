@@ -36,3 +36,13 @@ CREATE TABLE IF NOT EXISTS public.keanggotaan_koperasi (
 );
 CREATE INDEX IF NOT EXISTS idx_keanggotaan_koperasi_user ON public.keanggotaan_koperasi(user_id);
 CREATE INDEX IF NOT EXISTS idx_keanggotaan_koperasi_status ON public.keanggotaan_koperasi(status);
+
+-- Roster and account links contain member data; all access goes through the
+-- trusted AGR-ID backend using its server-side database connection.
+ALTER TABLE public.koperasi ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.koperasi_anggota ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.keanggotaan_koperasi ENABLE ROW LEVEL SECURITY;
+
+INSERT INTO public.schema_migrations(version)
+VALUES ('0009_cooperative_membership')
+ON CONFLICT (version) DO NOTHING;

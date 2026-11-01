@@ -24,6 +24,7 @@
       </ul>
     </div>
   </div>
+  {% include "_cooperative_dashboard_entry.html" %}
   <div class="row g-3 mb-4">
     <div class="col-md-3"><div class="card stat-card"><div class="card-body py-3">
       <div class="small text-muted">Produk Aktif</div><h3 class="mb-0">{{ products|selectattr('status','equalto','aktif')|list|length }}</h3></div></div></div>

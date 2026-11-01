@@ -18,6 +18,7 @@ const MB = 1024 * 1024;
 const SCHEMAS = {
   product: { maxBytes: 5 * MB, mimes: ['image/jpeg', 'image/png', 'image/webp'], label: 'foto produk' },
   avatar:  { maxBytes: 5 * MB, mimes: ['image/jpeg', 'image/png', 'image/webp'], label: 'foto profil' },
+  logo:    { maxBytes: 5 * MB, mimes: ['image/jpeg', 'image/png', 'image/webp'], label: 'logo usaha' },
   eviden:  { maxBytes: 5 * MB, mimes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], label: 'foto eviden' },
   kyc:     { maxBytes: 8 * MB, mimes: ['image/jpeg', 'image/png', 'application/pdf'], label: 'dokumen KYC' },
   chat:    { maxBytes: 10 * MB, mimes: ['image/jpeg', 'image/png', 'application/pdf'], label: 'lampiran chat' },

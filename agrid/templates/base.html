@@ -65,6 +65,7 @@
             
             <li><hr class="dropdown-divider my-1"></li>
             <li class="dropdown-header small text-uppercase fw-bold text-muted px-3 pt-1 pb-1">Dashboard & Akun</li>
+            <li><a class="dropdown-item py-2" href="{{ url_for('cooperative_portal') }}"><i class="bi bi-people text-success me-2"></i> Ruang Koperasi</a></li>
             {% if user.active_role=='penjual' %}
               <li><a class="dropdown-item py-2" href="{{ url_for('dashboard_seller') }}"><i class="bi bi-speedometer2 text-success me-2"></i> Dashboard Penjual</a></li>
               <li><a class="dropdown-item py-2" href="{{ url_for('create_product') }}"><i class="bi bi-plus-circle text-primary me-2"></i> Posting Produk Baru</a></li>

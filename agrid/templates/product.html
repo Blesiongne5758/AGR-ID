@@ -101,6 +101,16 @@
         <div class="small text-muted mt-2">Harga listing Rp{{ p.harga|rp }}/{{ p.satuan }} akan dipakai sebagai estimasi awal.</div>
       </div></div>
       <div class="card border-success"><div class="card-body">
+        <h6 class="fw-bold text-success"><i class="bi bi-bag-check"></i> Pesan langsung sesuai harga</h6>
+        <form method="post" action="{{ url_for('create_list_price_order', pid=p.id) }}" class="row g-2 align-items-end mb-3">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <div class="col"><label class="small" for="orderQty">Jumlah ({{ p.satuan }})</label>
+            <input id="orderQty" class="form-control" type="number" name="qty" min="0.01" max="{{ p.stok }}" step="0.01" value="1" required></div>
+          <div class="col-auto"><button class="btn btn-success fw-bold"><i class="bi bi-bag-check"></i> Pesan · Rp{{ p.harga|rp }}/{{ p.satuan }}</button></div>
+          {% if p.non_halal %}<div class="col-12"><label class="form-check small text-danger"><input class="form-check-input" type="checkbox" name="konfirmasi_non_halal" value="ya" required> Saya telah membaca label NON HALAL pada produk ini.</label></div>{% endif %}
+          <div class="col-12 small text-muted">Tanpa penawaran. Harga listing dikunci saat pesanan dibuat; pembayaran DP dan pengiriman dilanjutkan pada langkah berikutnya.</div>
+        </form>
+        <hr>
         <h6 class="fw-bold text-success"><i class="bi bi-cash-coin"></i> Ajukan Penawaran Harga</h6>
         {% if p.non_halal %}<div class="alert alert-danger py-2 small">⚠️ Produk ini berasal dari sub kategori <b>Babi</b> dan ditandai <b>NON HALAL</b>. Dengan melanjutkan Anda menyatakan telah membaca label tersebut.</div>{% endif %}
         <form method="post" action="{{ url_for('create_offer', pid=p.id) }}" class="row g-2">

@@ -27,20 +27,15 @@ if (function_exists('mb_internal_encoding')) { mb_internal_encoding('UTF-8'); } 
 /* ---------- konfigurasi ---------- */
 $CFG = [
     'supabase_url'    => getenv('SUPABASE_URL') ?: '',
-    'supabase_key'    => getenv('SUPABASE_ANON_KEY') ?: '',          // publishable/anon key (RLS aktif)
+    'supabase_key'    => getenv('SUPABASE_PUBLISHABLE_KEY') ?: (getenv('SUPABASE_ANON_KEY') ?: ''),
     'cloudinary_cloud'  => getenv('CLOUDINARY_CLOUD_NAME') ?: '',
     'cloudinary_key'    => getenv('CLOUDINARY_API_KEY') ?: '',
     'cloudinary_secret' => getenv('CLOUDINARY_API_SECRET') ?: '',
     'flask_url'       => getenv('AGR_ID_API_URL') ?: '',             // backend Flask (Render/Railway/VPS), boleh kosong
-    'session_secret'  => getenv('AGR_ID_SESSION_SECRET') ?: 'ubah-secret-ini-di-config',
 ];
 if (is_file(__DIR__ . '/config.php')) { $CFG = array_merge($CFG, require __DIR__ . '/config.php'); }
 
-/* ---------- normalisasi & validasi konfigurasi Supabase ----------
-   - nilai 'https://<ref>.supabase.co' => dipakai apa adanya
-   - nilai '<ref>' saja                => dibangun jadi https://<ref>.supabase.co
-   - key sb_publishable/sb_secret (format baru) TIDAK bisa dipakai sebagai
-     apikey PostgREST — yang dibutuhkan adalah "anon public" key JWT lama. */
+/* ---------- normalisasi & validasi konfigurasi Supabase ---------- */
 
 function agr_supabase_url(string $v): string {
     $v = trim($v);
@@ -58,11 +53,11 @@ function agr_assert_supabase_config(array $CFG): void {
     if (!preg_match('#^https://[a-z0-9-]+\.supabase\.co$#i', $url)) {
         err('SUPABASE_URL tidak valid. Format benar: https://<REF>.supabase.co — REF ada di kolom alamat dashboard Supabase (Project Settings -> API).', 500);
     }
-    if (preg_match('/^sb_(publishable|secret)_/', $key)) {
-        err('Kunci "' . substr($key, 0, 14) . '..." bukan anon key. Untuk gateway REST pakai Project API Key "anon public" (eyJ...) — lihat Project Settings -> API -> Legacy API Keys, atau buat via Service Roles. sb_secret_ JANGAN pernah ditaruh di hosting publik.', 500);
+    if (preg_match('/^sb_secret_/', $key)) {
+        err('SUPABASE_SECRET_KEY tidak boleh dipasang di hosting publik. Gunakan Publishable key atau anon public key.', 500);
     }
-    if (strpos($key, 'eyJ') !== 0) {
-        err('supabase_key seharusnya JWT anon public key yang dimulai dengan "eyJ...".', 500);
+    if (strpos($key, 'eyJ') !== 0 && strpos($key, 'sb_publishable_') !== 0) {
+        err('Gunakan Supabase Publishable key (sb_publishable_...) atau legacy anon public key (eyJ...).', 500);
     }
 }
 
@@ -98,14 +93,6 @@ function agr_token(): string {
     }
     return preg_match('/^[a-f0-9]{64}$/', (string)$t) ? (string)$t : '';
 }
-function make_token(int $userId): string {
-    global $CFG;
-    $exp = time() + 86400 * 7;
-    $payload = $userId . ':' . $exp;
-    $sig = hash_hmac('sha256', $payload, $CFG['session_secret']);
-    return hash('sha256', $payload . '|' . $sig . '|' . random_bytes(16));
-}
-
 /* ---------- HTTP client ---------- */
 function http_req(string $method, string $url, array $headers = [], ?string $body = null, int $timeout = 20): array {
     if (function_exists('curl_init')) {
@@ -186,20 +173,9 @@ switch ($action) {
         if (strlen($b['password']) < 8) err('Password minimal 8 karakter');
         $username = strtolower(trim((string)$b['username']));
         if (!preg_match('/^[a-z0-9_.-]{3,32}$/', $username)) err('Nama pengguna harus 3–32 karakter (huruf kecil, angka, titik, garis bawah, atau tanda hubung)');
-        $exists = sb('users', 'GET', ['email=eq.' . urlencode(strtolower($b['email'])), 'select=id']);
-        if ($exists) err('Email sudah terdaftar', 409);
-        $usernameExists = sb('users', 'GET', ['username=eq.' . urlencode($username), 'select=id']);
-        if ($usernameExists) err('Nama pengguna sudah dipakai', 409);
-        $user = [
-            'email' => strtolower($b['email']), 'username' => $username, 'nama' => $username,
-            'password_hash' => password_hash($b['password'], PASSWORD_BCRYPT),
-            'role' => 'pembeli', 'roles' => ['pembeli'], 'tipe' => 'Perorangan',
-            'tipe_pembeli' => 'Perorangan',
-            'created_at' => date('c'),
-        ];
-        $row = sb('users', 'POST', [], $user)[0] ?? null;
-        if (!$row) err('Gagal menyimpan user', 502);
-        out(['ok' => true, 'user' => public_user($row)], 201);
+        $result = sb_rpc('agr_register', ['p_email' => strtolower($b['email']), 'p_username' => $username,
+            'p_password_hash' => password_hash($b['password'], PASSWORD_BCRYPT)]);
+        out(['ok' => true, 'user' => public_user((array)($result['user'] ?? []))], 201);
     }
 
     case 'login': {
@@ -207,18 +183,14 @@ switch ($action) {
         // Login dapat memakai email atau nama pengguna.
         $ident = trim((string)($b['email'] ?? $b['username'] ?? ''));
         if ($ident === '') err('Email/username wajib diisi', 422);
-        $rows = sb('users', 'GET', ['email=eq.' . urlencode(strtolower($ident)), 'select=*']);
-        if (!$rows) $rows = sb('users', 'GET', ['username=eq.' . urlencode(strtolower($ident)), 'select=*']);
-        $u = $rows[0] ?? null;
-        if (!$u || !password_verify($b['password'] ?? '', $u['password_hash'] ?? '')) err('Email/password salah', 401);
-        $tok = make_token((int)$u['id']);
-        sb('sessions', 'POST', [], ['user_id' => $u['id'], 'token' => $tok,
-            'active_role' => $u['role'], 'expires_at' => date('c', time() + 604800)]);
-        out(['ok' => true, 'token' => $tok, 'user' => public_user($u)]);
+        if (empty($b['password'])) err('Email/password salah', 401);
+        $tok = bin2hex(random_bytes(32));
+        $result = sb_rpc('agr_login', ['p_identifier' => strtolower($ident), 'p_password' => (string)$b['password'], 'p_token' => $tok]);
+        out(['ok' => true, 'token' => $tok, 'user' => public_user((array)($result['user'] ?? []))]);
     }
 
     case 'logout':
-        if ($token) sb('sessions', 'DELETE', ['token=eq.' . $token]);
+        if ($token) sb_rpc('agr_logout', ['p_token' => $token]);
         out(['ok' => true]);
 
     case 'me':
@@ -234,23 +206,7 @@ switch ($action) {
         $lng = ($b['lng'] ?? '') === '' || ($b['lng'] ?? null) === null ? null : filter_var($b['lng'], FILTER_VALIDATE_FLOAT);
         if (($b['lat'] ?? '') !== '' && $lat === false || ($b['lng'] ?? '') !== '' && $lng === false) err('Koordinat GPS tidak valid', 422);
         if ($lat !== null && ($lat < -90 || $lat > 90) || $lng !== null && ($lng < -180 || $lng > 180)) err('Koordinat GPS di luar rentang', 422);
-        $update = [
-            'nama' => trim((string)($b['nama'] ?? '')),
-            'no_hp' => trim((string)($b['no_hp'] ?? '')),
-            'alamat' => trim((string)($b['alamat'] ?? '')),
-            'kota' => trim((string)($b['kota'] ?? '')),
-            'provinsi' => trim((string)($b['provinsi'] ?? '')),
-            'tipe_penjual' => $tipe !== '' ? $tipe : null,
-            'npwp' => trim((string)($b['npwp'] ?? '')),
-            'nib' => trim((string)($b['nib'] ?? '')),
-            'lat' => $lat,
-            'lng' => $lng,
-        ];
-        $rows = sb('users', 'PATCH', ['id=eq.' . urlencode((string)$u['id'])], $update);
-        $fresh = $rows[0] ?? array_merge($u, $update);
-        $fresh['role'] = $u['role'];
-        $fresh['roles'] = $u['roles'] ?? [];
-        out(['ok' => true, 'user' => public_user($fresh)]);
+        out(sb_rpc('agr_profile_update', ['p_token' => $token, 'p_payload' => $b]));
     }
 
     case 'switch-role': {
@@ -258,24 +214,9 @@ switch ($action) {
         if (($u['role'] ?? '') === 'admin') err('Mode admin tidak dapat diganti', 403);
         $b = body_json();
         $target = $b['role'] ?? '';
-        $roles = $u['roles'] ?? [];
-        if (is_string($roles)) $roles = json_decode($roles, true) ?: [];
         if (!in_array($target, ['penjual','pembeli'], true))
             err('Mode akun yang dipilih tidak tersedia', 422);
-        if ($target === 'penjual') {
-            $missing = seller_profile_missing($u);
-            if ($missing) err('Lengkapi informasi pengguna dan usaha sebelum mengaktifkan mode Penjual: ' . implode(', ', $missing) . '.', 422);
-            if (!in_array('penjual', $roles, true)) {
-                $roles[] = 'penjual';
-                sb('users', 'PATCH', ['id=eq.' . urlencode((string)$u['id'])], ['roles' => array_values(array_unique($roles))]);
-            }
-        } elseif (!in_array($target, $roles, true)) {
-            err('Mode akun yang dipilih tidak tersedia', 422);
-        }
-        sb('sessions', 'PATCH', ['token=eq.' . urlencode($token)], ['active_role' => $target]);
-        $u['role'] = $target;
-        $u['roles'] = $roles;
-        out(['ok' => true, 'user' => public_user($u)]);
+        out(sb_rpc('agr_role_switch', ['p_token' => $token, 'p_role' => $target]));
     }
 
     /* ---- GANTI PASSWORD (semua role: penjual/pembeli/admin) ---- */
@@ -285,14 +226,11 @@ switch ($action) {
         $old = (string)($b['old_password'] ?? '');
         $new = (string)($b['new_password'] ?? '');
         if ($old === '') err('Password lama wajib diisi', 422);
-        if (!password_verify($old, $u['password_hash'] ?? '')) err('Password lama salah', 401);
         if (strlen($new) < 8) err('Password baru minimal 8 karakter', 422);
         if (!preg_match('/[A-Z]/', $new) || !preg_match('/[a-z]/', $new) || !preg_match('/\d/', $new))
             err('Password baru harus mengandung huruf besar, huruf kecil & angka', 422);
-        if (password_verify($new, $u['password_hash'])) err('Password baru tidak boleh sama dengan password lama', 422);
-        $rows = sb('users', 'PATCH', ['id=eq.' . $u['id']], ['password_hash' => password_hash($new, PASSWORD_BCRYPT)]);
-        if (!$rows) err('Gagal memperbarui password', 502);
-        sb('sessions', 'DELETE', ['user_id=eq.' . $u['id'], 'token=neq.' . $token]); // logout perangkat lain
+        sb_rpc('agr_password_change', ['p_token' => $token, 'p_old_password' => $old,
+            'p_new_password_hash' => password_hash($new, PASSWORD_BCRYPT)]);
         out(['ok' => true, 'message' => 'Password berhasil diganti']);
     }
 
@@ -321,32 +259,22 @@ switch ($action) {
         $u = require_session($token, 'penjual');
         $b = body_json();
         foreach (['nama_product','kategori','harga','satuan'] as $req) if (!isset($b[$req]) || $b[$req] === '') err("Field wajib: $req");
-        // auto-update master produk: simpan nama baru ke product_master (permintaan awal pengguna)
-        $master = sb('product_master', 'GET', ['nama=eq.' . urlencode($b['nama_product']), 'select=id']);
-        if (!$master) sb('product_master', 'POST', [], ['nama' => $b['nama_product'], 'kategori' => $b['kategori'], 'auto_added' => true]);
-        $row = sb('products', 'POST', [], [
-            'user_id' => $u['id'], 'nama_product' => $b['nama_product'], 'jenis' => $b['jenis'] ?? '',
-            'kategori' => $b['kategori'], 'sub_kategori' => $b['sub_kategori'] ?? '',
-            'deskripsi' => $b['deskripsi'] ?? '', 'harga' => (float)$b['harga'], 'satuan' => $b['satuan'],
-            'stok' => (int)($b['stok'] ?? 0), 'foto' => $b['foto'] ?? '', 'lat' => $b['lat'] ?? ($u['lat'] ?? null),
-            'lng' => $b['lng'] ?? ($u['lng'] ?? null), 'alamat_lahan' => $b['alamat_lahan'] ?? ($u['alamat'] ?? ''),
-            'status' => 'aktif', 'created_at' => date('c'),
-        ])[0] ?? null;
+        $row = sb_rpc('agr_product_create', ['p_token' => $token, 'p_payload' => $b]);
         out(['ok' => true, 'product' => $row], 201);
     }
 
     case 'product-update': {
         $u = require_session($token, 'penjual');
         $b = body_json(); $id = (int)($b['id'] ?? 0); if (!$id) err('id wajib');
-        unset($b['id'], $b['user_id']); $b['updated_at'] = date('c');
-        sb('products', 'PATCH', ['id=eq.' . $id, 'user_id=eq.' . $u['id']], $b);
-        out(['ok' => true]);
+        unset($b['id'], $b['user_id']);
+        out(['ok' => true, 'product' => sb_rpc('agr_product_update', ['p_token' => $token, 'p_product_id' => $id, 'p_payload' => $b])]);
     }
 
     case 'product-delete': {
         $u = require_session($token, 'penjual');
         $id = (int)($_GET['id'] ?? 0);
-        sb('products', 'DELETE', ['id=eq.' . $id, 'user_id=eq.' . $u['id']]);
+        if (!$id) err('id wajib');
+        sb_rpc('agr_product_delete', ['p_token' => $token, 'p_product_id' => $id]);
         out(['ok' => true]);
     }
 
@@ -354,77 +282,45 @@ switch ($action) {
     case 'offer-create': {
         $u = require_session($token, 'pembeli');
         $b = body_json();
-        $row = sb('offers', 'POST', [], ['product_id' => (int)($b['product_id'] ?? 0), 'buyer_id' => $u['id'],
-            'harga_tawar' => (float)($b['harga_tawar'] ?? 0), 'jumlah' => (float)($b['jumlah'] ?? 1),
-            'catatan' => $b['catatan'] ?? '', 'status' => 'menunggu', 'created_at' => date('c')])[0] ?? null;
+        $row = sb_rpc('agr_offer_create', ['p_token' => $token, 'p_product_id' => (int)($b['product_id'] ?? 0),
+            'p_price' => (float)($b['harga_tawar'] ?? 0), 'p_quantity' => (float)($b['jumlah'] ?? 1), 'p_note' => (string)($b['catatan'] ?? '')]);
         out(['ok' => true, 'offer' => $row], 201);
     }
     case 'offers-mine': {
-        $u = require_session($token);
-        if ($u['role'] === 'penjual') {
-            $mine = sb('products', 'GET', ['user_id=eq.' . $u['id'], 'select=id']);
-            $ids = array_column($mine, 'id');
-            if (!$ids) out([]);
-            $rows = sb('offers', 'GET', ['product_id=in.(' . implode(',', $ids) . ')', 'select=*', 'order=created_at.desc']);
-        } else {
-            $rows = sb('offers', 'GET', ['buyer_id=eq.' . $u['id'], 'select=*', 'order=created_at.desc']);
-        }
-        out($rows);
+        require_session($token);
+        out(sb_rpc('agr_offers_list', ['p_token' => $token]));
     }
     case 'offer-respond': {
         $u = require_session($token, 'penjual');
         $b = body_json(); $id = (int)($b['id'] ?? 0);
-        $own = sb('offers', 'GET', ['id=eq.' . $id]);
-        if (!$own) err('Penawaran tidak ditemukan', 404);
-        $prod = sb('products', 'GET', ['id=eq.' . $own[0]['product_id'], 'select=user_id']);
-        if (!$prod || $prod[0]['user_id'] != $u['id']) err('Bukan penawaran atas produk Anda', 403);
-        sb('offers', 'PATCH', ['id=eq.' . $id], ['status' => $b['status'] === 'terima' ? 'diterima' : 'ditolak', 'responded_at' => date('c')]);
-        out(['ok' => true]);
+        out(['ok' => true, 'offer' => sb_rpc('agr_offer_respond', ['p_token' => $token, 'p_offer_id' => $id,
+            'p_decision' => ($b['status'] ?? '') === 'terima' ? 'terima' : 'tolak'])]);
     }
     case 'booking-create': {
         $u = require_session($token, 'pembeli');
         $b = body_json();
-        $set = get_pengaturan('persen_dp');
-        $persenDP = (float)($set[0]['value'] ?? 20);
-        $feeSet = get_pengaturan('biaya_penanganan');
-        $feePct = (float)($feeSet[0]['value'] ?? 2.5);
-        $offerId = (int)($b['offer_id'] ?? 0);
-        $offers = sb('offers', 'GET', ['id=eq.' . $offerId]);
-        if (!$offers) err('Penawaran tidak ditemukan', 404);
-        $of = $offers[0];
-        if ($of['status'] !== 'diterima') err('Penawaran belum diterima penjual — tidak dapat dibooking', 409);
-        if ((int)$of['buyer_id'] !== (int)$u['id']) err('Bukan penawaran Anda', 403);
-        $dup = sb('bookings', 'GET', ['offer_id=eq.' . $offerId, 'select=id']);
-        if ($dup) err('Penawaran ini sudah dibooking', 409);
-        $prod = sb('products', 'GET', ['id=eq.' . (int)$of['product_id'], 'select=user_id,nama_product'])[0] ?? null;
-        if (!$prod) err('Produk tidak ditemukan', 404);
-        $total = round((float)$of['harga_tawar'] * (float)$of['jumlah']);
-        $dp = round($total * $persenDP / 100);
-        $bk = sb('bookings', 'POST', [], ['offer_id' => $offerId, 'buyer_id' => $u['id'],
-            'total' => $total, 'dp' => $dp, 'sisa' => $total - $dp, 'metode_dp' => $b['metode_dp'] ?? 'Transfer Bank',
-            'jadwal_kirim' => $b['jadwal_kirim'] ?? '', 'ekspedisi' => $b['ekspedisi'] ?? '',
-            'status' => 'dp_pending', 'created_at' => date('c')])[0] ?? null;
-        if (!$bk) err('Gagal membuat booking', 502);
-        $potongan = round($total * $feePct / 100);
-        $tx = sb('transaksi', 'POST', [], ['booking_id' => $bk['id'], 'product_id' => (int)$of['product_id'],
-            'seller_id' => (int)$prod['user_id'], 'buyer_id' => $u['id'], 'harga_total' => $total, 'dp' => $dp,
-            'potongan_platform' => $potongan, 'metode_bayar' => $bk['metode_dp'], 'status' => 'dp_pending',
-            'created_at' => date('c')])[0] ?? null;
-        out(['ok' => true, 'booking' => $bk, 'transaksi' => $tx, 'persen_dp' => $persenDP], 201);
+        $result = sb_rpc('agr_order_create', ['p_token' => $token, 'p_product_id' => (int)($b['product_id'] ?? 0),
+            'p_quantity' => (float)($b['jumlah'] ?? 0), 'p_offer_id' => (int)($b['offer_id'] ?? 0),
+            'p_method' => (string)($b['metode_dp'] ?? ''), 'p_delivery' => (string)($b['jadwal_kirim'] ?? ''),
+            'p_carrier' => (string)($b['ekspedisi'] ?? '')]);
+        out(['ok' => true] + (is_array($result) ? $result : []), 201);
+    }
+
+    case 'order-create': {
+        require_session($token, 'pembeli');
+        $b = body_json();
+        $result = sb_rpc('agr_order_create', ['p_token' => $token, 'p_product_id' => (int)($b['product_id'] ?? 0),
+            'p_quantity' => (float)($b['jumlah'] ?? 0), 'p_offer_id' => 0,
+            'p_method' => (string)($b['metode_dp'] ?? ''), 'p_delivery' => (string)($b['jadwal_kirim'] ?? ''),
+            'p_carrier' => (string)($b['ekspedisi'] ?? '')]);
+        out(['ok' => true] + (is_array($result) ? $result : []), 201);
     }
 
     /* ---- BAYAR DP: konfirmasi pembayaran (gateway/transfer manual) ---- */
     case 'dp-confirm': {
-        $u = require_session($token, 'pembeli');
-        $b = body_json(); $id = (int)($b['transaction_id'] ?? 0);
-        $rows = sb('transaksi', 'GET', ['id=eq.' . $id]);
-        if (!$rows) err('Transaksi tidak ditemukan', 404);
-        if ((int)$rows[0]['buyer_id'] !== (int)$u['id']) err('Bukan transaksi Anda', 403);
-        if ($rows[0]['status'] !== 'dp_pending') err('DP sudah dibayar / status tidak dapat diubah', 409);
-        sb('transaksi', 'PATCH', ['id=eq.' . $id], ['status' => 'dp_paid',
-            'ref_payment' => $b['ref_payment'] ?? '', 'bukti_transfer' => $b['bukti'] ?? '']);
-        if (!empty($rows[0]['booking_id'])) sb('bookings', 'PATCH', ['id=eq.' . $rows[0]['booking_id']], ['status' => 'dp_paid']);
-        out(['ok' => true]);
+        require_session($token, 'pembeli'); $b = body_json();
+        out(sb_rpc('agr_payment_submit', ['p_token' => $token, 'p_transaction_id' => (int)($b['transaction_id'] ?? 0),
+            'p_proof' => (string)($b['bukti'] ?? ''), 'p_note' => '', 'p_reference' => (string)($b['ref_payment'] ?? '')]));
     }
 
     /* ---- PELUNASAN DP: pembeli upload bukti -> approval penjual ---- */
@@ -432,29 +328,17 @@ switch ($action) {
         $u = require_session($token, 'pembeli');
         $b = body_json();
         $id = (int)($b['transaction_id'] ?? 0);
-        $rows = sb('transaksi', 'GET', ['id=eq.' . $id]);
-        if (!$rows) err('Transaksi tidak ditemukan', 404);
-        if ((int)$rows[0]['buyer_id'] !== (int)$u['id']) err('Bukan transaksi Anda', 403);
-        if (!in_array($rows[0]['status'], ['dp_paid','lunas_dp','menunggu_approval'])) err('Status tidak menunggu pelunasan', 409);
-        sb('transaksi', 'PATCH', ['id=eq.' . $id], ['status' => 'menunggu_approval',
-            'bukti_transfer' => $b['bukti'] ?? '', 'catatan_pelunasan' => $b['catatan'] ?? '']);
-        out(['ok' => true]);
+        out(sb_rpc('agr_payment_submit', ['p_token' => $token, 'p_transaction_id' => $id,
+            'p_proof' => (string)($b['bukti'] ?? ''), 'p_note' => (string)($b['catatan'] ?? ''), 'p_reference' => '']));
     }
     case 'pelunasan-list': {
         $u = require_session($token, 'penjual');
-        out(sb('transaksi', 'GET', ['seller_id=eq.' . $u['id'], 'status=eq.menunggu_approval', 'select=*', 'order=created_at.desc']));
+        out(array_values(array_filter(sb_rpc('agr_transactions_list', ['p_token' => $token, 'p_side' => 'penjualan']), fn($tx) => ($tx['status'] ?? '') === 'menunggu_approval')));
     }
     case 'pelunasan-respond': {
         $u = require_session($token, 'penjual');
         $b = body_json(); $id = (int)($b['transaction_id'] ?? 0);
-        $rows = sb('transaksi', 'GET', ['id=eq.' . $id]);
-        if (!$rows) err('Transaksi tidak ditemukan', 404);
-        if ((int)$rows[0]['seller_id'] !== (int)$u['id']) err('Bukan transaksi Anda', 403);
-        if ($rows[0]['status'] !== 'menunggu_approval') err('Tidak dalam antrean approval', 409);
-        $status = ($b['keputusan'] ?? '') === 'setuju' ? 'lunas' : 'dp_paid';
-        sb('transaksi', 'PATCH', ['id=eq.' . $id], ['status' => $status]);
-        if (!empty($b['booking_id'])) sb('bookings', 'PATCH', ['id=eq.' . (int)$b['booking_id']], ['status' => $status === 'lunas' ? 'lunas' : 'dp_paid']);
-        out(['ok' => true, 'status' => $status]);
+        out(sb_rpc('agr_payment_approve', ['p_token' => $token, 'p_transaction_id' => $id, 'p_approve' => ($b['keputusan'] ?? '') === 'setuju']));
     }
 
     /* ---- KIRIM & SELESAI ---- */
@@ -484,12 +368,11 @@ switch ($action) {
     case 'transactions': {
         $u = require_session($token);
         $side = $_GET['side'] ?? ($u['role'] === 'penjual' ? 'penjualan' : 'pembelian');
-        $col = $side === 'penjualan' ? 'seller_id' : 'buyer_id';
-        out(sb('transaksi', 'GET', ["{$col}=eq.{$u['id']}", 'select=*', 'order=created_at.desc']));
+        out(sb_rpc('agr_transactions_list', ['p_token' => $token, 'p_side' => $side]));
     }
     case 'report-admin': {
         require_admin($token);
-        $tx = sb('transaksi', 'GET', ['select=harga_total,status,potongan_platform,created_at']);
+        $tx = sb_rpc('agr_transactions_list', ['p_token' => $token, 'p_side' => 'pembelian']);
         $gmv = 0; $rev = 0; $perbulan = [];
         foreach ($tx as $t) {
             $gmv += (float)$t['harga_total']; $rev += (float)($t['potongan_platform'] ?? 0);
@@ -534,14 +417,12 @@ switch ($action) {
         $u = require_session($token, 'pembeli');
         $b = body_json();
         $tt = in_array($b['target_type'] ?? '', ['produk','penjual']) ? $b['target_type'] : 'produk';
-        $ex = sb('favorites', 'GET', ['buyer_id=eq.' . $u['id'], "target_type=eq.$tt", 'target_id=eq.' . (int)($b['target_id'] ?? 0)]);
-        if ($ex) { sb('favorites', 'DELETE', ['id=eq.' . $ex[0]['id']]); out(['ok' => true, 'favorit' => false]); }
-        sb('favorites', 'POST', [], ['buyer_id' => $u['id'], 'target_type' => $tt, 'target_id' => (int)($b['target_id'] ?? 0), 'created_at' => date('c')]);
-        out(['ok' => true, 'favorit' => true], 201);
+        $result = sb_rpc('agr_favorite_toggle', ['p_token' => $token, 'p_target_type' => $tt, 'p_target_id' => (int)($b['target_id'] ?? 0)]);
+        out(['ok' => true, 'favorit' => (bool)($result['favorit'] ?? false)]);
     }
     case 'favorites': {
-        $u = require_session($token, 'pembeli');
-        out(sb('favorites', 'GET', ['buyer_id=eq.' . $u['id'], 'select=*']));
+        require_session($token, 'pembeli');
+        out(sb_rpc('agr_favorites_list', ['p_token' => $token]));
     }
 
     /* ---- PESAN PRODUK: percakapan buyer dengan pemilik listing ---- */
@@ -631,11 +512,9 @@ switch ($action) {
 
     /* ---- DATA PEMBAYARAN PER AKUN ---- */
     case 'seller-payment-settings': {
-        $u = require_session($token);
-        $settingKey = 'pembayaran_penjual_' . (int)$u['id'];
+        require_session($token, 'penjual');
         if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
-            $rows = get_pengaturan($settingKey);
-            $cfg = json_decode((string)($rows[0]['value'] ?? ''), true);
+            $cfg = sb_rpc('agr_seller_payment_settings_get', ['p_token' => $token]);
             if (!is_array($cfg)) $cfg = [];
             out(['ok' => true] + array_merge(['metode_dp' => ['Transfer Bank'], 'rekening' => '', 'qris' => '', 'tujuan_tunai' => ''], $cfg));
         }
@@ -655,11 +534,27 @@ switch ($action) {
 
     /* ---- PENGATURAN admin ---- */
     case 'settings': {
-        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') { out(get_pengaturan()); }
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
+            if ($token !== '') {
+                $activeSession = sb_rpc('agr_session_read', ['p_token' => $token]);
+                if (($activeSession['user']['role'] ?? '') === 'admin') out(sb_rpc('agr_admin_settings_list', ['p_token' => $token]));
+            }
+            $publicKeys = ['footer_tagline','footer_email','footer_wa','footer_alamat','footer_copy','ticker_harian','beranda_aktif'];
+            out(array_values(array_filter(get_pengaturan(), fn($row) => in_array($row['key'] ?? '', $publicKeys, true))));
+        }
         require_admin($token); $b = body_json();
         if (!$b || count($b) > 20) err('Pengaturan kosong atau terlalu banyak', 422);
-        $saved = sb_rpc('agr_admin_settings_save', ['p_token' => $token, 'p_settings' => (object)$b]);
-        out(['ok' => true, 'settings' => $saved]);
+        out(sb_rpc('agr_admin_settings_save', ['p_token' => $token, 'p_settings' => (object)$b]));
+    }
+
+    case 'checkout-config': {
+        $keys = ['fitur_pembayaran','fitur_booking_dp','fitur_biaya','persen_dp','biaya_penanganan','biaya_tambahan_flat'];
+        $all = get_pengaturan(); $cfg = [];
+        foreach ($all as $row) if (in_array($row['key'] ?? '', $keys, true)) $cfg[$row['key']] = $row['value'];
+        out(['payment_enabled' => ($cfg['fitur_pembayaran'] ?? '1') !== '0',
+            'dp_enabled' => ($cfg['fitur_booking_dp'] ?? '1') !== '0',
+            'fees_enabled' => ($cfg['fitur_biaya'] ?? '1') !== '0',
+            'dp_percent' => (float)($cfg['persen_dp'] ?? 20)]);
     }
 
     default:
@@ -702,17 +597,12 @@ function public_user(array $u): array {
 }
 function require_session(string $token, ?string $role = null): array {
     if ($token === '') err('Login diperlukan (sertakan header X-Agr-Token)', 401);
-    $s = sb('sessions', 'GET', ['token=eq.' . $token, 'select=user_id,expires_at,active_role']);
-    if (!$s) err('Token tidak valid', 401);
-    if (strtotime((string)$s[0]['expires_at']) < time()) { sb('sessions', 'DELETE', ['token=eq.' . $token]); err('Sesi kedaluwarsa', 401); }
-    $u = sb('users', 'GET', ['id=eq.' . $s[0]['user_id'], 'select=*'])[0] ?? null;
-    if (!$u) err('User tidak ditemukan', 401);
+    $result = sb_rpc('agr_session_read', ['p_token' => $token]);
+    $u = (array)($result['user'] ?? []);
+    if (!$u) err('Token tidak valid', 401);
     $roles = $u['roles'] ?? [];
     if (is_string($roles)) $roles = json_decode($roles, true) ?: [];
-    $active = $s[0]['active_role'] ?? $u['role'];
-    if (!is_array($roles) || !in_array($active, $roles, true)) $active = $u['role'];
-    $u['role'] = $active;
-    $u['roles'] = is_array($roles) ? $roles : [$u['role']];
+    $u['roles'] = is_array($roles) ? $roles : [];
     if ($role && $u['role'] !== $role) err("Hanya untuk role: $role", 403);
     return $u;
 }
