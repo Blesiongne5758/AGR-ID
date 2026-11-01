@@ -403,7 +403,7 @@ class LelangEvent(db.Model):
     biaya_penjual_lunas = db.Column(db.Boolean, nullable=False, default=False)
     ref_biaya_penjual = db.Column(db.String(80))
     disetujui_pada = db.Column(db.DateTime)
-    pemenang_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    pemenang_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     harga_pemenang = db.Column(db.Float)
     pemenang_bayar_lunas = db.Column(db.Boolean, nullable=False, default=False)
     ref_bayar_pemenang = db.Column(db.String(80))
@@ -457,7 +457,7 @@ class LelangItem(db.Model):
     __tablename__ = "lelang_items"
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey("lelang_events.id"), nullable=False, index=True)
-    product_id = db.Column(db.Integer, db.ForeignKey("products.id", ondelete="SET NULL"))
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id", ondelete="SET NULL"), index=True)
     nama_produk = db.Column(db.String(120), nullable=False)
     kategori = db.Column(db.String(40), nullable=False)
     subkategori = db.Column(db.String(60))
