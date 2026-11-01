@@ -3,6 +3,9 @@
 ALTER TABLE public.products
   ADD COLUMN IF NOT EXISTS kuota_minimum integer NOT NULL DEFAULT 1,
   ADD COLUMN IF NOT EXISTS kuota_maksimum integer;
+ALTER TABLE public.users
+  ADD COLUMN IF NOT EXISTS kota text,
+  ADD COLUMN IF NOT EXISTS provinsi text;
 ALTER TABLE public.bookings
   ADD COLUMN IF NOT EXISTS product_id bigint REFERENCES public.products(id) ON DELETE SET NULL;
 ALTER TABLE public.products ALTER COLUMN kuota_minimum SET DEFAULT 1;
@@ -40,13 +43,14 @@ END; $$;
 
 CREATE OR REPLACE FUNCTION public.agr_product_create(p_token text,p_payload jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
-DECLARE uid bigint; active text; roles_json jsonb; u public.users%ROWTYPE; p public.products%ROWTYPE;
+DECLARE uid bigint; active text; roles_json jsonb; user_row public.users%ROWTYPE; p public.products%ROWTYPE;
   nm text; cat text; unit_name text; price numeric; stock integer; qmin integer; qmax integer;
 BEGIN
-  SELECT u.id,s.active_role,u.roles INTO uid,active,roles_json FROM public.sessions s JOIN public.users u ON u.id=s.user_id
+  SELECT seller_user.id,s.active_role,seller_user.roles INTO uid,active,roles_json
+    FROM public.sessions s JOIN public.users seller_user ON seller_user.id=s.user_id
     WHERE s.token=p_token AND s.expires_at>now();
   IF uid IS NULL OR active<>'penjual' OR NOT (COALESCE(roles_json,'[]'::jsonb)?'penjual') THEN RAISE EXCEPTION 'Aktifkan mode penjual untuk memposting' USING ERRCODE='42501'; END IF;
-  SELECT * INTO u FROM public.users WHERE id=uid;
+  SELECT * INTO user_row FROM public.users WHERE id=uid;
   nm:=btrim(COALESCE(p_payload->>'nama_product','')); cat:=btrim(COALESCE(p_payload->>'kategori','')); unit_name:=btrim(COALESCE(p_payload->>'satuan',''));
   price:=NULLIF(p_payload->>'harga','')::numeric; stock:=COALESCE(NULLIF(p_payload->>'stok','')::integer,0);
   qmin:=COALESCE(NULLIF(p_payload->>'kuota_minimum','')::integer,1); qmax:=NULLIF(p_payload->>'kuota_maksimum','')::integer;
@@ -55,8 +59,8 @@ BEGIN
   INSERT INTO public.product_master(nama,kategori,sub_kategori,jenis,auto_added) VALUES(nm,cat,p_payload->>'sub_kategori',p_payload->>'jenis',true) ON CONFLICT(nama) DO NOTHING;
   INSERT INTO public.products(user_id,nama_product,jenis,kategori,sub_kategori,deskripsi,harga,satuan,stok,foto,lat,lng,alamat_lahan,status,kuota_minimum,kuota_maksimum,created_at)
   VALUES(uid,nm,COALESCE(p_payload->>'jenis',''),cat,COALESCE(p_payload->>'sub_kategori',''),COALESCE(p_payload->>'deskripsi',''),price,unit_name,stock,
-    COALESCE(p_payload->>'foto',''),COALESCE(NULLIF(p_payload->>'lat','')::double precision,u.lat),COALESCE(NULLIF(p_payload->>'lng','')::double precision,u.lng),
-    COALESCE(NULLIF(p_payload->>'alamat_lahan',''),u.alamat), 'aktif',qmin,qmax,now()) RETURNING * INTO p;
+    COALESCE(p_payload->>'foto',''),COALESCE(NULLIF(p_payload->>'lat','')::double precision,user_row.lat),COALESCE(NULLIF(p_payload->>'lng','')::double precision,user_row.lng),
+    COALESCE(NULLIF(p_payload->>'alamat_lahan',''),user_row.alamat), 'aktif',qmin,qmax,now()) RETURNING * INTO p;
   RETURN to_jsonb(p);
 END; $$;
 
@@ -158,7 +162,7 @@ END; $$;
 
 CREATE OR REPLACE FUNCTION public.agr_profile_update(p_token text,p_payload jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
-DECLARE uid bigint; u public.users%ROWTYPE; lat_value double precision; lng_value double precision; tipe text;
+DECLARE uid bigint; u public.users%ROWTYPE; lat_value double precision; lng_value double precision; tipe_value text;
 BEGIN
   SELECT user_id INTO uid FROM public.sessions WHERE token=p_token AND expires_at>now();
   IF uid IS NULL THEN RAISE EXCEPTION 'Sesi tidak valid' USING ERRCODE='42501'; END IF;
@@ -166,11 +170,11 @@ BEGIN
   IF (lat_value IS NOT NULL AND lat_value NOT BETWEEN -90 AND 90) OR (lng_value IS NOT NULL AND lng_value NOT BETWEEN -180 AND 180) THEN
     RAISE EXCEPTION 'Koordinat GPS tidak valid' USING ERRCODE='22023';
   END IF;
-  tipe:=NULLIF(btrim(p_payload->>'tipe_penjual'),'');
-  IF tipe IS NOT NULL AND tipe NOT IN ('Perorangan','Kelompok/Paguyuban','Koperasi','Perusahaan') THEN RAISE EXCEPTION 'Tipe penjual tidak valid' USING ERRCODE='22023'; END IF;
+  tipe_value:=NULLIF(btrim(p_payload->>'tipe_penjual'),'');
+  IF tipe_value IS NOT NULL AND tipe_value NOT IN ('Perorangan','Kelompok/Paguyuban','Koperasi','Perusahaan') THEN RAISE EXCEPTION 'Tipe penjual tidak valid' USING ERRCODE='22023'; END IF;
   UPDATE public.users SET nama=COALESCE(btrim(p_payload->>'nama'),nama),no_hp=COALESCE(btrim(p_payload->>'no_hp'),''),
     alamat=COALESCE(btrim(p_payload->>'alamat'),''),kota=COALESCE(btrim(p_payload->>'kota'),''),provinsi=COALESCE(btrim(p_payload->>'provinsi'),''),
-    tipe_penjual=tipe,npwp=COALESCE(btrim(p_payload->>'npwp'),''),nib=COALESCE(btrim(p_payload->>'nib'),''),lat=lat_value,lng=lng_value
+    tipe_penjual=tipe_value,npwp=COALESCE(btrim(p_payload->>'npwp'),''),nib=COALESCE(btrim(p_payload->>'nib'),''),lat=lat_value,lng=lng_value
     WHERE id=uid RETURNING * INTO u;
   RETURN jsonb_build_object('ok',true,'user',jsonb_build_object('id',u.id,'email',u.email,'username',u.username,'nama',u.nama,'role',
     (SELECT active_role FROM public.sessions WHERE token=p_token),'roles',u.roles,'tipe',u.tipe,'tipe_penjual',u.tipe_penjual,

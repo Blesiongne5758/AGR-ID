@@ -31,7 +31,7 @@ BEGIN
     RAISE EXCEPTION 'Email/password salah' USING ERRCODE='42501';
   END IF;
   SELECT * INTO u FROM public.users WHERE lower(email)=lower(btrim(p_identifier)) OR lower(username)=lower(btrim(p_identifier)) LIMIT 1;
-  IF NOT FOUND OR crypt(p_password,replace(u.password_hash,'$2y$','$2a$'))
+  IF NOT FOUND OR extensions.crypt(p_password,replace(u.password_hash,'$2y$','$2a$'))
       IS DISTINCT FROM replace(u.password_hash,'$2y$','$2a$') THEN
     RAISE EXCEPTION 'Email/password salah' USING ERRCODE='42501';
   END IF;
@@ -69,11 +69,11 @@ BEGIN
   SELECT users.id,users.password_hash INTO uid,old_hash FROM public.sessions JOIN public.users ON users.id=sessions.user_id
   WHERE sessions.token=p_token AND sessions.expires_at>now() FOR UPDATE OF users;
   IF uid IS NULL THEN RAISE EXCEPTION 'Sesi tidak valid' USING ERRCODE='42501'; END IF;
-  IF crypt(p_old_password,replace(old_hash,'$2y$','$2a$')) IS DISTINCT FROM replace(old_hash,'$2y$','$2a$') THEN
+  IF extensions.crypt(p_old_password,replace(old_hash,'$2y$','$2a$')) IS DISTINCT FROM replace(old_hash,'$2y$','$2a$') THEN
     RAISE EXCEPTION 'Password lama salah' USING ERRCODE='42501';
   END IF;
   IF p_new_password_hash IS NULL OR p_new_password_hash !~ '^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$'
-      OR crypt(p_old_password,replace(p_new_password_hash,'$2y$','$2a$'))
+      OR extensions.crypt(p_old_password,replace(p_new_password_hash,'$2y$','$2a$'))
         IS NOT DISTINCT FROM replace(p_new_password_hash,'$2y$','$2a$') THEN
     RAISE EXCEPTION 'Password baru tidak valid atau sama dengan password lama' USING ERRCODE='22023';
   END IF;
