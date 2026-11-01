@@ -23,6 +23,20 @@ async function api(action, opts={}){
   if(!r.ok || j.ok===false) throw new Error(j.error||('HTTP '+r.status));
   return j;
 }
+async function openOrderChat(productId, fallback){
+  let conversation=null;
+  try{ conversation=await api('chat-start',{method:'POST',body:{product_id:+productId}}); }
+  catch(_){
+    try{
+      const chats=await api('chats');
+      conversation=(Array.isArray(chats)?chats:[]).find(c=>+c.product_id===+productId)||null;
+    }catch(__){}
+  }
+  if(conversation?.id){ location.hash='#/pesan/'+conversation.id; return true; }
+  toast('Pesanan sudah tersimpan, tetapi chat belum dapat dibuka. Buka menu Pesan untuk menghubungi penjual; jangan checkout ulang.');
+  if(fallback) fallback();
+  return false;
+}
 const rp = n => 'Rp ' + Number(n||0).toLocaleString('id-ID');
 const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // Katalog foto ilustrasi realistik untuk contoh produk
@@ -352,7 +366,7 @@ async function tampilDetail(id){
       ${checkout.payment_enabled?'<label>Metode pembayaran<select id="directMethod" class="input"><option>Transfer Bank</option><option>QRIS</option><option>Tunai</option></select></label>':''}<label>Jadwal Pengiriman (opsional)<input id="directDate" class="input" type="date"></label><p class="muted">Total barang: <b id="directTotal">${rp(+p.harga*min)}</b>. ${checkout.payment_enabled?(checkout.dp_enabled?`DP ${checkout.dp_percent}% mengikuti pengaturan admin.`:'DP nonaktif; pembayaran penuh mengikuti petunjuk penjual.'):'Pembayaran dan biaya platform nonaktif; pemesanan dicatat tanpa biaya layanan.'}</p>
       <button class="btn btn-primary" id="directSubmit">Checkout &amp; Hubungi Penjual</button></div>`;
     $('#directQty').oninput=()=>$('#directTotal').textContent=rp(+p.harga*(+$('#directQty').value||0));
-    $('#directSubmit').onclick=async()=>{ try{ const result=await api('order-create',{method:'POST',body:{product_id:+id,jumlah:+$('#directQty').value,metode_dp:$('#directMethod')?.value||'',jadwal_kirim:$('#directDate').value}}); toast(result.payment_enabled?'Pesanan dibuat. Silakan lanjutkan pembayaran sesuai status pesanan.':'Pesanan dibuat tanpa biaya platform; pembayaran sedang dinonaktifkan admin.'); try{const c=await api('chat-start',{method:'POST',body:{product_id:+id}});location.hash='#/pesan/'+c.id;}catch(_){location.hash='#/dashboard/pembeli';} }catch(e){toast(e.message);} };
+    $('#directSubmit').onclick=async()=>{ try{ const result=await api('order-create',{method:'POST',body:{product_id:+id,jumlah:+$('#directQty').value,metode_dp:$('#directMethod')?.value||'',jadwal_kirim:$('#directDate').value}}); toast(result.payment_enabled?'Pesanan langsung tersimpan. Lanjutkan pembayaran sesuai status pesanan.':'Pesanan langsung tersimpan. Pembayaran gateway nonaktif; lanjutkan proses manual dengan penjual melalui chat.'); await openOrderChat(id,()=>{location.hash='#/dashboard/pembeli';}); }catch(e){toast(e.message);} };
   };
   const bt=$('#btnTawar'); if(bt) bt.onclick=()=>{
     $('#offerBox').innerHTML = `<div class="panel"><h4>Buat Penawaran Harga</h4>
@@ -597,7 +611,7 @@ async function formBooking(btn,oid,pid,h,j){
    <p class="muted">${!cfg.payment_enabled?'Admin menonaktifkan pembayaran dan seluruh biaya layanan.':cfg.dp_enabled?`Estimasi DP ${cfg.dp_percent}%: <b>${rp(Math.round(total*cfg.dp_percent/100))}</b> dari total ${rp(total)}.`:`DP dinonaktifkan admin. Pembayaran penuh dihitung dari total ${rp(total)}.`} Perhitungan final dilakukan server.</p>
    <button class="btn btn-primary" id="bdgo">Checkout &amp; Hubungi Penjual</button></div>`;
   $('#bdgo').onclick=async()=>{ try{ const r=await api('booking-create',{method:'POST',body:{offer_id:oid,product_id:pid,jumlah:j,metode_dp:$('#bdp')?.value||'',jadwal_kirim:$('#bdk').value,ekspedisi:$('#bdx').value}});
-    toast(+r.booking.dp>0?`Pesanan dibuat dengan DP ${rp(r.booking.dp)}.`:cfg.payment_enabled?'Pesanan dibuat tanpa DP. Pembayaran penuh mengikuti status transaksi.':'Pesanan dibuat tanpa biaya layanan.'); try{const c=await api('chat-start',{method:'POST',body:{product_id:pid}});location.hash='#/pesan/'+c.id;}catch(_){renderers.dashPembeli();} }catch(e){toast(e.message);} };
+    toast(+r.booking.dp>0?`Pesanan dibuat dengan DP ${rp(r.booking.dp)}.`:cfg.payment_enabled?'Pesanan dibuat tanpa DP. Pembayaran penuh mengikuti status transaksi.':'Pesanan dibuat tanpa biaya layanan. Lanjutkan proses manual dengan penjual melalui chat.'); await openOrderChat(pid,()=>renderers.dashPembeli()); }catch(e){toast(e.message);} };
 }
 function formBayar(txId,dp){
   const td=$(`.pay[data-id="${txId}"]`).closest('td');

@@ -27,20 +27,15 @@ if (function_exists('mb_internal_encoding')) { mb_internal_encoding('UTF-8'); } 
 /* ---------- konfigurasi ---------- */
 $CFG = [
     'supabase_url'    => getenv('SUPABASE_URL') ?: '',
-    'supabase_key'    => getenv('SUPABASE_ANON_KEY') ?: '',          // publishable/anon key (RLS aktif)
+    'supabase_key'    => getenv('SUPABASE_PUBLISHABLE_KEY') ?: (getenv('SUPABASE_ANON_KEY') ?: ''),
     'cloudinary_cloud'  => getenv('CLOUDINARY_CLOUD_NAME') ?: '',
     'cloudinary_key'    => getenv('CLOUDINARY_API_KEY') ?: '',
     'cloudinary_secret' => getenv('CLOUDINARY_API_SECRET') ?: '',
     'flask_url'       => getenv('AGR_ID_API_URL') ?: '',             // backend Flask (Render/Railway/VPS), boleh kosong
-    'session_secret'  => getenv('AGR_ID_SESSION_SECRET') ?: 'ubah-secret-ini-di-config',
 ];
 if (is_file(__DIR__ . '/config.php')) { $CFG = array_merge($CFG, require __DIR__ . '/config.php'); }
 
-/* ---------- normalisasi & validasi konfigurasi Supabase ----------
-   - nilai 'https://<ref>.supabase.co' => dipakai apa adanya
-   - nilai '<ref>' saja                => dibangun jadi https://<ref>.supabase.co
-   - key sb_publishable/sb_secret (format baru) TIDAK bisa dipakai sebagai
-     apikey PostgREST — yang dibutuhkan adalah "anon public" key JWT lama. */
+/* ---------- normalisasi & validasi konfigurasi Supabase ---------- */
 
 function agr_supabase_url(string $v): string {
     $v = trim($v);
@@ -58,11 +53,11 @@ function agr_assert_supabase_config(array $CFG): void {
     if (!preg_match('#^https://[a-z0-9-]+\.supabase\.co$#i', $url)) {
         err('SUPABASE_URL tidak valid. Format benar: https://<REF>.supabase.co — REF ada di kolom alamat dashboard Supabase (Project Settings -> API).', 500);
     }
-    if (preg_match('/^sb_(publishable|secret)_/', $key)) {
-        err('Kunci "' . substr($key, 0, 14) . '..." bukan anon key. Untuk gateway REST pakai Project API Key "anon public" (eyJ...) — lihat Project Settings -> API -> Legacy API Keys, atau buat via Service Roles. sb_secret_ JANGAN pernah ditaruh di hosting publik.', 500);
+    if (preg_match('/^sb_secret_/', $key)) {
+        err('SUPABASE_SECRET_KEY tidak boleh dipasang di hosting publik. Gunakan Publishable key atau anon public key.', 500);
     }
-    if (strpos($key, 'eyJ') !== 0) {
-        err('supabase_key seharusnya JWT anon public key yang dimulai dengan "eyJ...".', 500);
+    if (strpos($key, 'eyJ') !== 0 && strpos($key, 'sb_publishable_') !== 0) {
+        err('Gunakan Supabase Publishable key (sb_publishable_...) atau legacy anon public key (eyJ...).', 500);
     }
 }
 
@@ -98,14 +93,6 @@ function agr_token(): string {
     }
     return preg_match('/^[a-f0-9]{64}$/', (string)$t) ? (string)$t : '';
 }
-function make_token(int $userId): string {
-    global $CFG;
-    $exp = time() + 86400 * 7;
-    $payload = $userId . ':' . $exp;
-    $sig = hash_hmac('sha256', $payload, $CFG['session_secret']);
-    return hash('sha256', $payload . '|' . $sig . '|' . random_bytes(16));
-}
-
 /* ---------- HTTP client ---------- */
 function http_req(string $method, string $url, array $headers = [], ?string $body = null, int $timeout = 20): array {
     if (function_exists('curl_init')) {
@@ -186,20 +173,9 @@ switch ($action) {
         if (strlen($b['password']) < 8) err('Password minimal 8 karakter');
         $username = strtolower(trim((string)$b['username']));
         if (!preg_match('/^[a-z0-9_.-]{3,32}$/', $username)) err('Nama pengguna harus 3–32 karakter (huruf kecil, angka, titik, garis bawah, atau tanda hubung)');
-        $exists = sb('users', 'GET', ['email=eq.' . urlencode(strtolower($b['email'])), 'select=id']);
-        if ($exists) err('Email sudah terdaftar', 409);
-        $usernameExists = sb('users', 'GET', ['username=eq.' . urlencode($username), 'select=id']);
-        if ($usernameExists) err('Nama pengguna sudah dipakai', 409);
-        $user = [
-            'email' => strtolower($b['email']), 'username' => $username, 'nama' => $username,
-            'password_hash' => password_hash($b['password'], PASSWORD_BCRYPT),
-            'role' => 'pembeli', 'roles' => ['pembeli'], 'tipe' => 'Perorangan',
-            'tipe_pembeli' => 'Perorangan',
-            'created_at' => date('c'),
-        ];
-        $row = sb('users', 'POST', [], $user)[0] ?? null;
-        if (!$row) err('Gagal menyimpan user', 502);
-        out(['ok' => true, 'user' => public_user($row)], 201);
+        $result = sb_rpc('agr_register', ['p_email' => strtolower($b['email']), 'p_username' => $username,
+            'p_password_hash' => password_hash($b['password'], PASSWORD_BCRYPT)]);
+        out(['ok' => true, 'user' => public_user((array)($result['user'] ?? []))], 201);
     }
 
     case 'login': {
@@ -207,18 +183,14 @@ switch ($action) {
         // Login dapat memakai email atau nama pengguna.
         $ident = trim((string)($b['email'] ?? $b['username'] ?? ''));
         if ($ident === '') err('Email/username wajib diisi', 422);
-        $rows = sb('users', 'GET', ['email=eq.' . urlencode(strtolower($ident)), 'select=*']);
-        if (!$rows) $rows = sb('users', 'GET', ['username=eq.' . urlencode(strtolower($ident)), 'select=*']);
-        $u = $rows[0] ?? null;
-        if (!$u || !password_verify($b['password'] ?? '', $u['password_hash'] ?? '')) err('Email/password salah', 401);
-        $tok = make_token((int)$u['id']);
-        sb('sessions', 'POST', [], ['user_id' => $u['id'], 'token' => $tok,
-            'active_role' => $u['role'], 'expires_at' => date('c', time() + 604800)]);
-        out(['ok' => true, 'token' => $tok, 'user' => public_user($u)]);
+        if (empty($b['password'])) err('Email/password salah', 401);
+        $tok = bin2hex(random_bytes(32));
+        $result = sb_rpc('agr_login', ['p_identifier' => strtolower($ident), 'p_password' => (string)$b['password'], 'p_token' => $tok]);
+        out(['ok' => true, 'token' => $tok, 'user' => public_user((array)($result['user'] ?? []))]);
     }
 
     case 'logout':
-        if ($token) sb('sessions', 'DELETE', ['token=eq.' . $token]);
+        if ($token) sb_rpc('agr_logout', ['p_token' => $token]);
         out(['ok' => true]);
 
     case 'me':
@@ -254,14 +226,11 @@ switch ($action) {
         $old = (string)($b['old_password'] ?? '');
         $new = (string)($b['new_password'] ?? '');
         if ($old === '') err('Password lama wajib diisi', 422);
-        if (!password_verify($old, $u['password_hash'] ?? '')) err('Password lama salah', 401);
         if (strlen($new) < 8) err('Password baru minimal 8 karakter', 422);
         if (!preg_match('/[A-Z]/', $new) || !preg_match('/[a-z]/', $new) || !preg_match('/\d/', $new))
             err('Password baru harus mengandung huruf besar, huruf kecil & angka', 422);
-        if (password_verify($new, $u['password_hash'])) err('Password baru tidak boleh sama dengan password lama', 422);
-        $rows = sb('users', 'PATCH', ['id=eq.' . $u['id']], ['password_hash' => password_hash($new, PASSWORD_BCRYPT)]);
-        if (!$rows) err('Gagal memperbarui password', 502);
-        sb('sessions', 'DELETE', ['user_id=eq.' . $u['id'], 'token=neq.' . $token]); // logout perangkat lain
+        sb_rpc('agr_password_change', ['p_token' => $token, 'p_old_password' => $old,
+            'p_new_password_hash' => password_hash($new, PASSWORD_BCRYPT)]);
         out(['ok' => true, 'message' => 'Password berhasil diganti']);
     }
 
@@ -297,15 +266,15 @@ switch ($action) {
     case 'product-update': {
         $u = require_session($token, 'penjual');
         $b = body_json(); $id = (int)($b['id'] ?? 0); if (!$id) err('id wajib');
-        unset($b['id'], $b['user_id']); $b['updated_at'] = date('c');
-        sb('products', 'PATCH', ['id=eq.' . $id, 'user_id=eq.' . $u['id']], $b);
-        out(['ok' => true]);
+        unset($b['id'], $b['user_id']);
+        out(['ok' => true, 'product' => sb_rpc('agr_product_update', ['p_token' => $token, 'p_product_id' => $id, 'p_payload' => $b])]);
     }
 
     case 'product-delete': {
         $u = require_session($token, 'penjual');
         $id = (int)($_GET['id'] ?? 0);
-        sb('products', 'DELETE', ['id=eq.' . $id, 'user_id=eq.' . $u['id']]);
+        if (!$id) err('id wajib');
+        sb_rpc('agr_product_delete', ['p_token' => $token, 'p_product_id' => $id]);
         out(['ok' => true]);
     }
 
@@ -543,11 +512,9 @@ switch ($action) {
 
     /* ---- DATA PEMBAYARAN PER AKUN ---- */
     case 'seller-payment-settings': {
-        $u = require_session($token);
-        $settingKey = 'pembayaran_penjual_' . (int)$u['id'];
+        require_session($token, 'penjual');
         if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
-            $rows = get_pengaturan($settingKey);
-            $cfg = json_decode((string)($rows[0]['value'] ?? ''), true);
+            $cfg = sb_rpc('agr_seller_payment_settings_get', ['p_token' => $token]);
             if (!is_array($cfg)) $cfg = [];
             out(['ok' => true] + array_merge(['metode_dp' => ['Transfer Bank'], 'rekening' => '', 'qris' => '', 'tujuan_tunai' => ''], $cfg));
         }
@@ -569,8 +536,8 @@ switch ($action) {
     case 'settings': {
         if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
             if ($token !== '') {
-                $activeSession = sb('sessions', 'GET', ['token=eq.' . urlencode($token), 'select=user_id,active_role,expires_at']);
-                if ($activeSession && strtotime((string)$activeSession[0]['expires_at']) > time() && ($activeSession[0]['active_role'] ?? '') === 'admin') out(get_pengaturan());
+                $activeSession = sb_rpc('agr_session_read', ['p_token' => $token]);
+                if (($activeSession['user']['role'] ?? '') === 'admin') out(sb_rpc('agr_admin_settings_list', ['p_token' => $token]));
             }
             $publicKeys = ['footer_tagline','footer_email','footer_wa','footer_alamat','footer_copy','ticker_harian','beranda_aktif'];
             out(array_values(array_filter(get_pengaturan(), fn($row) => in_array($row['key'] ?? '', $publicKeys, true))));
@@ -629,17 +596,12 @@ function public_user(array $u): array {
 }
 function require_session(string $token, ?string $role = null): array {
     if ($token === '') err('Login diperlukan (sertakan header X-Agr-Token)', 401);
-    $s = sb('sessions', 'GET', ['token=eq.' . $token, 'select=user_id,expires_at,active_role']);
-    if (!$s) err('Token tidak valid', 401);
-    if (strtotime((string)$s[0]['expires_at']) < time()) { sb('sessions', 'DELETE', ['token=eq.' . $token]); err('Sesi kedaluwarsa', 401); }
-    $u = sb('users', 'GET', ['id=eq.' . $s[0]['user_id'], 'select=*'])[0] ?? null;
-    if (!$u) err('User tidak ditemukan', 401);
+    $result = sb_rpc('agr_session_read', ['p_token' => $token]);
+    $u = (array)($result['user'] ?? []);
+    if (!$u) err('Token tidak valid', 401);
     $roles = $u['roles'] ?? [];
     if (is_string($roles)) $roles = json_decode($roles, true) ?: [];
-    $active = $s[0]['active_role'] ?? $u['role'];
-    if (!is_array($roles) || !in_array($active, $roles, true)) $active = $u['role'];
-    $u['role'] = $active;
-    $u['roles'] = is_array($roles) ? $roles : [$u['role']];
+    $u['roles'] = is_array($roles) ? $roles : [];
     if ($role && $u['role'] !== $role) err("Hanya untuk role: $role", 403);
     return $u;
 }

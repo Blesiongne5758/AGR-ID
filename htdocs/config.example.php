@@ -9,10 +9,8 @@ return [
     // Boleh URL lengkap ATAU ref project saja:
     //   'https://abcdefgh.supabase.co'  atau  'abcdefgh'
     'supabase_url'    => 'https://xxxxxxxx.supabase.co',
-    // WAJIB "anon public" key (JWT, dimulai dengan eyJ...).
-    // CATAT PENTING: kunci format baru sb_publishable_ / sb_secret_ TIDAK
-    // berfungsi untuk PostgREST (gateway api.php). Ambil anon key di:
-    // Dashboard -> Project Settings -> API -> Legacy API Keys -> anon public.
+    // Gunakan Publishable key (sb_publishable_...) atau legacy anon public
+    // key (JWT eyJ...). Jangan gunakan secret/service_role key.
     // sb_secret_ adalah service key SUPER-PRIVILEGED — jangan pernah
     // diletakkan di hosting publik/htdocs; hanya untuk backend privat (Flask).
     'supabase_key'    => '',
@@ -29,8 +27,5 @@ return [
     // ---- Backend Flask opsional (Render/Railway/VPS) untuk payment gateway,
     //      blockchain/crypto & AI chat. Kosongkan bila tidak dipakai. ----
     'flask_url'       => '',                            // cth: https://agr-id-api.onrender.com
-
-    // ---- Secret untuk menandatangani token sesi (ganti string acak panjang) ----
-    'session_secret'  => 'ganti-dengan-string-acak-64-karakter',
 ];
 
