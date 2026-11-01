@@ -351,14 +351,26 @@ async function tampilDetail(id){
       <div class="sellerbox"><b>${esc((p.seller&&p.seller.nama)||'Penjual')}</b> <span class="badge b-role">${esc((p.seller&&p.seller.tipe)||'Perorangan')}</span>
         <p class="muted">📍 ${esc(p.alamat_lahan||(p.seller&&p.seller.alamat)||'-')} ${p.lat?`· <a target="_blank" rel="noopener" href="https://maps.google.com/?q=${p.lat},${p.lng}">lihat peta</a>`:''}</p></div>
       <div class="d-act">
-        ${S.user&&S.user.role==='pembeli'?`<button class="btn btn-primary" id="btnOrder">Pesan Langsung</button><button class="btn btn-outline" id="btnTawar">Tawar Harga</button>
-          <button class="btn btn-outline" id="btnFav">${fav?'★':'☆'} Favorit</button>
-          ${+S.user.id!==+p.user_id?'<button class="btn btn-outline" id="btnProductChat">Tanya Penjual</button>':''}`:!S.user?`<a class="btn btn-primary" href="#/login">Masuk untuk Menawar atau Bertanya</a>`:'<span class="muted">Hanya pembeli yang dapat menawar dan memulai chat produk.</span>'}
+        ${S.user&&S.user.role==='pembeli'?`<button class="btn btn-primary product-action" id="btnOrder" aria-label="Pesan langsung dengan harga tercantum" title="Pesan langsung">
+            <svg class="product-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h8.9a2 2 0 0 0 1.9-1.4L22 8H6"/><circle cx="10" cy="20" r="1.2"/><circle cx="18" cy="20" r="1.2"/></svg>
+            <span class="product-action-label"><span class="product-action-full">Pesan Langsung</span><span class="product-action-short">Pesan</span></span>
+          </button><button class="btn btn-outline product-action" id="btnTawar" aria-label="Ajukan tawaran harga" title="Tawar harga">
+            <svg class="product-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3.4 13.4a2 2 0 0 1 0-2.8l7.2-7.2A2 2 0 0 1 12 2.8h6a2 2 0 0 1 2 2v6a2 2 0 0 1 .6 2.6Z"/><circle cx="16" cy="8" r="1.2"/></svg>
+            <span class="product-action-label"><span class="product-action-full">Tawar Harga</span><span class="product-action-short">Tawar</span></span>
+          </button>
+          <button class="btn btn-outline product-action product-action-favorite${fav?' is-favorite':''}" id="btnFav" aria-label="${fav?'Hapus dari favorit':'Tambahkan ke favorit'}" aria-pressed="${fav}" title="Favorit">
+            <svg class="product-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.8a5.4 5.4 0 0 0-7.6 0L12 6l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6l1.2 1.2L12 21l7.6-7.4 1.2-1.2a5.4 5.4 0 0 0 0-7.6Z"/></svg>
+            <span class="product-action-label"><span class="product-action-full">${fav?'Tersimpan':'Favorit'}</span><span class="product-action-short">${fav?'Disimpan':'Favorit'}</span></span>
+          </button>
+          ${+S.user.id!==+p.user_id?`<button class="btn btn-outline product-action" id="btnProductChat" aria-label="Tanya penjual melalui chat" title="Tanya penjual">
+            <svg class="product-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.8 8.8 0 0 1-3.7-.8L4 20l1.1-3.6A7 7 0 0 1 4 12c0-4.1 3.6-7.5 8-7.5s8 3.1 8 7Z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg>
+            <span class="product-action-label"><span class="product-action-full">Tanya Penjual</span><span class="product-action-short">Chat</span></span>
+          </button>`:''}`:!S.user?`<a class="btn btn-primary product-action-login" href="#/login">Masuk untuk Menawar atau Bertanya</a>`:'<span class="muted">Hanya pembeli yang dapat menawar dan memulai chat produk.</span>'}
       </div>
       <div id="offerBox"></div>
       <div id="orderBox"></div>
     </div></div>`;
-  const bf=$('#btnFav'); if(bf) bf.onclick=async()=>{ try{ const r=await api('favorite-toggle',{method:'POST',body:{target_type:'produk',target_id:+id}}); bf.innerHTML=(r.favorit?'★':'☆')+' Favorit'; toast(r.favorit?'Ditambahkan ke favorit':'Dihapus dari favorit'); }catch(e){toast(e.message);} };
+  const bf=$('#btnFav'); if(bf) bf.onclick=async()=>{ try{ const r=await api('favorite-toggle',{method:'POST',body:{target_type:'produk',target_id:+id}}); bf.setAttribute('aria-pressed',String(r.favorit)); bf.setAttribute('aria-label',r.favorit?'Hapus dari favorit':'Tambahkan ke favorit'); bf.classList.toggle('is-favorite',r.favorit); bf.querySelector('.product-action-full').textContent=r.favorit?'Tersimpan':'Favorit'; bf.querySelector('.product-action-short').textContent=r.favorit?'Disimpan':'Favorit'; toast(r.favorit?'Ditambahkan ke favorit':'Dihapus dari favorit'); }catch(e){toast(e.message);} };
   const bc=$('#btnProductChat'); if(bc) bc.onclick=async()=>{try{const c=await api('chat-start',{method:'POST',body:{product_id:+id}});location.hash='#/pesan/'+c.id;}catch(e){toast(e.message);}};
   const bo=$('#btnOrder'); if(bo) bo.onclick=()=>{
     const min=+(p.kuota_minimum||1), max=Math.min(+(p.kuota_maksimum||p.stok||min),+p.stok);
